@@ -1,0 +1,982 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  ArrowLeft, CheckCircle2, DollarSign, Fuel, Package, Settings, Users, Droplet,
+  CreditCard, Receipt, FileText, ChevronRight, ChevronLeft, Calendar,
+  Clock, Lock, CheckCircle, AlertTriangle, Plus, Trash2, Printer, Check, User, Wallet, Wrench, ChevronDown
+} from 'lucide-react';
+import { ERPStoreType } from '../store';
+import { Shift, Product, Nozzle, Sale } from '../types';
+
+interface ShiftWizardProps {
+  store: ERPStoreType;
+  onBack: () => void;
+}
+
+export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isCompleted, setIsCompleted] = useState(false);
+
+  // Step 1: Info
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendantId, setAttendantId] = useState('');
+  const [shiftName, setShiftName] = useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>('Journée');
+  const [startTime, setStartTime] = useState('06:00');
+  const [endTime, setEndTime] = useState('14:00');
+  const [selectedPumps, setSelectedPumps] = useState<string[]>([]);
+
+  // Step 2: Counters
+  const [startCounters, setStartCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>({});
+  const [endCounters, setEndCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>({});
+
+  // Step 3-6: Sales, Expenses, Payments
+  const [productSales, setProductSales] = useState<any[]>([]);
+  const [serviceSales, setServiceSales] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [nonCashPayments, setNonCashPayments] = useState<{
+    taqati: { amount: number; clientId: string }[];
+    cmi: { amount: number; clientId: string }[];
+    vignette: { amount: number; clientId: string }[];
+    bonClient: { amount: number; clientId: string }[];
+  }>({ 
+    taqati: [], 
+    cmi: [], 
+    vignette: [], 
+    bonClient: [] 
+  });
+  const [realCashInput, setRealCashInput] = useState('');
+
+  useEffect(() => {
+    const newStartCounters: any = {};
+    const newEndCounters: any = {};
+    selectedPumps.forEach(pumpId => {
+      const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
+      pumpNozzles.forEach(noz => {
+        newStartCounters[noz.id] = { mech: noz.currentMechCounter, elec: noz.currentElecCounter };
+        if (!endCounters[noz.id]) {
+          newEndCounters[noz.id] = { mech: noz.currentMechCounter, elec: noz.currentElecCounter };
+        } else {
+          newEndCounters[noz.id] = endCounters[noz.id];
+        }
+      });
+    });
+    setStartCounters(newStartCounters);
+    setEndCounters(newEndCounters);
+  }, [selectedPumps, store.nozzles]);
+
+  const fuelSalesDetails = useMemo(() => {
+    const details = [];
+    let totalFuelAmount = 0;
+    let totalFuelLiters = 0;
+    const litersSold: any = {};
+    const amountSold: any = {};
+
+    selectedPumps.forEach(pumpId => {
+      const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
+      pumpNozzles.forEach(noz => {
+        const start = startCounters[noz.id];
+        const end = endCounters[noz.id];
+        if (start && end) {
+          const qty = Math.max(0, end.elec - start.elec);
+          const product = store.products.find(p => p.id === noz.productId);
+          const price = product ? product.salePrice : 0;
+          const total = qty * price;
+          
+          totalFuelAmount += total;
+          totalFuelLiters += qty;
+          litersSold[noz.id] = qty;
+          amountSold[noz.id] = total;
+
+          details.push({
+            nozzle: noz,
+            start: start.elec,
+            end: end.elec,
+            qty,
+            price,
+            total
+          });
+        }
+      });
+    });
+    return { details, totalFuelAmount, totalFuelLiters, litersSold, amountSold };
+  }, [selectedPumps, startCounters, endCounters, store.nozzles, store.products]);
+
+
+  // Auto-fill start counters based on previous shifts when pumps are selected
+  useEffect(() => {
+    if (selectedPumps.length === 0) return;
+    
+    const newStartCounters = { ...startCounters };
+    let hasChanges = false;
+    
+    selectedPumps.forEach(pumpId => {
+      const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
+      pumpNozzles.forEach(noz => {
+        // Only auto-fill if not already filled with a specific value or if it's currently matching the nozzle's current counter
+        // Actually, we should just find the most recent shift's end counter for this nozzle
+        const previousShifts = [...store.shifts]
+          .filter(s => s.status === 'completed' && s.endCounters && s.endCounters[noz.id])
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          
+        if (previousShifts.length > 0) {
+          const lastEndCounter = previousShifts[0].endCounters[noz.id];
+          if (!newStartCounters[noz.id] || 
+              (newStartCounters[noz.id].elec === noz.currentElecCounter && newStartCounters[noz.id].elec !== lastEndCounter.elec)) {
+            newStartCounters[noz.id] = {
+              elec: lastEndCounter.elec,
+              mech: lastEndCounter.mech
+            };
+            hasChanges = true;
+          }
+        }
+      });
+    });
+    
+    if (hasChanges) {
+      setStartCounters(newStartCounters);
+    }
+  }, [selectedPumps, store.shifts, store.nozzles]);
+
+  const totalProductSales = productSales.reduce((acc, curr) => acc + curr.total, 0);
+  const totalServiceSales = serviceSales.reduce((acc, curr) => acc + curr.total, 0);
+  const grandTotalSales = fuelSalesDetails.totalFuelAmount + totalProductSales + totalServiceSales;
+
+  const totalNonCashPayments = 
+    nonCashPayments.taqati.reduce((acc, curr) => acc + curr.amount, 0) +
+    nonCashPayments.cmi.reduce((acc, curr) => acc + curr.amount, 0) +
+    nonCashPayments.vignette.reduce((acc, curr) => acc + curr.amount, 0) +
+    nonCashPayments.bonClient.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const cashExpenses = expenses.filter(e => e.method === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
+  
+  const realCash = parseFloat(realCashInput) || 0;
+  const theoreticalCash = grandTotalSales - totalNonCashPayments - cashExpenses;
+  const ecart = parseFloat((realCash - theoreticalCash).toFixed(2));
+
+  const handleTogglePump = (pumpId: string) => {
+    if (selectedPumps.includes(pumpId)) {
+      setSelectedPumps(selectedPumps.filter(id => id !== pumpId));
+    } else {
+      setSelectedPumps([...selectedPumps, pumpId]);
+    }
+  };
+
+  const handleSaveShift = () => {
+    const attendant = store.attendants.find(a => a.id === attendantId);
+    if (!attendant) return;
+
+    store.addCompletedShift({
+      date,
+      endDate,
+      startTime,
+      endTime,
+      shiftName,
+      attendantId,
+      attendantName: `${attendant.firstName} ${attendant.lastName}`,
+      pumpIds: selectedPumps,
+      startCounters,
+      endCounters,
+      productsSold: productSales,
+      servicesSold: serviceSales,
+      expenses,
+      nonCashPayments,
+      realCashReceived: realCash,
+      theoreticalCash,
+      discrepancy: ecart,
+      notes: `Saisi manuellement. Écart: ${ecart} MAD. Dépenses: ${totalExpenses} MAD.`,
+      litersSold: fuelSalesDetails.litersSold,
+      amountSold: fuelSalesDetails.amountSold,
+      totalLiters: fuelSalesDetails.totalFuelLiters,
+      totalAmount: fuelSalesDetails.totalFuelAmount
+    }, 'Directeur ERP');
+
+    setIsCompleted(true);
+  };
+
+  const steps = [
+    { id: 1, title: 'Infos', icon: Settings },
+    { id: 2, title: 'Index', icon: Fuel },
+    { id: 3, title: 'Boutique', icon: Package },
+    { id: 4, title: 'Services', icon: Users },
+    { id: 5, title: 'Dépenses', icon: Receipt },
+    { id: 6, title: 'Encaissements', icon: CreditCard },
+    { id: 7, title: 'Validation', icon: CheckCircle2 }
+  ];
+
+  if (isCompleted) {
+    return (
+      <div className="max-w-2xl mx-auto mt-12 bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center animate-in zoom-in-95 duration-500">
+        <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle className="w-12 h-12 text-emerald-600" />
+        </div>
+        <h2 className="text-3xl font-black text-slate-800 mb-4 font-display">Saisie Terminée</h2>
+        <p className="text-slate-500 mb-8 text-lg">Le shift a été enregistré avec succès et les stocks ont été mis à jour.</p>
+        <div className="flex justify-center gap-4">
+          <button onClick={() => { setIsCompleted(false); setCurrentStep(1); }} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-sm hover:bg-indigo-700 flex items-center gap-2">
+            <Plus className="w-5 h-5" /> Saisir un autre shift
+          </button>
+          <button onClick={onBack} className="px-6 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+            Retour au tableau de bord
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 font-display">Saisie de Shift</h1>
+          <p className="text-sm text-slate-500 mt-1">Saisie complète et clôture pour une vacation</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+          {steps.map((step, idx) => (
+            <React.Fragment key={step.id}>
+              <div className="flex flex-col items-center gap-2 relative z-10 group cursor-pointer" onClick={() => setCurrentStep(step.id)}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${currentStep === step.id ? 'bg-indigo-600 text-white shadow-md scale-110' : currentStep > step.id ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'}`}>
+                  {currentStep > step.id ? <Check className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
+                </div>
+                <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${currentStep === step.id ? 'text-indigo-700' : currentStep > step.id ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {step.title}
+                </span>
+              </div>
+              {idx < steps.length - 1 && (
+                <div className="flex-1 h-1 bg-slate-100 mx-2 rounded-full relative overflow-hidden">
+                  <div className={`absolute top-0 left-0 h-full bg-emerald-500 transition-all duration-500 ${currentStep > step.id ? 'w-full' : 'w-0'}`}></div>
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="p-8">
+          {/* STEP 1: Infos */}
+          {currentStep === 1 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Pompiste</label>
+                  <select 
+                    value={attendantId}
+                    onChange={e => setAttendantId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                  >
+                    <option value="">Sélectionner un pompiste</option>
+                    {store.attendants.map(a => (
+                      <option key={a.id} value={a.id}>{a.firstName} {a.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Vacation</label>
+                  <select 
+                    value={shiftName}
+                    onChange={e => setShiftName(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                  >
+                    <option value="Journée">Journée</option>
+                    <option value="Matin">Matin</option>
+                    <option value="Après-midi">Après-midi</option>
+                    <option value="Nuit">Nuit</option>
+                  </select>
+                </div>
+                
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Date Début</label>
+                    <input 
+                      type="date"
+                      value={date}
+                      onChange={e => setDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Date Fin</label>
+                    <input 
+                      type="date"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Heure Début</label>
+                    <input 
+                      type="time"
+                      value={startTime}
+                      onChange={e => setStartTime(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Heure Fin</label>
+                    <input 
+                      type="time"
+                      value={endTime}
+                      onChange={e => setEndTime(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-4">Pompes gérées (Sélectionnez)</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {store.pumps.map(pump => {
+                    const isSelected = selectedPumps.includes(pump.id);
+                    return (
+                      <div 
+                        key={pump.id}
+                        onClick={() => handleTogglePump(pump.id)}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-200'}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <Fuel className={`w-5 h-5 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
+                          {isSelected && <CheckCircle className="w-5 h-5 text-indigo-600" />}
+                        </div>
+                        <h4 className={`font-bold ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{pump.number}</h4>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: Index */}
+          {currentStep === 2 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {selectedPumps.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl">
+                  Veuillez sélectionner au moins une pompe à l'étape 1.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                      <tr>
+                        <th className="p-3">Pompe / Pistolet</th>
+                        <th className="p-3 text-right">Index Entrée (Elec / Méc)</th>
+                        <th className="p-3 text-right">Index Sortie (Elec / Méc)</th>
+                        <th className="p-3 text-right">Vol. Vendu (L)</th>
+                        <th className="p-3 text-right">Prix U.</th>
+                        <th className="p-3 text-right">Total (MAD)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {fuelSalesDetails.details.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3">
+                            <div className="font-bold text-slate-800">{row.nozzle.name}</div>
+                            <div className="text-[10px] text-slate-400">{row.nozzle.productName}</div>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center justify-end gap-4">
+                              <div className="flex flex-col items-end">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase mb-1">Elec</span>
+                                <input 
+                                  type="number" 
+                                  value={startCounters[row.nozzle.id]?.elec || 0}
+                                  onChange={(e) => setStartCounters({...startCounters, [row.nozzle.id]: { ...startCounters[row.nozzle.id], elec: parseFloat(e.target.value) || 0 }})}
+                                  className="w-24 text-right bg-transparent border-b border-slate-200 font-mono text-slate-500 focus:outline-none focus:border-slate-500"
+                                />
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase mb-1">Méc</span>
+                                <input 
+                                  type="number" 
+                                  value={startCounters[row.nozzle.id]?.mech || 0}
+                                  onChange={(e) => setStartCounters({...startCounters, [row.nozzle.id]: { ...startCounters[row.nozzle.id], mech: parseFloat(e.target.value) || 0 }})}
+                                  className="w-24 text-right bg-transparent border-b border-slate-200 font-mono text-slate-500 focus:outline-none focus:border-slate-500"
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3 bg-emerald-50/30">
+                            <div className="flex items-center justify-end gap-4">
+                              <div className="flex flex-col items-end">
+                                <span className="text-[9px] text-emerald-600/60 font-bold uppercase mb-1">Elec</span>
+                                <input 
+                                  type="number" 
+                                  value={endCounters[row.nozzle.id]?.elec || 0}
+                                  onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], elec: parseFloat(e.target.value) || 0 }})}
+                                  className="w-24 text-right bg-transparent border-b border-emerald-200 font-mono font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
+                                />
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-[9px] text-emerald-600/60 font-bold uppercase mb-1">Méc</span>
+                                <input 
+                                  type="number" 
+                                  value={endCounters[row.nozzle.id]?.mech || 0}
+                                  onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], mech: parseFloat(e.target.value) || 0 }})}
+                                  className="w-24 text-right bg-transparent border-b border-emerald-200 font-mono font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3 font-mono font-bold text-indigo-600 text-right">{row.qty.toLocaleString()}</td>
+                          <td className="p-3 font-mono text-slate-500 text-right">{row.price.toFixed(2)}</td>
+                          <td className="p-3 font-mono font-black text-slate-800 text-right">{row.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
+                      <tr>
+                        <td colSpan={5} className="p-3 text-right text-slate-500 uppercase text-xs">Total ventes carburants</td>
+                        <td className="p-3 font-mono text-lg text-emerald-600 text-right">{fuelSalesDetails.totalFuelAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 3 */}
+          {currentStep === 3 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-[2]">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nouveau Produit</label>
+                    <input type="text" id="newProdName" placeholder="Ex: Additif Moteur" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Qté</label>
+                    <input type="number" id="newProdQty" defaultValue="1" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Prix U.</label>
+                    <input type="number" id="newProdPrice" placeholder="0.00" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500" />
+                  </div>
+                  <button onClick={() => {
+                    const name = (document.getElementById('newProdName') as HTMLInputElement).value;
+                    const qty = parseFloat((document.getElementById('newProdQty') as HTMLInputElement).value) || 0;
+                    const price = parseFloat((document.getElementById('newProdPrice') as HTMLInputElement).value) || 0;
+                    if(name && qty && price) {
+                      setProductSales([...productSales, { id: `prod_${Date.now()}`, name, qty, price, total: qty * price }]);
+                      (document.getElementById('newProdName') as HTMLInputElement).value = '';
+                      (document.getElementById('newProdQty') as HTMLInputElement).value = '1';
+                      (document.getElementById('newProdPrice') as HTMLInputElement).value = '';
+                    }
+                  }} className="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg text-sm hover:bg-slate-900 transition-colors h-[38px]">
+                    Ajouter
+                  </button>
+                </div>
+              </div>
+
+              {productSales.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                      <tr>
+                        <th className="p-3">Produit</th>
+                        <th className="p-3 text-right">Quantité</th>
+                        <th className="p-3 text-right">Prix Unitaire (MAD)</th>
+                        <th className="p-3 text-right">Total (MAD)</th>
+                        <th className="p-3 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {productSales.map(item => (
+                        <tr key={item.id}>
+                          <td className="p-3 font-bold text-slate-700">{item.name}</td>
+                          <td className="p-3 font-mono font-bold text-indigo-600 text-right">
+                            <input type="number" value={item.qty} onChange={e => {
+                              const qty = parseFloat(e.target.value) || 0;
+                              setProductSales(productSales.map(p => p.id === item.id ? { ...p, qty, total: qty * p.price } : p));
+                            }} className="w-16 text-right bg-transparent border-b border-indigo-200 focus:outline-none focus:border-indigo-500" />
+                          </td>
+                          <td className="p-3 font-mono text-slate-500 text-right">
+                            <input type="number" value={item.price} onChange={e => {
+                              const price = parseFloat(e.target.value) || 0;
+                              setProductSales(productSales.map(p => p.id === item.id ? { ...p, price, total: p.qty * price } : p));
+                            }} className="w-20 text-right bg-transparent border-b border-slate-200 focus:outline-none focus:border-slate-500" />
+                          </td>
+                          <td className="p-3 font-mono font-black text-slate-800 text-right">{item.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                          <td className="p-3 text-center">
+                            <button onClick={() => setProductSales(productSales.filter(p => p.id !== item.id))} className="text-rose-400 hover:text-rose-600">
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
+                      <tr>
+                        <td colSpan={3} className="p-3 text-right text-slate-500 uppercase text-xs">Total Boutique</td>
+                        <td className="p-3 font-mono text-lg text-amber-600 text-right">{totalProductSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  Aucune vente de produit enregistrée.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 4 */}
+          {currentStep === 4 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-[2]">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nouveau Service</label>
+                    <input type="text" id="newServiceName" placeholder="Ex: Nettoyage Intégral" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-cyan-500" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Montant (MAD)</label>
+                    <input type="number" id="newServiceAmount" placeholder="0.00" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-cyan-500" />
+                  </div>
+                  <button onClick={() => {
+                    const name = (document.getElementById('newServiceName') as HTMLInputElement).value;
+                    const amount = parseFloat((document.getElementById('newServiceAmount') as HTMLInputElement).value) || 0;
+                    if(name && amount) {
+                      setServiceSales([...serviceSales, { id: `srv_${Date.now()}`, name, total: amount }]);
+                      (document.getElementById('newServiceName') as HTMLInputElement).value = '';
+                      (document.getElementById('newServiceAmount') as HTMLInputElement).value = '';
+                    }
+                  }} className="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg text-sm hover:bg-slate-900 transition-colors h-[38px]">
+                    Ajouter
+                  </button>
+                </div>
+              </div>
+
+              {serviceSales.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                      <tr>
+                        <th className="p-3">Service (Lavage, etc.)</th>
+                        <th className="p-3 text-right">Total (MAD)</th>
+                        <th className="p-3 text-center w-20">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {serviceSales.map(item => (
+                        <tr key={item.id}>
+                          <td className="p-3 font-bold text-slate-700">{item.name}</td>
+                          <td className="p-3 font-mono font-black text-slate-800 text-right">
+                            <input type="number" value={item.total} onChange={e => {
+                              const total = parseFloat(e.target.value) || 0;
+                              setServiceSales(serviceSales.map(s => s.id === item.id ? { ...s, total } : s));
+                            }} className="w-24 text-right bg-transparent border-b border-cyan-200 focus:outline-none focus:border-cyan-500 font-bold" />
+                          </td>
+                          <td className="p-3 text-center">
+                            <button onClick={() => setServiceSales(serviceSales.filter(s => s.id !== item.id))} className="text-rose-400 hover:text-rose-600">
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
+                      <tr>
+                        <td className="p-3 text-right text-slate-500 uppercase text-xs">Total Services</td>
+                        <td className="p-3 font-mono text-lg text-cyan-600 text-right">{totalServiceSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  Aucun service enregistré.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 5 */}
+          {currentStep === 5 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <form onSubmit={e => {
+                e.preventDefault();
+                const type = (document.getElementById('expType') as HTMLSelectElement).value;
+                const desc = (document.getElementById('expDesc') as HTMLInputElement).value;
+                const amount = parseFloat((document.getElementById('expAmount') as HTMLInputElement).value) || 0;
+                const method = (document.getElementById('expMethod') as HTMLSelectElement).value;
+                
+                if (type && desc && amount) {
+                  setExpenses([...expenses, { id: `exp_${Date.now()}`, type, description: desc, amount, method }]);
+                  (document.getElementById('expDesc') as HTMLInputElement).value = '';
+                  (document.getElementById('expAmount') as HTMLInputElement).value = '';
+                }
+              }} className="bg-rose-50/50 p-5 rounded-xl border border-rose-100 flex flex-wrap gap-4 items-end">
+                <div className="flex-1 min-w-[150px]">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Type</label>
+                  <select id="expType" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required>
+                    <option value="avance">Avance Employé</option>
+                    <option value="fourniture">Achat Fourniture</option>
+                    <option value="repas">Frais de repas</option>
+                    <option value="autre">Autre</option>
+                  </select>
+                </div>
+                <div className="flex-[2] min-w-[200px]">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
+                  <input type="text" id="expDesc" placeholder="Motif de la dépense..." className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Montant</label>
+                  <input type="number" id="expAmount" step="any" placeholder="0.00" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Paiement</label>
+                  <select id="expMethod" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500">
+                    <option value="cash">Espèces (Tiroir)</option>
+                    <option value="card">Carte Bancaire</option>
+                  </select>
+                </div>
+                <button type="submit" className="px-4 py-2 bg-rose-600 text-white font-bold rounded-lg text-sm hover:bg-rose-700 h-[38px] min-w-[100px]">
+                  Ajouter
+                </button>
+              </form>
+
+              {expenses.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                      <tr>
+                        <th className="p-3">Type</th>
+                        <th className="p-3">Description</th>
+                        <th className="p-3">Mode</th>
+                        <th className="p-3 text-right">Montant (MAD)</th>
+                        <th className="p-3 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {expenses.map(exp => (
+                        <tr key={exp.id}>
+                          <td className="p-3 font-semibold text-slate-700 capitalize">{exp.type}</td>
+                          <td className="p-3 text-slate-600">{exp.description}</td>
+                          <td className="p-3">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${exp.method === 'cash' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {exp.method === 'cash' ? 'Espèces' : 'CB'}
+                            </span>
+                          </td>
+                          <td className="p-3 font-mono font-bold text-rose-600 text-right">{exp.amount.toFixed(2)}</td>
+                          <td className="p-3 text-center">
+                            <button onClick={() => setExpenses(expenses.filter(e => e.id !== exp.id))} className="text-rose-400 hover:text-rose-600">
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
+                      <tr>
+                        <td colSpan={3} className="p-3 text-right text-slate-500 uppercase text-xs">Total Dépenses</td>
+                        <td className="p-3 font-mono text-lg text-rose-600 text-right">{totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  Aucune dépense signalée.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 6 */}
+          {currentStep === 6 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-slate-800 font-display">Encaissement non espèce</h2>
+                  <p className="text-sm text-slate-500">Saisissez les montants encaissés via des moyens autres que l'espèce.</p>
+                </div>
+                <div className="text-right">
+                  <span className="block text-[10px] uppercase font-bold text-slate-400">Total Ventes</span>
+                  <span className="text-xl font-black text-slate-800 font-mono">{grandTotalSales.toLocaleString()} MAD</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { key: 'taqati', label: 'TAQATI' },
+                  { key: 'cmi', label: 'CMI' },
+                  { key: 'vignette', label: 'VIGNETTE' },
+                  { key: 'bonClient', label: 'BON CLIENT' }
+                ].map(method => (
+                  <div key={method.key} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-bold text-slate-700">{method.label}</label>
+                      <button
+                        onClick={() => {
+                          setNonCashPayments({
+                            ...nonCashPayments,
+                            [method.key]: [...nonCashPayments[method.key as keyof typeof nonCashPayments], { amount: 0, clientId: '' }]
+                          });
+                        }}
+                        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded"
+                      >
+                        <Plus className="w-3 h-3" /> Ajouter
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {nonCashPayments[method.key as keyof typeof nonCashPayments].length === 0 && (
+                        <div className="text-sm text-slate-400 italic text-center py-4 bg-white rounded-lg border border-dashed border-slate-200">Aucun encaissement {method.label}</div>
+                      )}
+                      {nonCashPayments[method.key as keyof typeof nonCashPayments].map((entry, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row gap-2 relative p-2 bg-white rounded-lg border border-slate-200 shadow-sm items-center">
+                          <div className="flex-1 w-full">
+                            <div className="relative">
+                              <input
+                                type="number"
+                                value={entry.amount || ''}
+                                onChange={e => {
+                                  const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]];
+                                  newArr[idx].amount = parseFloat(e.target.value) || 0;
+                                  setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                                }}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold font-mono rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 pr-10"
+                                placeholder="0.00"
+                              />
+                              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400 font-bold text-xs">MAD</div>
+                            </div>
+                          </div>
+                          <div className="flex-1 w-full">
+                            <select
+                              value={entry.clientId || ''}
+                              onChange={e => {
+                                const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]];
+                                newArr[idx].clientId = e.target.value;
+                                setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                              }}
+                              className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                            >
+                              <option value="">Sélectionner un partenaire</option>
+                              {store.clients && store.clients.map(client => (
+                                <option key={client.id} value={client.id}>{client.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]];
+                              newArr.splice(idx, 1);
+                              setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                            }}
+                            className="p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg shrink-0 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
+                <span className="font-bold text-indigo-800">Total Encaissement non espèce :</span>
+                <span className="font-black text-xl text-indigo-900 font-mono">
+                  {totalNonCashPayments.toLocaleString()} MAD
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 7: Validation */}
+          {currentStep === 7 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-6">
+                <div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-2">
+                  <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 font-display tracking-tight">Rapport de Clôture</h3>
+                    <p className="text-xs text-slate-500">Vérifiez les totaux avant validation finale</p>
+                  </div>
+                </div>
+
+                {(() => {
+                  const attendant = store.attendants.find(a => a.id === attendantId);
+                  const attendantName = attendant ? `${attendant.firstName} ${attendant.lastName}` : '';
+                  const especeARemettre = theoreticalCash;
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-slate-200">
+                          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                            <User className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pompiste</div>
+                            <div className="font-bold text-slate-800 text-lg">{attendantName}</div>
+                          </div>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-slate-200">
+                          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                            <Calendar className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Période</div>
+                            <div className="font-bold text-slate-800 text-sm">
+                              {new Date(date).toLocaleDateString('fr-FR')} ({startTime}) → {endDate ? new Date(endDate).toLocaleDateString('fr-FR') : ''} ({endTime ? endTime : '--:--'})
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-full">
+                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-6">Chiffre d'Affaires</h4>
+                          <div className="space-y-4 flex-grow">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Fuel className="w-4 h-4 text-amber-500" />
+                                <span className="text-slate-600 font-medium">Carburants</span>
+                              </div>
+                              <span className="font-bold font-mono text-slate-800 text-[15px]">{fuelSalesDetails.totalFuelAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Package className="w-4 h-4 text-blue-500" />
+                                <span className="text-slate-600 font-medium">Produits</span>
+                              </div>
+                              <span className="font-bold font-mono text-slate-800 text-[15px]">{totalProductSales.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Wrench className="w-4 h-4 text-purple-500" />
+                                <span className="text-slate-600 font-medium">Services</span>
+                              </div>
+                              <span className="font-bold font-mono text-slate-800 text-[15px]">{totalServiceSales.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                          <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+                            <span className="font-bold text-slate-800">Total</span>
+                            <span className="font-bold font-mono text-emerald-600 text-lg">{grandTotalSales.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</span>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-full">
+                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-6">Mouvements de Caisse</h4>
+                          <div className="space-y-4 flex-grow">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600 font-medium text-sm">Encaissements Non-Espèces</span>
+                              <span className="font-bold font-mono text-rose-600 text-[15px]">- {totalNonCashPayments.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-600 font-medium text-sm">Dépenses (Espèces)</span>
+                              <span className="font-bold font-mono text-rose-600 text-[15px]">- {cashExpenses.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-emerald-700 rounded-xl p-8 relative overflow-hidden shadow-lg mt-6">
+                        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-emerald-500 rounded-full opacity-50 blur-2xl pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-emerald-900 rounded-full opacity-30 blur-2xl pointer-events-none"></div>
+                        
+                        <div className="relative z-10 flex flex-col items-center text-center space-y-3">
+                          <div className="flex items-center gap-2 text-emerald-100 uppercase tracking-widest text-[11px] font-bold">
+                            <Wallet className="w-4 h-4" />
+                            Espèces à remettre par {attendantName}
+                          </div>
+                          <div className="text-4xl md:text-5xl font-black font-mono text-white tracking-tight">
+                            {especeARemettre.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH
+                          </div>
+                        </div>
+                      </div>
+
+                      <details className="bg-white rounded-xl shadow-sm border border-slate-200 group overflow-hidden">
+                        <summary className="cursor-pointer p-5 flex items-center justify-between font-bold text-slate-700 uppercase tracking-wider text-xs list-none focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                          DÉTAIL ENCAISSEMENTS NON-ESPÈCES
+                          <ChevronDown className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" />
+                        </summary>
+                        <div className="p-5 pt-0 border-t border-slate-100 bg-slate-50 space-y-3 mt-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">TAQATI:</span>
+                            <strong className="font-mono">{nonCashPayments.taqati.reduce((a, b) => a + b.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">CMI:</span>
+                            <strong className="font-mono">{nonCashPayments.cmi.reduce((a, b) => a + b.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Vignette:</span>
+                            <strong className="font-mono">{nonCashPayments.vignette.reduce((a, b) => a + b.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Bon Client:</span>
+                            <strong className="font-mono">{nonCashPayments.bonClient.reduce((a, b) => a + b.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
+                          </div>
+                        </div>
+                      </details>
+
+
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6">
+                <h4 className="font-bold text-indigo-900 mb-2">Confirmation</h4>
+                <p className="text-sm text-indigo-700/80 mb-6">En validant cette clôture, les données seront verrouillées, les stocks de cuves mis à jour, et les écritures de caisse générées.</p>
+                <button 
+                  onClick={handleSaveShift}
+                  disabled={!attendantId}
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Lock className="w-5 h-5" />
+                  Valider et Clôturer le Shift
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Footer */}
+        <div className="px-8 py-5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+          <button 
+            onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
+            disabled={currentStep === 1}
+            className="px-6 py-2.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+          >
+            <ChevronLeft className="w-4 h-4" /> Précédent
+          </button>
+          
+          <div className="flex gap-2">
+            {[1,2,3,4,5,6,7].map(step => (
+              <div key={step} className={`w-2 h-2 rounded-full ${currentStep === step ? 'bg-indigo-600' : currentStep > step ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            ))}
+          </div>
+
+          <button 
+            onClick={() => setCurrentStep(Math.min(7, currentStep + 1))}
+            disabled={currentStep === 7}
+            className={`px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all ${
+              currentStep === 7 
+                ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400' 
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+            }`}
+          >
+            Suivant <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
