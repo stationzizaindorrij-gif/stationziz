@@ -8,10 +8,11 @@ import { ERPStoreType } from '../store';
 import { Tank, Product, Nozzle, Pump } from '../types';
 
 // Helper function to get fuel properties and colors: Vert -> Gazoil, Bleu -> Sans Plomb, Orange -> Mélange
-const getFuelColor = (productId: string) => {
+const getFuelColor = (productId: string, customHex?: string) => {
   const pid = productId.toLowerCase();
+  let res;
   if (pid.includes('gazoil') || pid.includes('diesel')) {
-    return {
+    res = {
       name: 'Gazoil',
       hex: '#10b981', // green-500
       text: 'text-emerald-600',
@@ -20,7 +21,7 @@ const getFuelColor = (productId: string) => {
       fill: 'fill-emerald-500'
     };
   } else if (pid.includes('sans_plomb') || pid.includes('melange') || pid.includes('sans plomb') || pid.includes('sp')) {
-    return {
+    res = {
       name: 'Sans Plomb',
       hex: '#3b82f6', // blue-500
       text: 'text-blue-600',
@@ -29,7 +30,7 @@ const getFuelColor = (productId: string) => {
       fill: 'fill-blue-500'
     };
   } else {
-    return {
+    res = {
       name: 'Mélange',
       hex: '#f97316', // orange-500
       text: 'text-orange-600',
@@ -38,17 +39,65 @@ const getFuelColor = (productId: string) => {
       fill: 'fill-orange-500'
     };
   }
-};
+  
+  if (customHex) {
+    res.hex = customHex;
+  }
+  return res;
+}
 
 interface TanksProps {
   store: ERPStoreType;
 }
 
 export default function Tanks({ store }: TanksProps) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startY, setStartY] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - containerRef.current.offsetLeft);
+    setStartY(e.pageY - containerRef.current.offsetTop);
+    setScrollLeft(containerRef.current.scrollLeft);
+    setScrollTop(containerRef.current.scrollTop);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !containerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - containerRef.current.offsetLeft;
+    const y = e.pageY - containerRef.current.offsetTop;
+    const walkX = (x - startX) * 1.5;
+    const walkY = (y - startY) * 1.5;
+    containerRef.current.scrollLeft = scrollLeft - walkX;
+    containerRef.current.scrollTop = scrollTop - walkY;
+  };
+
   const { 
     tanks, products, supplies, stockCorrections, addSupply, correctTankLevel, currentRole,
     nozzles = [], pumps = [], sales = []
   } = store;
+
+  const requiredHeight = Math.max(
+    580,
+    70 + tanks.length * 130 + 50,
+    70 + pumps.length * 130 + 50,
+    35 + nozzles.length * 52 + 50
+  );
+
 
   // Navigation tab inside Tanks & Stock
   const [activeSubTab, setActiveSubTab] = useState<'visual' | 'deliveries' | 'corrections' | 'schema'>('visual');
@@ -79,7 +128,8 @@ export default function Tanks({ store }: TanksProps) {
   };
 
   // Form states
-    const [isTankFormOpen, setIsTankFormOpen] = useState(false);
+    const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
+  const [isTankFormOpen, setIsTankFormOpen] = useState(false);
   const [editingTank, setEditingTank] = useState<Tank | null>(null);
   const [isTankDetailOpen, setIsTankDetailOpen] = useState(false);
   const [selectedTankDetail, setSelectedTankDetail] = useState<Tank | null>(null);
@@ -160,24 +210,42 @@ export default function Tanks({ store }: TanksProps) {
       return;
     }
 
+    const executeSupply = () => {
+      addSupply({
+        supplier,
+        productId: tank.productId,
+        productName: tank.productName,
+        tankId: tank.id,
+        tankNumber: tank.number,
+        qtyDelivered: qty,
+        purchasePrice: price,
+        invoiceNumber,
+        deliveryDate: new Date().toISOString()
+      }, currentRole);
+      
+      const newLevel = Math.min(tank.capacity, tank.currentLevel + qty);
+      updateTank(tank.id, { currentLevel: newLevel }, currentRole);
+
+      setSupplier('');
+      setSupplyTankId('');
+      setQtyDelivered('');
+      setPurchasePrice('');
+      setInvoiceNumber('');
+      setIsSupplyFormOpen(false);
+    };
+
     // Check if delivery overflows tank
     if (tank.currentLevel + qty > tank.capacity) {
-      const confirmOverflow = window.confirm(`Attention: La quantité livrée (${qty} L) cumulée au niveau actuel (${tank.currentLevel} L) dépasse la capacité totale de la cuve (${tank.capacity} L). Souhaitez-vous quand même forcer la livraison au niveau maximum ?`);
-      if (!confirmOverflow) return;
+      setConfirmModalConfig({
+        isOpen: true,
+        title: 'Risque de débordement',
+        message: `Attention: La quantité livrée (${qty} L) cumulée au niveau actuel (${tank.currentLevel} L) dépasse la capacité totale de la cuve (${tank.capacity} L). Souhaitez-vous quand même forcer la livraison au niveau maximum ?`,
+        onConfirm: executeSupply
+      });
+      return;
     }
 
-    addSupply({
-      supplier,
-      productId: tank.productId,
-      productName: tank.productName,
-      tankId: tank.id,
-      tankNumber: tank.number,
-      qtyDelivered: qty,
-      purchasePrice: price,
-      invoiceNumber,
-      date: supplyDate
-    }, 'Directeur ERP');
-
+    executeSupply();
     setIsSupplyFormOpen(false);
   };
 
@@ -296,7 +364,7 @@ export default function Tanks({ store }: TanksProps) {
               
               // Custom colors depending on fuel type matching requirement:
               // Vert -> Gazoil | Bleu -> Sans Plomb | Orange -> Mélange
-              const fuelColorInfo = getFuelColor(tank.productId);
+              const fuelColorInfo = getFuelColor(tank.productId, tank.color);
               const fuelTheme = {
                 badgeBg: fuelColorInfo.bg,
                 color: fuelColorInfo.text,
@@ -446,8 +514,8 @@ export default function Tanks({ store }: TanksProps) {
 
                       {/* Display floating values */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-6">
-                        <span className="text-slate-800 text-base font-extrabold font-mono leading-none">{tank.currentLevel.toLocaleString()}</span>
-                        <span className="text-[10px] text-slate-500 font-semibold mt-1">/ {tank.capacity.toLocaleString()} L</span>
+                        <span className="text-slate-800 text-base font-extrabold font-mono leading-none">{tank.currentLevel}</span>
+                        <span className="text-[10px] text-slate-500 font-semibold mt-1">/ {tank.capacity} L</span>
                       </div>
                     </div>
 
@@ -457,7 +525,7 @@ export default function Tanks({ store }: TanksProps) {
                         <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
                         <div>
                           <strong>Niveau Critique Faible !</strong>
-                          <p>Le stock est inférieur au seuil d'alerte ({tank.minLevel.toLocaleString()} L). Commandez une livraison.</p>
+                          <p>Le stock est inférieur au seuil d'alerte ({tank.minLevel} L). Commandez une livraison.</p>
                         </div>
                       </div>
                     )}
@@ -466,15 +534,15 @@ export default function Tanks({ store }: TanksProps) {
                     <div className="space-y-1.5 border-t border-slate-100 pt-3 text-[11px] text-slate-500 font-mono">
                       <div className="flex justify-between">
                         <span>Disponible :</span>
-                        <strong className="text-slate-700">{(tank.currentLevel).toLocaleString()} L</strong>
+                        <strong className="text-slate-700">{(tank.currentLevel)} L</strong>
                       </div>
                       <div className="flex justify-between">
                         <span>Creux (Volume libre) :</span>
-                        <strong className="text-slate-700">{(tank.capacity - tank.currentLevel).toLocaleString()} L</strong>
+                        <strong className="text-slate-700">{(tank.capacity - tank.currentLevel)} L</strong>
                       </div>
                       <div className="flex justify-between">
                         <span>Seuil d'alerte Min :</span>
-                        <strong className="text-slate-700">{(tank.minLevel).toLocaleString()} L</strong>
+                        <strong className="text-slate-700">{(tank.minLevel)} L</strong>
                       </div>
                     </div>
 
@@ -498,18 +566,18 @@ export default function Tanks({ store }: TanksProps) {
                         </div>
                         <div>
                           <span className="block text-[9px] uppercase font-bold text-slate-400">Quantité reçue</span>
-                          <span className="font-semibold text-slate-700 font-mono">{lastSupplyQty > 0 ? `${lastSupplyQty.toLocaleString()} L` : '0 L'}</span>
+                          <span className="font-semibold text-slate-700 font-mono">{lastSupplyQty > 0 ? `${lastSupplyQty} L` : '0 L'}</span>
                         </div>
                       </div>
 
                       <div className="border-t border-dashed border-slate-100 pt-2 grid grid-cols-2 gap-2 text-slate-500 leading-tight">
                         <div>
                           <span className="block text-[9px] uppercase font-bold text-slate-400">Consommation jour</span>
-                          <span className="font-extrabold text-emerald-600 font-mono">{consumptionToday.toLocaleString()} L</span>
+                          <span className="font-extrabold text-emerald-600 font-mono">{consumptionToday} L</span>
                         </div>
                         <div>
                           <span className="block text-[9px] uppercase font-bold text-slate-400">Consommation mois</span>
-                          <span className="font-extrabold text-indigo-600 font-mono">{consumptionMonth.toLocaleString()} L</span>
+                          <span className="font-extrabold text-indigo-600 font-mono">{consumptionMonth} L</span>
                         </div>
                       </div>
                     </div>
@@ -577,9 +645,19 @@ export default function Tanks({ store }: TanksProps) {
               </div>
 
               {/* Responsive SVG container */}
-              <div className="w-full overflow-x-auto pb-2">
-                <div className="min-w-[780px] h-[580px] relative bg-[#f8fafc80] rounded-lg border border-slate-100 p-2">
-                  <svg viewBox="0 0 900 580" className="w-full h-full select-none">
+              <div 
+                ref={containerRef}
+                className="w-full h-[580px] overflow-auto pb-2 cursor-grab active:cursor-grabbing"
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+              >
+                <div 
+                  className="min-w-[780px] relative bg-[#f8fafc80] rounded-lg border border-slate-100 p-2"
+                  style={{ height: `${requiredHeight}px` }}
+                >
+                  <svg viewBox={`0 0 900 ${requiredHeight}`} className="w-full h-full select-none">
                     {/* Definitions for arrow markers */}
                     <defs>
                       <marker id="arrow-gazoil" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -656,7 +734,7 @@ export default function Tanks({ store }: TanksProps) {
                       {tanks.map((tank, idx) => {
                         const x = 140;
                         const y = 70 + idx * 130;
-                        const fuelInfo = getFuelColor(tank.productId);
+                        const fuelInfo = getFuelColor(tank.productId, tank.color);
                         const isSelected = selectedNodeType === 'tank' && selectedNodeId === tank.id;
                         
                         // Check if tank is in highlight list
@@ -699,7 +777,7 @@ export default function Tanks({ store }: TanksProps) {
                             {/* Level Visualizer Bar */}
                             <text x="12" y="42" fill="#64748b" className="text-[9px] font-bold">Vol :</text>
                             <text x="118" y="42" textAnchor="end" fill="#334155" className="text-[9px] font-bold font-mono">
-                              {tank.currentLevel.toLocaleString()} L
+                              {tank.currentLevel} L
                             </text>
                             {/* Miniature Progress Bar */}
                             <rect x="12" y="48" width="106" height="6" rx="3" fill="#e2e8f0" opacity={isHighlighted ? '1' : '0.35'} />
@@ -929,7 +1007,7 @@ export default function Tanks({ store }: TanksProps) {
                       const tank = tanks.find(t => t.id === selectedNodeId);
                       if (!tank) return null;
 
-                      const fuelInfo = getFuelColor(tank.productId);
+                      const fuelInfo = getFuelColor(tank.productId, tank.color);
                       const currentPercent = Math.round((tank.currentLevel / tank.capacity) * 100);
 
                       // Connected items calculations
@@ -972,18 +1050,18 @@ export default function Tanks({ store }: TanksProps) {
                               </div>
                               <div className="space-y-0.5">
                                 <span className="text-slate-400 text-[10px] uppercase font-bold">Seuil Alerte</span>
-                                <span className="text-rose-600 font-bold font-mono block">{tank.minLevel.toLocaleString()} L</span>
+                                <span className="text-rose-600 font-bold font-mono block">{tank.minLevel} L</span>
                               </div>
                             </div>
 
                             <div className="border-t border-[#e2e8f099] pt-2 grid grid-cols-2 gap-3">
                               <div className="space-y-0.5">
                                 <span className="text-slate-400 text-[10px] uppercase font-bold">Niveau actuel</span>
-                                <span className="text-slate-900 font-extrabold font-mono text-sm block">{tank.currentLevel.toLocaleString()} L</span>
+                                <span className="text-slate-900 font-extrabold font-mono text-sm block">{tank.currentLevel} L</span>
                               </div>
                               <div className="space-y-0.5">
                                 <span className="text-slate-400 text-[10px] uppercase font-bold">Capacité Totale</span>
-                                <span className="text-slate-700 font-bold font-mono block">{tank.capacity.toLocaleString()} L</span>
+                                <span className="text-slate-700 font-bold font-mono block">{tank.capacity} L</span>
                               </div>
                             </div>
 
@@ -1033,7 +1111,7 @@ export default function Tanks({ store }: TanksProps) {
                               <div>
                                 <strong>Quantité de la dernière livraison : </strong>
                                 <span className="text-slate-800 font-bold font-mono">
-                                  {lastSup ? `${lastSup.qtyDelivered.toLocaleString()} L` : '0 L'}
+                                  {lastSup ? `${lastSup.qtyDelivered} L` : '0 L'}
                                 </span>
                               </div>
                             </div>
@@ -1045,11 +1123,11 @@ export default function Tanks({ store }: TanksProps) {
                             <div className="grid grid-cols-2 gap-2 text-slate-600">
                               <div className="bg-[#ecfdf580] p-2 rounded-lg border border-emerald-100">
                                 <span className="text-[9px] uppercase font-bold text-emerald-700 block">Aujourd'hui</span>
-                                <span className="text-xs font-extrabold text-emerald-800 font-mono block mt-0.5">{consToday.toLocaleString()} L</span>
+                                <span className="text-xs font-extrabold text-emerald-800 font-mono block mt-0.5">{consToday} L</span>
                               </div>
                               <div className="bg-[#eff6ff80] p-2 rounded-lg border border-blue-100">
                                 <span className="text-[9px] uppercase font-bold text-blue-700 block">Ce Mois (Juillet)</span>
-                                <span className="text-xs font-extrabold text-blue-800 font-mono block mt-0.5">{consMonth.toLocaleString()} L</span>
+                                <span className="text-xs font-extrabold text-blue-800 font-mono block mt-0.5">{consMonth} L</span>
                               </div>
                             </div>
                           </div>
@@ -1179,11 +1257,11 @@ export default function Tanks({ store }: TanksProps) {
                             <div className="grid grid-cols-2 gap-3">
                               <div className="bg-slate-50 p-2.5 rounded-lg border border-[#e2e8f099] space-y-1">
                                 <span className="text-slate-400 text-[9px] uppercase font-bold block">Dernier index mécanique</span>
-                                <span className="text-xs font-bold text-slate-800 font-mono block">{noz.currentMechCounter.toLocaleString()} L</span>
+                                <span className="text-xs font-bold text-slate-800 font-mono block">{noz.currentMechCounter} L</span>
                               </div>
                               <div className="bg-slate-50 p-2.5 rounded-lg border border-[#e2e8f099] space-y-1">
                                 <span className="text-slate-400 text-[9px] uppercase font-bold block">Dernier index électronique</span>
-                                <span className="text-xs font-bold text-slate-800 font-mono block">{noz.currentElecCounter.toLocaleString()} L</span>
+                                <span className="text-xs font-bold text-slate-800 font-mono block">{noz.currentElecCounter.toFixed(3)} L</span>
                               </div>
                             </div>
                           </div>
@@ -1251,9 +1329,9 @@ export default function Tanks({ store }: TanksProps) {
                       </span>
                     </td>
                     <td className="p-3 font-sans text-slate-500">{sup.tankNumber}</td>
-                    <td className="p-3 font-bold text-slate-800 text-right">{sup.qtyDelivered.toLocaleString()} L</td>
+                    <td className="p-3 font-bold text-slate-800 text-right">{sup.qtyDelivered} L</td>
                     <td className="p-3 text-right">{sup.purchasePrice.toFixed(2)} MAD/L</td>
-                    <td className="p-3 font-bold text-slate-900 text-right">{(sup.qtyDelivered * sup.purchasePrice).toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}</td>
+                    <td className="p-3 font-bold text-slate-900 text-right">{(sup.qtyDelivered * sup.purchasePrice).toFixed(2)}</td>
                     <td className="p-3 font-sans text-slate-500">{new Date(sup.date).toLocaleDateString('fr-FR')}</td>
                   </tr>
                 ))}
@@ -1325,11 +1403,11 @@ export default function Tanks({ store }: TanksProps) {
                     <tr key={corr.id} className="hover:bg-[#f8fafc99] transition-colors">
                       <td className="p-3 text-slate-400">#{corr.id.split('_')[1] || corr.id}</td>
                       <td className="p-3 font-sans text-slate-800">{corr.tankNumber}</td>
-                      <td className="p-3 text-right text-slate-500">{corr.qtyBefore.toLocaleString()} L</td>
-                      <td className="p-3 font-bold text-slate-800 text-right">{corr.qtyAfter.toLocaleString()} L</td>
+                      <td className="p-3 text-right text-slate-500">{corr.qtyBefore} L</td>
+                      <td className="p-3 font-bold text-slate-800 text-right">{corr.qtyAfter} L</td>
                       <td className="p-3 text-right">
                         <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${diff < 0 ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                          {diff > 0 ? '+' : ''}{diff.toLocaleString()} L
+                          {diff > 0 ? '+' : ''}{diff} L
                         </span>
                       </td>
                       <td className="p-3 font-sans text-slate-600">{corr.user}</td>
@@ -1498,11 +1576,11 @@ export default function Tanks({ store }: TanksProps) {
                 return (
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
                     <div>
-                      <span className="text-xs text-slate-500 block mb-1">Volume Théorique: <strong className="text-slate-700">{theorique.toLocaleString()} L</strong></span>
+                      <span className="text-xs text-slate-500 block mb-1">Volume Théorique: <strong className="text-slate-700">{theorique} L</strong></span>
                       <span className="text-xs text-slate-500 block">Écart constaté:</span>
                     </div>
                     <div className={`text-lg font-bold font-mono px-3 py-1 rounded ${ecart < 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                      {ecart > 0 ? '+' : ''}{ecart.toLocaleString()} L
+                      {ecart > 0 ? '+' : ''}{ecart} L
                     </div>
                   </div>
                 );
@@ -1542,7 +1620,7 @@ export default function Tanks({ store }: TanksProps) {
                   type="submit" 
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors"
                 >
-                  Appliquer l'ajustement
+                  Enregistrer la note
                 </button>
               </div>
             </form>
@@ -1587,6 +1665,7 @@ function TankFormModal({ store, tank, onClose }: TankFormModalProps) {
   const [location, setLocation] = useState(tank?.location || '');
   const [status, setStatus] = useState(tank?.status || 'active');
   const [connectedPumps, setConnectedPumps] = useState<string[]>(tank?.connectedPumpIds || []);
+  const [color, setColor] = useState(tank?.color || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1606,7 +1685,8 @@ function TankFormModal({ store, tank, onClose }: TankFormModalProps) {
       maxLevel: parseInt(capacity) * 0.95,
       location,
       status: status as any,
-      connectedPumpIds: connectedPumps
+      connectedPumpIds: connectedPumps,
+      color
     };
 
     if (tank) {
@@ -1679,9 +1759,31 @@ function TankFormModal({ store, tank, onClose }: TankFormModalProps) {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Emplacement (Optionnel)</label>
-              <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Ex: Zone Nord" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Emplacement (Optionnel)</label>
+                <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Ex: Zone Nord" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Couleur de la Cuve</label>
+                <div className="flex gap-2 items-center">
+                  {(() => {
+                    const defaultHex = getFuelColor(productId).hex;
+                    const displayColor = color || defaultHex;
+                    return (
+                      <>
+                        <input type="color" value={displayColor} onChange={e => setColor(e.target.value)} className="w-10 h-10 cursor-pointer rounded border border-slate-200 p-0.5" />
+                        <div className="flex flex-col">
+                          <span className="text-xs text-slate-500 font-mono">{displayColor}</span>
+                          {color && (
+                            <button type="button" onClick={() => setColor('')} className="text-[10px] text-rose-500 hover:text-rose-700 text-left">Réinitialiser</button>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
 
             <div>
@@ -1792,7 +1894,7 @@ interface TankDetailModalProps {
 
 function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
   const currentPercent = Math.round((tank.currentLevel / tank.capacity) * 100);
-  const fuelColorInfo = getFuelColor(tank.productId);
+  const fuelColorInfo = getFuelColor(tank.productId, tank.color);
   
   const tankNozzles = store.nozzles.filter(n => n.tankId === tank.id);
   const pumpIds = tank.connectedPumpIds?.length ? tank.connectedPumpIds : Array.from(new Set(tankNozzles.map(n => n.pumpId)));
@@ -1827,7 +1929,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                 {tank.status === 'maintenance' && <span className="text-[10px] uppercase font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded">En maintenance</span>}
                 {tank.status === 'offline' && <span className="text-[10px] uppercase font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded">Hors service</span>}
               </h3>
-              <p className="text-xs text-slate-500">{tank.productName} • {tank.capacity.toLocaleString()}L</p>
+              <p className="text-xs text-slate-500">{tank.productName} • {tank.capacity}L</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
@@ -1862,11 +1964,11 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                 <div className="mt-4 grid grid-cols-2 gap-2 text-left">
                   <div className="bg-slate-50 p-2 rounded-lg">
                     <span className="block text-[10px] text-slate-500 uppercase font-bold">Volume Actuel</span>
-                    <span className="font-mono text-sm font-bold text-slate-800">{tank.currentLevel.toLocaleString()} L</span>
+                    <span className="font-mono text-sm font-bold text-slate-800">{tank.currentLevel} L</span>
                   </div>
                   <div className="bg-slate-50 p-2 rounded-lg">
                     <span className="block text-[10px] text-slate-500 uppercase font-bold">Seuil Alerte</span>
-                    <span className="font-mono text-sm font-bold text-slate-800">{tank.minLevel.toLocaleString()} L</span>
+                    <span className="font-mono text-sm font-bold text-slate-800">{tank.minLevel} L</span>
                   </div>
                 </div>
               </div>
@@ -1923,7 +2025,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                       <YAxis hide domain={[0, tank.capacity]} />
                       <RechartsTooltip 
                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        formatter={(value: number) => [`${Math.round(value).toLocaleString()} L`, 'Niveau']}
+                        formatter={(value: number) => [`${Math.round(value)} L`, 'Niveau']}
                       />
                       <Area type="monotone" dataKey="level" stroke={fuelColorInfo.hex} strokeWidth={2} fillOpacity={1} fill="url(#colorLevel)" />
                     </AreaChart>
@@ -1939,7 +2041,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                   </div>
                   <div>
                     <span className="block text-xs text-slate-500 font-medium">Consommation Aujourd'hui</span>
-                    <span className="text-lg font-black text-slate-800">{consumedToday.toLocaleString()} L</span>
+                    <span className="text-lg font-black text-slate-800">{consumedToday} L</span>
                   </div>
                 </div>
                 <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
@@ -1948,7 +2050,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                   </div>
                   <div>
                     <span className="block text-xs text-slate-500 font-medium">Consommation Mois ({new Date().toLocaleString('fr-FR', {month:'short'})})</span>
-                    <span className="text-lg font-black text-slate-800">{consumedMonth.toLocaleString()} L</span>
+                    <span className="text-lg font-black text-slate-800">{consumedMonth} L</span>
                   </div>
                 </div>
               </div>
@@ -1976,7 +2078,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                           <td className="p-3 font-medium text-slate-700">{new Date(sup.date).toLocaleDateString('fr-FR')}</td>
                           <td className="p-3 text-slate-600">{sup.supplier}</td>
                           <td className="p-3 text-slate-500 font-mono text-xs">{sup.invoiceNumber}</td>
-                          <td className="p-3 font-mono font-bold text-indigo-600 text-right">+{sup.qtyDelivered.toLocaleString()}</td>
+                          <td className="p-3 font-mono font-bold text-indigo-600 text-right">+{sup.qtyDelivered}</td>
                         </tr>
                       ))}
                     </tbody>

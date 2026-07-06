@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  Users, Plus, Search, Edit2, Trash2, Shield, UserX, UserCheck, 
-  MapPin, Phone, Calendar, ClipboardList, Info, AlertTriangle, X 
-} from 'lucide-react';
+import { Users, Plus, Search, Edit2, Trash2, Shield, UserX, UserCheck, MapPin, Phone, Calendar, ClipboardList, Info, AlertTriangle, X, Camera } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { Attendant } from '../types';
 
@@ -28,6 +25,7 @@ export default function Attendants({ store }: AttendantsProps) {
   const [matricule, setMatricule] = useState('');
   const [hireDate, setHireDate] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
   // Delete modal state
@@ -51,8 +49,8 @@ export default function Attendants({ store }: AttendantsProps) {
     setLastName('');
     setPhone('');
     setMatricule(`PM-${new Date().getFullYear()}-${String(attendants.length + 1).padStart(3, '0')}`);
-    setHireDate(new Date().toISOString().split('T')[0]);
-    setStatus('active');
+        setStatus('active');
+    setPhoto(null);
     setNotes('');
     setIsFormOpen(true);
   };
@@ -64,10 +62,22 @@ export default function Attendants({ store }: AttendantsProps) {
     setLastName(att.lastName);
     setPhone(att.phone);
     setMatricule(att.matricule);
-    setHireDate(att.hireDate);
-    setStatus(att.status);
+        setStatus(att.status);
+    setPhoto(att.photo || null);
     setNotes(att.notes);
     setIsFormOpen(true);
+  };
+
+  
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -82,7 +92,8 @@ export default function Attendants({ store }: AttendantsProps) {
       lastName,
       phone,
       matricule,
-      hireDate,
+      hireDate: new Date().toISOString().split('T')[0], // default value
+      photo,
       status,
       notes
     };
@@ -217,9 +228,15 @@ export default function Attendants({ store }: AttendantsProps) {
               {/* Contenu principal */}
               <div className="p-5 space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-full font-bold font-display text-base ${att.status === 'active' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
-                    {att.firstName[0]}{att.lastName[0]}
-                  </div>
+                  
+                  {att.photo ? (
+                    <img src={att.photo} alt={att.firstName} className="w-12 h-12 rounded-full object-cover shadow-sm border border-slate-200" />
+                  ) : (
+                    <div className={`w-12 h-12 flex items-center justify-center rounded-full font-bold font-display text-base ${att.status === 'active' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+                      {att.firstName[0]}{att.lastName[0]}
+                    </div>
+                  )}
+
                   <div>
                     <h3 className="font-bold text-slate-900 font-display text-base">{att.firstName} {att.lastName}</h3>
                     <span className="inline-block px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 font-mono text-[10px] text-slate-500 font-bold mt-0.5">
@@ -361,13 +378,25 @@ export default function Attendants({ store }: AttendantsProps) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Date d'embauche</label>
-                  <input 
-                    type="date" 
-                    value={hireDate}
-                    onChange={(e) => setHireDate(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500"
-                  />
+                  <label className="text-xs font-bold text-slate-500 uppercase">Photo du Pompiste</label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0">
+                      {photo ? (
+                        <img src={photo} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera size={24} className="text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">Format recommandé: JPG, PNG, max 2MB.</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase">Statut initial</label>

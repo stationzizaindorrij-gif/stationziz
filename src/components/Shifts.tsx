@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import {  
+import {
+  Database, Droplet,  
   ClipboardList, Plus, Play, CheckCircle2, AlertTriangle, ArrowRight, 
   Fuel, ShieldAlert, FileSpreadsheet, Calendar, User, Info, Clock, CheckCircle, X, Check 
 , Download , Edit, Trash2, ChevronLeft, ChevronRight , Wallet, Package, Wrench, ChevronDown, ChevronUp} from 'lucide-react';
-import html2pdf from 'html2pdf.js';
+import { useReactToPrint } from 'react-to-print';
+import { useRef } from 'react';
 import { ERPStoreType } from '../store';
 import { Shift, Nozzle } from '../types';
 import ShiftWizard from './ShiftWizard';
@@ -12,7 +14,19 @@ interface ShiftsProps {
   store: ERPStoreType;
 }
 
+const printStyles = `
+  @media print {
+    body {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    @page { margin: 10mm; }
+  }
+`;
+
 export default function Shifts({ store }: ShiftsProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const reactToPrintFn = useReactToPrint({ contentRef });
   const { 
     shifts, attendants, pumps, nozzles, products, startShift, submitShiftCounters, currentRole, cashRegistry 
   } = store;
@@ -46,20 +60,7 @@ export default function Shifts({ store }: ShiftsProps) {
   const [selectedDetailShift, setSelectedDetailShift] = useState<Shift | null>(null);
 
   const downloadPDF = () => {
-    const element = document.getElementById('shift-report-content');
-    if (!element) return;
-    
-    // Add a specific class or style for PDF output if needed
-    
-    const opt = {
-      margin:       10,
-      filename:     `rapport-shift-${selectedDetailShift?.id}.pdf`,
-      image:        { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas:  { scale: 2, ignoreElements: (element: Element) => element.classList.contains('hide-in-pdf') },
-      jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
-    };
-    
-    html2pdf().set(opt).from(element).save();
+    reactToPrintFn();
   };
 
 
@@ -170,8 +171,8 @@ export default function Shifts({ store }: ShiftsProps) {
       const start = shift.startCounters[noz.id];
       if (start) {
         // Suggest a simulated sale of 100 liters
-        initEndMech[noz.id] = (start.mech + 100).toString();
-        initEndElec[noz.id] = (start.elec + 100).toString();
+        initEndMech[noz.id] = '';
+        initEndElec[noz.id] = '';
       }
     });
 
@@ -185,8 +186,8 @@ export default function Shifts({ store }: ShiftsProps) {
       const price = prod?.salePrice || 1.80;
       theoreticalSum += 100 * price; // 100 liters simulated
     });
-    setRealCashInput(theoreticalSum.toFixed(2));
-    setCheckoutNotes('Shift impeccable, relevés d\'index vérifiés à la borne.');
+    setRealCashInput('');
+    setCheckoutNotes('');
     setActiveTab('checkout');
   };
 
@@ -211,7 +212,7 @@ export default function Shifts({ store }: ShiftsProps) {
       }
 
       if (endMech < start.mech || endElec < start.elec) {
-        alert(`Erreur sur le pistolet ${noz.name}: Les index de fin ne peuvent pas être inférieurs aux index de début (Début Elec: ${start.elec}, Saisi: ${endElec}).`);
+        alert(`Erreur sur le pistolet ${noz.name}: Les index de fin ne peuvent pas être inférieurs aux index de début (Début Elec: ${start.elec.toFixed(3)}, Saisi: ${endElec}).`);
         validationFailed = true;
         return;
       }
@@ -331,7 +332,7 @@ export default function Shifts({ store }: ShiftsProps) {
                             {assignedNozzles.map(noz => (
                               <div key={noz.id} className="py-1 flex justify-between font-mono">
                                 <span>{noz.name}</span>
-                                <span>{s.startCounters[noz.id]?.elec.toLocaleString()} L (élec)</span>
+                                <span>{s.startCounters[noz.id]?.elec?.toFixed(3)} L (élec)</span>
                               </div>
                             ))}
                           </div>
@@ -401,25 +402,25 @@ export default function Shifts({ store }: ShiftsProps) {
                             const produitsTotal = s.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
                             const servicesTotal = s.servicesSold?.reduce((sum, item) => sum + item.total, 0) || 0;
                             const carburantsTotal = s.totalAmount || 0;
-                            return (carburantsTotal + produitsTotal + servicesTotal).toLocaleString('fr-FR', { minimumFractionDigits: 2 });
+                            return (carburantsTotal + produitsTotal + servicesTotal).toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono text-slate-600">
                           {(() => {
-                            const taqati = s.nonCashPayments?.taqati?.reduce((sum, item) => sum + item.amount, 0) || 0;
-                            const cmi = s.nonCashPayments?.cmi?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const carteSntl = s.nonCashPayments?.carteSntl?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const espece = s.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const vignette = s.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const bonClient = s.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0;
-                            return (taqati + cmi + vignette + bonClient).toLocaleString('fr-FR', { minimumFractionDigits: 2 });
+                            return (carteSntl + espece + (s.nonCashPayments?.tpe?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0) + vignette + bonClient).toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono text-slate-600">
                           {(() => {
                             const depenses = s.expenses?.filter(e => e.method === 'cash').reduce((sum, e) => sum + e.amount, 0) || 0;
-                            return depenses.toLocaleString('fr-FR', { minimumFractionDigits: 2 });
+                            return depenses.toFixed(2);
                           })()} MAD
                         </td>
-                        <td className="p-3.5 font-mono text-slate-600">{(s.theoreticalCash || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} MAD</td>
+                        <td className="p-3.5 font-mono text-slate-600">{(s.theoreticalCash || 0).toFixed(2)} MAD</td>
                         <td className="p-3.5 text-right">
                           {s.status === 'ready_to_close' ? (
                             <button 
@@ -714,7 +715,7 @@ export default function Shifts({ store }: ShiftsProps) {
                       {/* Compteur Début */}
                       <div className="text-xs space-y-0.5 bg-slate-100 border border-slate-200 rounded p-2 text-center">
                         <span className="text-slate-400 block text-[9px] uppercase font-bold">Index Début (élec)</span>
-                        <strong className="text-slate-700 font-mono text-xs">{start.elec.toLocaleString()} L</strong>
+                        <strong className="text-slate-700 font-mono text-xs">{start.elec.toFixed(3)} L</strong>
                       </div>
 
                       {/* Compteur Fin Saisie */}
@@ -806,184 +807,278 @@ export default function Shifts({ store }: ShiftsProps) {
 
       {/* POPUP DE DETAIL DE SHIFT CLOS */}
       {selectedDetailShift && (
-        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 flex flex-col max-h-full">
-            
-            <div id="shift-report-content" className="bg-white flex flex-col overflow-hidden">
-              <div className="flex justify-between items-center bg-slate-900 text-white px-5 py-4 shrink-0">
-                <div>
-                  <h3 className="font-bold font-display">Rapport de Shift - {selectedDetailShift.attendantName}</h3>
-                  <span className="text-[10px] text-slate-400 font-mono">ID unique: {selectedDetailShift.id}</span>
-                </div>
-                <button onClick={() => setSelectedDetailShift(null)} className="text-slate-400 hover:text-white transition-colors hide-in-pdf">
-                  <X className="w-5 h-5" />
-                </button>
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center bg-slate-900 text-white px-4 py-3 shrink-0 rounded-t-xl">
+              <div>
+                <h3 className="font-bold text-sm uppercase tracking-wider">Rapport de Shift</h3>
+                <span className="text-[10px] text-slate-400 font-mono">ID: {selectedDetailShift.id}</span>
               </div>
+              <button onClick={() => setSelectedDetailShift(null)} className="text-slate-400 hover:text-white transition-colors hide-in-pdf">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div id="shift-report-content" ref={contentRef} className="p-4 sm:p-6 overflow-y-auto bg-white text-slate-800 text-sm flex-grow print:p-8"
+            style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+              {(() => {
+                const nonCashTotal = selectedDetailShift.nonCashPayments ? (
+                  (selectedDetailShift.nonCashPayments?.carteSntl?.reduce((sum, item) => sum + item.amount, 0) || 0) + 
+                  (selectedDetailShift.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0) + 
+                  (selectedDetailShift.nonCashPayments?.tpe?.reduce((sum, item) => sum + item.amount, 0) || 0) +
+                  (selectedDetailShift.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0) +
+                  (selectedDetailShift.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0)
+                ) : 0;
 
-              <div className="p-5 space-y-6 overflow-y-auto overflow-x-hidden bg-slate-50">
-                {(() => {
-                  const nonCashTotal = selectedDetailShift.nonCashPayments ? (
-                    (selectedDetailShift.nonCashPayments.taqati?.reduce((sum, item) => sum + item.amount, 0) || 0) +
-                    (selectedDetailShift.nonCashPayments.cmi?.reduce((sum, item) => sum + item.amount, 0) || 0) +
-                    (selectedDetailShift.nonCashPayments.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0) +
-                    (selectedDetailShift.nonCashPayments.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0)
-                  ) : 0;
+                const produitsTotal = selectedDetailShift.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
+                const servicesTotal = selectedDetailShift.servicesSold?.reduce((sum, item) => sum + item.total, 0) || 0;
+                const carburantsTotal = selectedDetailShift.totalAmount || 0;
+                const chiffreAffaires = carburantsTotal + produitsTotal + servicesTotal;
+                const depensesTotal = selectedDetailShift.expenses?.filter(e => e.method === 'cash').reduce((sum, exp) => sum + exp.amount, 0) || 0;
+                const especeARemettre = chiffreAffaires - nonCashTotal - depensesTotal;
 
-                  const produitsTotal = selectedDetailShift.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
-                  const servicesTotal = selectedDetailShift.servicesSold?.reduce((sum, item) => sum + item.total, 0) || 0;
-                  const carburantsTotal = selectedDetailShift.totalAmount || 0;
-                  const chiffreAffaires = carburantsTotal + produitsTotal + servicesTotal;
+                // Calculs Carburants par produit dynamique
+                const productAggregates: Record<string, { name: string, liters: number, amount: number }> = {};
+                const usedTanks = new Set<string>();
+                const nozzleRows: any[] = [];
 
-                  const depensesTotal = selectedDetailShift.expenses?.filter(e => e.method === 'cash').reduce((sum, exp) => sum + exp.amount, 0) || 0;
-                  const reglementsTotal = 0; // Fixed as requested in structure
-                  const rechargesTotal = 0; // Fixed as requested in structure
-
-                  const especeARemettre = chiffreAffaires - nonCashTotal - depensesTotal + reglementsTotal + rechargesTotal;
-
-                  return (
-                    <div className="max-w-4xl mx-auto space-y-6">
-                      {/* En-tête */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-slate-200">
-                          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-                            <User className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pompiste</div>
-                            <div className="font-bold text-slate-800 text-lg">{selectedDetailShift.attendantName}</div>
-                          </div>
-                        </div>
-                        <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-slate-200">
-                          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-                            <Calendar className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Période</div>
-                            <div className="font-bold text-slate-800 text-sm">
-                              {new Date(selectedDetailShift.date).toLocaleDateString('fr-FR')} {selectedDetailShift.startTime} → {selectedDetailShift.endDate ? new Date(selectedDetailShift.endDate).toLocaleDateString('fr-FR') : ''} {selectedDetailShift.endTime ? selectedDetailShift.endTime : '--:--'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Corps */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* CHIFFRE D'AFFAIRES */}
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-full">
-                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-6">Chiffre d'Affaires</h4>
-                          <div className="space-y-4 flex-grow">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Fuel className="w-4 h-4 text-amber-500" />
-                                <span className="text-slate-600 font-medium">Carburants</span>
-                              </div>
-                              <span className="font-bold font-mono text-slate-800 text-[15px]">{carburantsTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Package className="w-4 h-4 text-blue-500" />
-                                <span className="text-slate-600 font-medium">Produits</span>
-                              </div>
-                              <span className="font-bold font-mono text-slate-800 text-[15px]">{produitsTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Wrench className="w-4 h-4 text-purple-500" />
-                                <span className="text-slate-600 font-medium">Services</span>
-                              </div>
-                              <span className="font-bold font-mono text-slate-800 text-[15px]">{servicesTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                          </div>
-                          <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-                            <span className="font-bold text-slate-800">Total</span>
-                            <span className="font-bold font-mono text-emerald-600 text-lg">{chiffreAffaires.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</span>
-                          </div>
-                        </div>
-
-                        {/* MOUVEMENTS DE CAISSE */}
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-full">
-                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-6">Mouvements de Caisse</h4>
-                          <div className="space-y-4 flex-grow">
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600 font-medium text-sm">Encaissements Non-Espèces</span>
-                              <span className="font-bold font-mono text-rose-600 text-[15px]">- {nonCashTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600 font-medium text-sm">Dépenses (Espèces)</span>
-                              <span className="font-bold font-mono text-rose-600 text-[15px]">- {depensesTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            
-                            
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ESPÈCES À REMETTRE */}
-                      <div className="bg-emerald-700 rounded-xl p-8 relative overflow-hidden shadow-lg mt-6">
-                        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-emerald-500 rounded-full opacity-50 blur-2xl pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-emerald-900 rounded-full opacity-30 blur-2xl pointer-events-none"></div>
+                if (selectedDetailShift.litersSold) {
+                  Object.entries(selectedDetailShift.litersSold).forEach(([nozzleId, liters]) => {
+                    if (liters > 0) {
+                      const nozzle = store.nozzles.find(n => n.id === nozzleId);
+                      if (nozzle) {
+                        usedTanks.add(nozzle.tankId);
+                        const product = store.products.find(p => p.id === nozzle.productId);
+                        const amount = selectedDetailShift.amountSold?.[nozzleId] || 0;
+                        const prodName = product?.name || nozzle.productName || 'Carburant Inconnu';
                         
-                        <div className="relative z-10 flex flex-col items-center text-center space-y-3">
-                          <div className="flex items-center gap-2 text-emerald-100 uppercase tracking-widest text-[11px] font-bold">
-                            <Wallet className="w-4 h-4" />
-                            Espèces à remettre par {selectedDetailShift.attendantName}
-                          </div>
-                          <div className="text-4xl md:text-5xl font-black font-mono text-white tracking-tight">
-                            {especeARemettre.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH
-                          </div>
+                        nozzleRows.push({
+                          nozzleName: nozzle.name,
+                          productName: prodName,
+                          startElec: selectedDetailShift.startCounters?.[nozzleId]?.elec || 0,
+                          startMech: selectedDetailShift.startCounters?.[nozzleId]?.mech || 0,
+                          endElec: selectedDetailShift.endCounters?.[nozzleId]?.elec || 0,
+                          endMech: selectedDetailShift.endCounters?.[nozzleId]?.mech || 0,
+                          liters,
+                          amount
+                        });
+
+                        if (!productAggregates[prodName]) {
+                          productAggregates[prodName] = { name: prodName, liters: 0, amount: 0 };
+                        }
+                        productAggregates[prodName].liters += liters;
+                        productAggregates[prodName].amount += amount;
+                      }
+                    }
+                  });
+                }
+
+                return (
+                  <div className="space-y-6">
+                    {/* EN TÊTE COMPACT */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div>
+                        <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase mb-1">Pompiste</div>
+                        <div className="font-bold text-slate-800 text-lg uppercase">{selectedDetailShift.attendantName}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase mb-1">Période</div>
+                        <div className="font-bold text-slate-800">
+                          {new Date(selectedDetailShift.date).toLocaleDateString('fr-FR')} {selectedDetailShift.startTime} &rarr; {selectedDetailShift.endDate && selectedDetailShift.endDate !== selectedDetailShift.date ? new Date(selectedDetailShift.endDate).toLocaleDateString('fr-FR') : ''} {selectedDetailShift.endTime || 'En cours'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RELEVÉ DES INDEX */}
+                    <div>
+                      <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <Fuel className="w-3.5 h-3.5 text-indigo-500" />
+                        Relevé des Index
+                      </h4>
+                      <div className="rounded-lg border border-slate-200 overflow-hidden">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                            <tr>
+                              <th className="px-3 py-2 font-medium">Pistolet</th>
+                              <th className="px-3 py-2 font-medium">Produit</th>
+                              <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Début (Elec/Méc)</th>
+                              <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Fin (Elec/Méc)</th>
+                              <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Volume (Elec/Méc)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {nozzleRows.map((row, idx) => (
+                              <tr key={idx}>
+                                <td className="px-3 py-2 font-bold text-slate-800">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-md bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                                      <Fuel className="w-3.5 h-3.5 text-indigo-500" />
+                                    </div>
+                                    {row.nozzleName}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-slate-500">
+                                  <div className="flex items-center gap-1.5">
+                                    <Droplet className="w-3 h-3 text-slate-400" />
+                                    {row.productName}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
+                                  {row.startElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.startMech.toFixed(0)}</span>
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
+                                  {row.endElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.endMech.toFixed(0)}</span>
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono font-bold text-slate-900 bg-slate-50/50 whitespace-nowrap">
+                                  <span className="text-blue-700">{row.liters.toFixed(2)}</span> <span className="text-slate-400 font-normal mx-1">/</span> <span className="text-orange-600">{(row.endMech - row.startMech).toFixed(2)}</span>
+                                </td>
+                              </tr>
+                            ))}
+                            {nozzleRows.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <Droplet className="w-3.5 h-3.5 text-blue-500" />
+                            Volumes par Carburant
+                          </h4>
+                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                              <tr>
+                                <th className="px-3 py-2 font-medium">Type</th>
+                                <th className="px-3 py-2 font-medium text-right">Volume (L)</th>
+                                <th className="px-3 py-2 font-medium text-right">Montant (DH)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {Object.values(productAggregates).map((prod, idx) => (
+                                <tr key={idx}>
+                                  <td className="px-3 py-2 font-medium text-slate-800">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                                        <Droplet className="w-3.5 h-3.5 text-blue-500" />
+                                      </div>
+                                      {prod.name}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono">{prod.liters.toFixed(2)}</td>
+                                  <td className="px-3 py-2 text-right font-mono font-bold">{prod.amount.toFixed(2)}</td>
+                                </tr>
+                              ))}
+                              {Object.keys(productAggregates).length === 0 && (
+                                <tr>
+                                  <td colSpan={3} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
 
-                      {/* DÉTAIL ENCAISSEMENTS NON-ESPÈCES */}
-                      <details className="bg-white rounded-xl shadow-sm border border-slate-200 group overflow-hidden">
-                        <summary className="cursor-pointer p-5 flex items-center justify-between font-bold text-slate-700 uppercase tracking-wider text-xs list-none focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                          DÉTAIL ENCAISSEMENTS NON-ESPÈCES
-                          <ChevronDown className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" />
-                        </summary>
-                        <div className="p-5 pt-0 border-t border-slate-100 bg-slate-50 space-y-3 mt-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">TAQATI:</span>
-                            <strong className="font-mono">{(selectedDetailShift.nonCashPayments?.taqati?.reduce((sum, item) => sum + item.amount, 0) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">CMI:</span>
-                            <strong className="font-mono">{(selectedDetailShift.nonCashPayments?.cmi?.reduce((sum, item) => sum + item.amount, 0) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Vignette:</span>
-                            <strong className="font-mono">{(selectedDetailShift.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Bon Client:</span>
-                            <strong className="font-mono">{(selectedDetailShift.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
+                      {usedTanks.size > 0 && (
+                        <div>
+                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <Database className="w-3.5 h-3.5 text-slate-500" />
+                            Cuves (Consommées)
+                          </h4>
+                          <div className="rounded-lg border border-slate-200 overflow-hidden">
+                            <table className="w-full text-xs text-left">
+                              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                                <tr>
+                                  <th className="px-3 py-2 font-medium">Cuve</th>
+                                  <th className="px-3 py-2 font-medium">Produit</th>
+                                  <th className="px-3 py-2 font-medium text-right">Niveau Actuel (L)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {Array.from(usedTanks).map(tankId => {
+                                  const tank = store.tanks.find(t => t.id === tankId);
+                                  if (!tank) return null;
+                                  return (
+                                    <tr key={tank.id}>
+                                      <td className="px-3 py-2 font-bold text-slate-800">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                                            <Database className="w-3 h-3 text-slate-500" />
+                                          </div>
+                                          {tank.number}
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-500">
+                                        <div className="flex items-center gap-1.5">
+                                          <Droplet className="w-3 h-3 text-slate-400" />
+                                          {tank.productName}
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2 text-right font-mono font-bold">{tank.currentLevel.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
-                      </details>
+                      )}
+                    </div>
 
-                                          </div>
-                  );
-                })()}
-              </div>
+                    {/* FINANCES COMPACTES */}
+                    <div>
+                      <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                        Bilan Financier
+                      </h4>
+                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
+                        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-200">
+                          <div className="p-3">
+                            <div className="text-[10px] uppercase text-slate-500 mb-1">Total Ventes</div>
+                            <div className="font-mono font-bold text-slate-800">{chiffreAffaires.toFixed(2)} DH</div>
+                          </div>
+                          <div className="p-3">
+                            <div className="text-[10px] uppercase text-slate-500 mb-1">Non-Espèces</div>
+                            <div className="font-mono font-bold text-rose-600">-{nonCashTotal.toFixed(2)} DH</div>
+                          </div>
+                          <div className="p-3">
+                            <div className="text-[10px] uppercase text-slate-500 mb-1">Dépenses</div>
+                            <div className="font-mono font-bold text-rose-600">-{depensesTotal.toFixed(2)} DH</div>
+                          </div>
+                          <div className="p-3 bg-emerald-50">
+                            <div className="text-[10px] uppercase text-emerald-600 font-bold mb-1">Espèces à remettre</div>
+                            <div className="font-mono font-black text-emerald-700 text-lg">{especeARemettre.toFixed(2)} DH</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-              
-            
-            <div className="bg-slate-50 border-t border-slate-100 p-4 flex justify-end gap-2 shrink-0">
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 shrink-0 flex justify-end gap-3 rounded-b-xl hide-in-pdf">
               <button 
                 onClick={() => setSelectedDetailShift(null)}
-                className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-lg hover:bg-slate-800 transition-colors"
+                className="px-4 py-2 rounded-lg font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 text-sm"
               >
-                Fermer le Rapport
+                Fermer
               </button>
               <button 
-                onClick={downloadPDF}
-                className="px-4 py-2 bg-indigo-600 text-white font-bold text-xs rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
+                onClick={() => reactToPrintFn()}
+                className="px-4 py-2 rounded-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2 text-sm"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className="w-4 h-4" />
                 Télécharger PDF
               </button>
             </div>
           </div>
-        </div>
         </div>
       )}
       {/* Edit Shift Modal */}

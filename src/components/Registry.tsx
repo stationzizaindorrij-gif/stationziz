@@ -167,18 +167,18 @@ export default function Registry({ store }: RegistryProps) {
           <div className="py-4 text-center">
             <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">Encaisse théorique calculée</span>
             <h2 className="text-3xl font-black font-mono text-slate-900 mt-1">
-              {(cashRegistry.theoreticalCash || 0).toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}
+              {(cashRegistry.theoreticalCash || 0).toFixed(2)}
             </h2>
           </div>
 
           <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs text-slate-500 font-mono">
             <div className="bg-slate-50 p-2 rounded border border-slate-100 text-center">
               <span className="text-[10px] text-slate-400 font-sans block font-semibold uppercase">Fond de départ</span>
-              <strong className="text-slate-700">{(cashRegistry.openingCash || 0).toLocaleString()} MAD</strong>
+              <strong className="text-slate-700">{(cashRegistry.openingCash || 0)} MAD</strong>
             </div>
             <div className="bg-slate-50 p-2 rounded border border-slate-100 text-center">
               <span className="text-[10px] text-slate-400 font-sans block font-semibold uppercase">Flux de shift</span>
-              <strong className="text-emerald-600">+{cashRegistry.inputs.filter(i => i.label.includes('shift')).reduce((acc, i) => acc + i.amount, 0).toLocaleString()} MAD</strong>
+              <strong className="text-emerald-600">+{cashRegistry.inputs.filter(i => i.label.includes('shift')).reduce((acc, i) => acc + i.amount, 0)} MAD</strong>
             </div>
           </div>
         </div>
@@ -196,7 +196,7 @@ export default function Registry({ store }: RegistryProps) {
                       <span className="font-semibold text-slate-700 block">{i.label}</span>
                       <span className="text-[10px] text-slate-400 font-mono">{i.time} - Entrée</span>
                     </div>
-                    <span className="text-emerald-600 font-mono font-bold">+{i.amount.toLocaleString()} MAD</span>
+                    <span className="text-emerald-600 font-mono font-bold">+{i.amount} MAD</span>
                   </div>
                 ))}
                 {cashRegistry.outputs.map(o => (
@@ -205,7 +205,7 @@ export default function Registry({ store }: RegistryProps) {
                       <span className="font-semibold text-slate-700 block">{o.label}</span>
                       <span className="text-[10px] text-slate-400 font-mono">{o.time} - Sortie</span>
                     </div>
-                    <span className="text-rose-600 font-mono font-bold">-{o.amount.toLocaleString()} MAD</span>
+                    <span className="text-rose-600 font-mono font-bold">-{o.amount} MAD</span>
                   </div>
                 ))}
               </>
@@ -362,7 +362,7 @@ export default function Registry({ store }: RegistryProps) {
                 <span className="font-sans font-bold text-slate-700 block mb-1">Résumé théorique :</span>
                 <div className="flex justify-between text-slate-500">
                   <span>Solde de caisse attendu :</span>
-                  <span className="font-bold text-slate-800">{cashRegistry.theoreticalCash.toLocaleString()} MAD</span>
+                  <span className="font-bold text-slate-800">{cashRegistry.theoreticalCash} MAD</span>
                 </div>
               </div>
 

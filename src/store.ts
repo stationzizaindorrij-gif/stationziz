@@ -12,6 +12,7 @@ export function useERPStore() {
 
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
   const [tanks, setTanks] = useState<Tank[]>([]);
   const [pumps, setPumps] = useState<Pump[]>([]);
   const [nozzles, setNozzles] = useState<Nozzle[]>([]);
@@ -40,11 +41,86 @@ export function useERPStore() {
   // Sync state helpers
   
   const loadInitialData = (data: any) => {
-    if (data.products) setProducts(data.products);
+    if (data.products) {
+      const realProducts = data.products.filter((p: any) => !p.id.startsWith('sprod_'));
+      setProducts(realProducts);
+
+      const spProducts = data.products.filter((p: any) => p.id.startsWith('sprod_')).map((p: any) => {
+        let name = p.name;
+        let photo = '';
+        if (name.includes('|__PHOTO:')) {
+          const match = name.match(/\|__PHOTO:(.*?)__\|/);
+          if (match) {
+            photo = match[1];
+            name = name.replace(match[0], '');
+          }
+        }
+        return {
+          id: p.id,
+          name,
+          photo,
+          purchasePrice: p.purchasePrice,
+          salePrice: p.salePrice,
+          stockQuantity: p.vatRate,
+          status: p.status
+        };
+      });
+
+      const storedShopProducts = localStorage.getItem('erp_shop_products');
+      let localProducts = [];
+      if (storedShopProducts) {
+        try {
+          localProducts = JSON.parse(storedShopProducts);
+        } catch(e) {}
+      }
+
+      const allSpProducts = [...spProducts];
+      const toMigrate = [];
+      for (const lp of localProducts) {
+        if (!allSpProducts.find(p => p.id === lp.id)) {
+          allSpProducts.push(lp);
+          toMigrate.push(lp);
+        }
+      }
+      setShopProducts(allSpProducts);
+      
+      // Fire-and-forget background migration to Supabase
+      if (toMigrate.length > 0) {
+        setTimeout(async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+             const mapShopToProduct = (sp: any) => ({
+                id: sp.id,
+                name: sp.photo ? `${sp.name}|__PHOTO:${sp.photo}__|` : sp.name,
+                type: 'gazoil',
+                purchasePrice: sp.purchasePrice,
+                salePrice: sp.salePrice,
+                vatRate: sp.stockQuantity,
+                status: sp.status,
+                user_id: session.user.id
+             });
+             const mappedToMigrate = toMigrate.map(mapShopToProduct);
+             await supabase.from('erp_products').insert(mappedToMigrate);
+             localStorage.removeItem('erp_shop_products');
+          }
+        }, 1000);
+      }
+    }
     if (data.tanks) setTanks(data.tanks);
     if (data.pumps) setPumps(data.pumps);
     if (data.nozzles) setNozzles(data.nozzles);
-    if (data.attendants) setAttendants(data.attendants);
+    if (data.attendants) {
+      setAttendants(data.attendants.map(a => {
+        if (a.notes && typeof a.notes === 'string' && a.notes.includes('|__PHOTO:')) {
+          const match = a.notes.match(/\|__PHOTO:(.*?)__\|/);
+          if (match) {
+            a.photo = match[1];
+            a.notes = a.notes.replace(match[0], '');
+          }
+        }
+        return a;
+      }));
+    }
     if (data.shifts) {
       setShifts(data.shifts.map(s => {
         if (s.notes && typeof s.notes === 'string' && s.notes.includes('|__END_DATE:')) {
@@ -87,6 +163,13 @@ export function useERPStore() {
     }).map(i => ({...i, user_id: session.user.id}));
 
     const cleanItem = (item) => {
+      if (table === 'erp_attendants') {
+        const { photo, ...rest } = item;
+        if (photo) {
+          rest.notes = (rest.notes || '') + `|__PHOTO:${photo}__|`;
+        }
+        return rest;
+      }
       if (table === 'erp_shifts') {
         const { endDate, ...rest } = item;
         if (endDate) {
@@ -128,6 +211,7 @@ export function useERPStore() {
     let oldValue: any = null;
     switch(key) {
       case 'products': oldValue = products; break;
+      case 'shop_products': oldValue = shopProducts; break;
       case 'tanks': oldValue = tanks; break;
       case 'pumps': oldValue = pumps; break;
       case 'nozzles': oldValue = nozzles; break;
@@ -151,7 +235,22 @@ export function useERPStore() {
 
     const isArray = Array.isArray(newValue);
     if (isArray) {
-      await syncArrayToSupabase(`erp_${key}`, oldValue || [], newValue);
+      if (key === 'shop_products') {
+        const mapShopToProduct = (sp: any) => ({
+          id: sp.id,
+          name: sp.photo ? `${sp.name}|__PHOTO:${sp.photo}__|` : sp.name,
+          type: 'gazoil',
+          purchasePrice: sp.purchasePrice,
+          salePrice: sp.salePrice,
+          vatRate: sp.stockQuantity,
+          status: sp.status
+        });
+        const mappedShopProducts = newValue.map(mapShopToProduct);
+        const mappedOldValue = (oldValue || []).map(mapShopToProduct);
+        await syncArrayToSupabase('erp_products', mappedOldValue, mappedShopProducts);
+      } else {
+        await syncArrayToSupabase(`erp_${key}`, oldValue || [], newValue);
+      }
     } else {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -238,6 +337,26 @@ export function useERPStore() {
   };
 
   // MODULE 4: PRODUCTS
+  
+  const addShopProduct = (product: Omit<ShopProduct, 'id'>, author: string) => {
+    const newProduct = { ...product, id: `sprod_${Date.now()}` };
+    const updated = [...shopProducts, newProduct];
+    saveState('shop_products', updated, setShopProducts);
+    logAction(author, 'Création Produit Boutique', 'Boutique', `Création du produit boutique ${newProduct.name}`);
+  };
+
+  const updateShopProduct = (id: string, updatedFields: Partial<ShopProduct>, author: string) => {
+    const updated = shopProducts.map(p => p.id === id ? { ...p, ...updatedFields } : p);
+    saveState('shop_products', updated, setShopProducts);
+    logAction(author, 'Modification Produit Boutique', 'Boutique', `Mise à jour du produit boutique ${id}`);
+  };
+
+  const deleteShopProduct = (id: string, author: string) => {
+    const updated = shopProducts.filter(p => p.id !== id);
+    saveState('shop_products', updated, setShopProducts);
+    logAction(author, 'Suppression Produit Boutique', 'Boutique', `Produit boutique ${id} supprimé`);
+  };
+
   const addProduct = (prod: Omit<Product, 'id'>, author: string) => {
     const newProd: Product = { ...prod, id: `prod_${Date.now()}` };
     const updated = [...products, newProd];
@@ -266,7 +385,7 @@ export function useERPStore() {
         const nextTank = { ...t, ...updatedFields };
         // Low Stock Alarm trigger checking
         if (nextTank.currentLevel <= nextTank.minLevel) {
-          triggerAlert('warning', `Le niveau de la ${nextTank.number} est faible : ${nextTank.currentLevel.toLocaleString()} L restants.`, 'low_stock');
+          triggerAlert('warning', `Le niveau de la ${nextTank.number} est faible : ${nextTank.currentLevel} L restants.`, 'low_stock');
         }
         return nextTank;
       }
@@ -302,9 +421,8 @@ export function useERPStore() {
 
     const updatedCorrections = [correction, ...stockCorrections];
     saveState('stock_corrections', updatedCorrections, setStockCorrections);
-
-    updateTank(tankId, { currentLevel: newLevel }, author);
-    logAction(author, 'Correction de Stock', 'Stock', `Correction manuelle de ${original.number} : ${original.currentLevel} L ➔ ${newLevel} L. Raison : ${reason}`);
+    
+    logAction(author, 'Jaugeage Manuel', 'Stock', `Jaugeage manuel de ${original.number} : Théorique ${original.currentLevel} L, Réel jaugé ${newLevel} L. Note : ${reason}`);
   };
 
   // MODULE 6: PUMPS
@@ -567,7 +685,7 @@ export function useERPStore() {
             // Check if we already have an unread alert for this
             const hasAlert = alerts.some(a => a.type === 'low_stock' && a.message.includes(tank.number) && !a.isRead);
             if (!hasAlert) {
-              triggerAlert('warning', `Le niveau de la ${tank.number} est faible : ${nextLevel.toLocaleString()} L restants.`, 'low_stock');
+              triggerAlert('warning', `Le niveau de la ${tank.number} est faible : ${nextLevel} L restants.`, 'low_stock');
             }
           }
         }
@@ -715,7 +833,7 @@ export function useERPStore() {
       productsSold: Sale[];
       servicesSold: any[];
       expenses: any[];
-      nonCashPayments?: { taqati: { amount: number; clientId?: string }[]; cmi: { amount: number; clientId?: string }[]; vignette: { amount: number; clientId?: string }[]; bonClient: { amount: number; clientId?: string }[]; };
+      nonCashPayments?: { carteSntl: { amount: number; clientId?: string; date?: string }[]; espece: { amount: number; clientId?: string; date?: string }[]; tpe: { amount: number; clientId?: string; date?: string }[]; vignette: { amount: number; clientId?: string; date?: string }[]; bonClient: { amount: number; clientName?: string; date?: string }[]; };
     },
     author: string
   ) => {
@@ -749,7 +867,7 @@ export function useERPStore() {
             if (nextLevel <= tank.minLevel) {
               const hasAlert = alerts.some(a => a.type === 'low_stock' && a.message.includes(tank.number) && !a.isRead);
               if (!hasAlert) {
-                triggerAlert('warning', `Le niveau de la ${tank.number} est faible : ${nextLevel.toLocaleString()} L restants.`, 'low_stock');
+                triggerAlert('warning', `Le niveau de la ${tank.number} est faible : ${nextLevel} L restants.`, 'low_stock');
               }
             }
           }
@@ -800,6 +918,7 @@ export function useERPStore() {
     });
 
     // Also include product sales if any
+    let updatedShopProducts = [...shopProducts];
     shiftData.productsSold.forEach((p, idx) => {
        newSales.push({
          ...p,
@@ -810,7 +929,17 @@ export function useERPStore() {
          attendantName: shiftData.attendantName,
          shiftId: newShift.id
        });
+       
+       if (p.shopProductId) {
+         updatedShopProducts = updatedShopProducts.map(sp => 
+            sp.id === p.shopProductId ? { ...sp, stockQuantity: Math.max(0, sp.stockQuantity - p.qty) } : sp
+         );
+       }
     });
+    
+    if (shiftData.productsSold.some(p => p.shopProductId)) {
+       saveState('shop_products', updatedShopProducts, setShopProducts);
+    }
 
     if (newSales.length > 0) {
       saveState('sales', [...newSales, ...sales], setSales);
@@ -834,6 +963,7 @@ export function useERPStore() {
   // RESET SYSTEM
   const resetAllData = async () => {
     setProducts([]);
+    setShopProducts([]);
     setTanks([]);
     setPumps([]);
     setNozzles([]);
@@ -964,6 +1094,7 @@ export function useERPStore() {
   return {
     loadInitialData,
     products,
+    shopProducts,
     tanks,
     pumps,
     nozzles,
@@ -995,6 +1126,9 @@ export function useERPStore() {
     deleteAttendant,
 
     // Product CRUD
+    addShopProduct,
+    updateShopProduct,
+    deleteShopProduct,
     addProduct,
     updateProduct,
 

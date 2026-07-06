@@ -5,10 +5,13 @@ import { Activity, Paperclip,
   Calendar, FileBox, FileArchive, Printer, X, Eye, Edit, Copy, Trash2, Mail
  } from 'lucide-react';
 import { ERPStoreType } from '../store';
+import { ConfirmModal } from './ConfirmModal';
 import { Supplier, Client, PurchaseInvoice, SalesInvoice } from '../types';
-import html2pdf from 'html2pdf.js';
+import { useReactToPrint } from 'react-to-print';
+import { useRef } from 'react';
 
 export function Billing({ store }: { store: ERPStoreType }) {
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'purchase' | 'sales' | 'suppliers' | 'history'>('dashboard');
   
   const [showPartnerModal, setShowPartnerModal] = useState<'supplier'|'client'|null>(null);
@@ -208,6 +211,16 @@ export function Billing({ store }: { store: ERPStoreType }) {
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        isOpen={!!confirmModalConfig?.isOpen}
+        title={confirmModalConfig?.title || ''}
+        message={confirmModalConfig?.message || ''}
+        onConfirm={() => {
+          confirmModalConfig?.onConfirm();
+          setConfirmModalConfig(null);
+        }}
+        onCancel={() => setConfirmModalConfig(null)}
+      />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Facturation & Achats</h2>
@@ -261,7 +274,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                 <FileArchive className="w-5 h-5 text-indigo-500" />
                 <span className="text-xs font-bold uppercase tracking-wider">Total Achats (TTC)</span>
               </div>
-              <p className="text-2xl font-black text-slate-800">{stats.totalPurchases.toLocaleString('fr-FR', {minimumFractionDigits: 2})} MAD</p>
+              <p className="text-2xl font-black text-slate-800">{stats.totalPurchases.toFixed(2)} MAD</p>
             </div>
             
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
@@ -269,7 +282,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                 <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
                 <span className="text-xs font-bold uppercase tracking-wider">Total Ventes (TTC)</span>
               </div>
-              <p className="text-2xl font-black text-slate-800">{stats.totalSales.toLocaleString('fr-FR', {minimumFractionDigits: 2})} MAD</p>
+              <p className="text-2xl font-black text-slate-800">{stats.totalSales.toFixed(2)} MAD</p>
             </div>
             
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
@@ -336,7 +349,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                         <td className="p-4 text-slate-500">{inv.date}</td>
                         <td className="p-4 font-bold text-slate-800">{sup?.name}</td>
                         <td className="p-4 text-slate-600">{prod?.name}</td>
-                        <td className="p-4 text-right text-slate-600">{inv.quantity.toLocaleString()} L</td>
+                        <td className="p-4 text-right text-slate-600">{inv.quantity} L</td>
                         <td className="p-4 text-right font-mono font-bold text-slate-800">{inv.amountTTC.toFixed(2)}</td>
                         <td className="p-4">
                           <span className={`px-2 py-1 rounded text-xs font-bold ${inv.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -418,7 +431,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                         <td className="p-4 text-slate-500">{inv.date}</td>
                         <td className="p-4 font-bold text-slate-800">{cli?.name}</td>
                         <td className="p-4 text-slate-600">{prod?.name}</td>
-                        <td className="p-4 text-right text-slate-600">{inv.quantity.toLocaleString()} L</td>
+                        <td className="p-4 text-right text-slate-600">{inv.quantity} L</td>
                         <td className="p-4 text-right font-mono font-bold text-slate-800">{inv.amountTTC.toFixed(2)}</td>
                         
                         <td className="p-4 text-right">
@@ -713,7 +726,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                           <td className="p-4 font-medium text-slate-800">
                             {store.products.find(p => p.id === selectedInvoice.productId)?.name || 'Produit inconnu'}
                           </td>
-                          <td className="p-4 text-right text-slate-600">{selectedInvoice.quantity.toLocaleString()}</td>
+                          <td className="p-4 text-right text-slate-600">{selectedInvoice.quantity}</td>
                           <td className="p-4 text-right text-slate-600">{selectedInvoice.pricePerLiter.toFixed(2)}</td>
                           <td className="p-4 text-right text-slate-600">20%</td>
                           <td className="p-4 text-right font-mono font-bold text-slate-700">{selectedInvoice.amountHT.toFixed(2)}</td>
@@ -844,7 +857,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                     <tbody className="divide-y divide-slate-100">
                       <tr>
                         <td className="p-4 text-slate-800 font-bold">{store.products.find(p => p.id === selectedInvoice.productId)?.name}</td>
-                        <td className="p-4 text-right font-mono text-slate-600">{selectedInvoice.quantity.toLocaleString()} L</td>
+                        <td className="p-4 text-right font-mono text-slate-600">{selectedInvoice.quantity} L</td>
                         <td className="p-4 text-right font-mono text-slate-600">{selectedInvoice.pricePerLiter.toFixed(2)}</td>
                         <td className="p-4 text-right font-mono font-bold text-slate-800">{selectedInvoice.amountHT.toFixed(2)}</td>
                       </tr>

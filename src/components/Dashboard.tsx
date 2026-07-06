@@ -151,7 +151,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chiffre d'affaires (Jour)</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalRevenueToday.toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalRevenueToday.toFixed(2)}</h3>
             </div>
             <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
               <DollarSign className="w-5 h-5" />
@@ -170,7 +170,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Carburant vendu (Jour)</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalLitersToday.toLocaleString('fr-FR')} L</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalLitersToday} L</h3>
             </div>
             <div className="p-2.5 bg-sky-50 text-sky-600 rounded-lg">
               <Droplets className="w-5 h-5" />
@@ -189,7 +189,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bénéfices Estimés (Jour)</p>
-              <h3 className="text-2xl font-bold text-emerald-600 mt-1 font-mono">+{totalProfitToday.toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}</h3>
+              <h3 className="text-2xl font-bold text-emerald-600 mt-1 font-mono">+{totalProfitToday.toFixed(2)}</h3>
             </div>
             <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">
               <TrendingUp className="w-5 h-5" />
@@ -336,7 +336,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
                   {entry.name}
                 </span>
                 <span className="font-mono text-slate-500 font-medium">
-                  {entry.value.toLocaleString()} L ({entry.revenue.toLocaleString()} MAD)
+                  {entry.value} L ({entry.revenue} MAD)
                 </span>
               </div>
             ))}

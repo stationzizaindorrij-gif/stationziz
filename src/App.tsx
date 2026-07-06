@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Clock, Fuel, HelpCircle, 
   Settings as SettingsIcon, Sliders, Bell, FileText, 
   DollarSign, Menu, X, Landmark, User, ShieldCheck, RefreshCw, CheckSquare 
-} from 'lucide-react';
+, Package } from 'lucide-react';
 
 import { useERPStore } from './store';
 import { supabase } from './lib/supabase';
@@ -21,6 +21,7 @@ import Reports from './components/Reports';
 import Alerts from './components/Alerts';
 import Settings from './components/Settings';
 import { Billing } from './components/Billing';
+import { Shop } from './components/Shop';
 
 type ActiveModule = 
   | 'dashboard' 
@@ -95,6 +96,7 @@ function AppContent({ session }: { session: any }) {
     { id: 'shifts', label: 'Gestion des Shifts', icon: Clock, badge: 0 },
     { id: 'tanks', label: 'Cuves & Stock', icon: Fuel, badge: 0 },
     { id: 'assets', label: 'Installations & Prix', icon: Sliders, badge: 0 },
+    { id: 'shop', label: 'Boutique', icon: Package, badge: 0 },
     { id: 'registry', label: 'Session de Caisse', icon: DollarSign, badge: 0 },
     { id: 'billing', label: 'Facturation & Achats', icon: Landmark, badge: 0 },
     { id: 'reports', label: 'Centre de Rapports', icon: FileText, badge: 0 },
@@ -289,6 +291,7 @@ function AppContent({ session }: { session: any }) {
             {activeModule === 'shifts' && <Shifts store={store} />}
             {activeModule === 'tanks' && <Tanks store={store} />}
             {activeModule === 'assets' && <Assets store={store} />}
+            {activeModule === 'shop' && <Shop store={store} />}
             {activeModule === 'registry' && <Registry store={store} />}
             {activeModule === 'billing' && <Billing store={store} />}
             {activeModule === 'reports' && <Reports store={store} />}

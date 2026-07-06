@@ -82,7 +82,7 @@ export default function Reports({ store }: ReportsProps) {
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Volume total débité</p>
           <h3 className="text-2xl font-black font-mono text-slate-900 mt-1">
-            {Math.round(selectedPeriod === 'daily' ? totalLitersSold * 0.4 : selectedPeriod === 'weekly' ? totalLitersSold * 2.8 : totalLitersSold * 12).toLocaleString()} L
+            {Math.round(selectedPeriod === 'daily' ? totalLitersSold * 0.4 : selectedPeriod === 'weekly' ? totalLitersSold * 2.8 : totalLitersSold * 12)} L
           </h3>
           <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
             <span className="text-emerald-500 font-bold">100% réel</span> basé sur relevés d'index
@@ -92,17 +92,17 @@ export default function Reports({ store }: ReportsProps) {
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Chiffre d'Affaires Brut (TTC)</p>
           <h3 className="text-2xl font-black font-mono text-slate-900 mt-1 text-indigo-600">
-            {Math.round(selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12).toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}
+            {Math.round(selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12).toFixed(2)}
           </h3>
           <div className="text-[11px] text-slate-400 mt-1">
-            TVA cumulée (20%): {( (selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12) * 0.166 ).toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}
+            TVA cumulée (20%): {( (selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12) * 0.166 ).toFixed(2)}
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Marge Commerciale Réelle</p>
           <h3 className="text-2xl font-black font-mono text-emerald-600 mt-1">
-            {Math.round(selectedPeriod === 'daily' ? totalMargin * 0.4 : selectedPeriod === 'weekly' ? totalMargin * 2.8 : totalMargin * 12).toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}
+            {Math.round(selectedPeriod === 'daily' ? totalMargin * 0.4 : selectedPeriod === 'weekly' ? totalMargin * 2.8 : totalMargin * 12).toFixed(2)}
           </h3>
           <div className="text-[11px] text-slate-400 mt-1">
             Marge brute moyenne: <strong className="text-slate-600 font-bold">{averageMarginPercent.toFixed(1)}%</strong>
@@ -172,8 +172,8 @@ export default function Reports({ store }: ReportsProps) {
                 return (
                   <div key={prod.id} className="py-2 flex justify-between items-center font-mono text-[11px]">
                     <span className="font-sans font-medium text-slate-700">{prod.name}</span>
-                    <span className="text-slate-500">{simulatedQty.toLocaleString()} Litres @ {prod.salePrice.toFixed(2)} MAD</span>
-                    <strong className="text-slate-900">{simulatedTotal.toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}</strong>
+                    <span className="text-slate-500">{simulatedQty} Litres @ {prod.salePrice.toFixed(2)} MAD</span>
+                    <strong className="text-slate-900">{simulatedTotal.toFixed(2)}</strong>
                   </div>
                 );
               })}
@@ -186,15 +186,15 @@ export default function Reports({ store }: ReportsProps) {
             <div className="space-y-1.5 font-mono text-xs">
               <div className="flex justify-between">
                 <span>Chiffre d'Affaires Brut (TTC) :</span>
-                <strong>{Math.round(selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12).toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}</strong>
+                <strong>{Math.round(selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12).toFixed(2)}</strong>
               </div>
               <div className="flex justify-between text-[11px] text-slate-500">
                 <span>TVA due (20%) :</span>
-                <span>{Math.round((selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12) * 0.166).toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}</span>
+                <span>{Math.round((selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12) * 0.166).toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5 text-sm">
                 <span>Chiffre d'Affaires Net (HT) :</span>
-                <span>{Math.round((selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12) * 0.833).toLocaleString('fr-MA', { style: 'currency', currency: 'MAD' })}</span>
+                <span>{Math.round((selectedPeriod === 'daily' ? totalRevenue * 0.4 : selectedPeriod === 'weekly' ? totalRevenue * 2.8 : totalRevenue * 12) * 0.833).toFixed(2)}</span>
               </div>
             </div>
           </div>

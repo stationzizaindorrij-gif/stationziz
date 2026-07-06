@@ -3,7 +3,7 @@ import {
   ArrowLeft, CheckCircle2, DollarSign, Fuel, Package, Settings, Users, Droplet,
   CreditCard, Receipt, FileText, ChevronRight, ChevronLeft, Calendar,
   Clock, Lock, CheckCircle, AlertTriangle, Plus, Trash2, Printer, Check, User, Wallet, Wrench, ChevronDown
-} from 'lucide-react';
+, Database } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { Shift, Product, Nozzle, Sale } from '../types';
 
@@ -34,13 +34,15 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
   const [serviceSales, setServiceSales] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [nonCashPayments, setNonCashPayments] = useState<{
-    taqati: { amount: number; clientId: string }[];
-    cmi: { amount: number; clientId: string }[];
-    vignette: { amount: number; clientId: string }[];
-    bonClient: { amount: number; clientId: string }[];
+    carteSntl: { amount: number; clientId: string; date: string }[];
+    espece: { amount: number; clientId: string; date: string }[];
+    tpe: { amount: number; clientId: string; date: string }[];
+    vignette: { amount: number; clientId: string; date: string }[];
+    bonClient: { amount: number; clientName: string; date: string }[];
   }>({ 
-    taqati: [], 
-    cmi: [], 
+    carteSntl: [], 
+    espece: [], 
+    tpe: [],
     vignette: [], 
     bonClient: [] 
   });
@@ -54,7 +56,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
       pumpNozzles.forEach(noz => {
         newStartCounters[noz.id] = { mech: noz.currentMechCounter, elec: noz.currentElecCounter };
         if (!endCounters[noz.id]) {
-          newEndCounters[noz.id] = { mech: noz.currentMechCounter, elec: noz.currentElecCounter };
+          newEndCounters[noz.id] = { mech: '', elec: '' };
         } else {
           newEndCounters[noz.id] = endCounters[noz.id];
         }
@@ -77,21 +79,30 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
         const start = startCounters[noz.id];
         const end = endCounters[noz.id];
         if (start && end) {
-          const qty = Math.max(0, end.elec - start.elec);
+          const sElec = parseFloat(start.elec) || 0;
+          const eElec = parseFloat(end.elec) || 0;
+          const sMech = parseFloat(start.mech) || 0;
+          const eMech = parseFloat(end.mech) || 0;
+
+          const qtyElec = Math.max(0, eElec - sElec);
+          const qtyMech = Math.max(0, eMech - sMech);
           const product = store.products.find(p => p.id === noz.productId);
           const price = product ? product.salePrice : 0;
-          const total = qty * price;
+          const total = qtyElec * price; // Defaulting to Elec for totals
           
           totalFuelAmount += total;
-          totalFuelLiters += qty;
-          litersSold[noz.id] = qty;
+          totalFuelLiters += qtyElec;
+          litersSold[noz.id] = qtyElec;
           amountSold[noz.id] = total;
 
           details.push({
             nozzle: noz,
-            start: start.elec,
-            end: end.elec,
-            qty,
+            startElec: sElec,
+            endElec: eElec,
+            startMech: sMech,
+            endMech: eMech,
+            qtyElec,
+            qtyMech,
             price,
             total
           });
@@ -142,8 +153,9 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
   const grandTotalSales = fuelSalesDetails.totalFuelAmount + totalProductSales + totalServiceSales;
 
   const totalNonCashPayments = 
-    nonCashPayments.taqati.reduce((acc, curr) => acc + curr.amount, 0) +
-    nonCashPayments.cmi.reduce((acc, curr) => acc + curr.amount, 0) +
+    nonCashPayments.carteSntl.reduce((acc, curr) => acc + curr.amount, 0) +
+    nonCashPayments.espece.reduce((acc, curr) => acc + curr.amount, 0) +
+    nonCashPayments.tpe.reduce((acc, curr) => acc + curr.amount, 0) +
     nonCashPayments.vignette.reduce((acc, curr) => acc + curr.amount, 0) +
     nonCashPayments.bonClient.reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -224,7 +236,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+    <div className="max-w-7xl mx-auto space-y-6 pb-20">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
           <ArrowLeft className="w-5 h-5" />
@@ -369,7 +381,8 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                         <th className="p-3">Pompe / Pistolet</th>
                         <th className="p-3 text-right">Index Entrée (Elec / Méc)</th>
                         <th className="p-3 text-right">Index Sortie (Elec / Méc)</th>
-                        <th className="p-3 text-right">Vol. Vendu (L)</th>
+                        <th className="p-3 text-right whitespace-nowrap">Vol. Vendu (ELEC)</th>
+                        <th className="p-3 text-right whitespace-nowrap">Vol. Vendu (MEC)</th>
                         <th className="p-3 text-right">Prix U.</th>
                         <th className="p-3 text-right">Total (MAD)</th>
                       </tr>
@@ -409,8 +422,8 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                                 <span className="text-[9px] text-emerald-600/60 font-bold uppercase mb-1">Elec</span>
                                 <input 
                                   type="number" 
-                                  value={endCounters[row.nozzle.id]?.elec || 0}
-                                  onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], elec: parseFloat(e.target.value) || 0 }})}
+                                  value={endCounters[row.nozzle.id]?.elec !== undefined ? endCounters[row.nozzle.id].elec : ''}
+                                  onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], elec: e.target.value }})}
                                   className="w-24 text-right bg-transparent border-b border-emerald-200 font-mono font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
                                 />
                               </div>
@@ -418,23 +431,24 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                                 <span className="text-[9px] text-emerald-600/60 font-bold uppercase mb-1">Méc</span>
                                 <input 
                                   type="number" 
-                                  value={endCounters[row.nozzle.id]?.mech || 0}
-                                  onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], mech: parseFloat(e.target.value) || 0 }})}
+                                  value={endCounters[row.nozzle.id]?.mech !== undefined ? endCounters[row.nozzle.id].mech : ''}
+                                  onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], mech: e.target.value }})}
                                   className="w-24 text-right bg-transparent border-b border-emerald-200 font-mono font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
                                 />
                               </div>
                             </div>
                           </td>
-                          <td className="p-3 font-mono font-bold text-indigo-600 text-right">{row.qty.toLocaleString()}</td>
+                          <td className="p-3 font-mono font-bold text-indigo-600 text-right whitespace-nowrap">{row.qtyElec.toFixed(3)} L</td>
+                          <td className="p-3 font-mono font-bold text-emerald-600 text-right whitespace-nowrap">{row.qtyMech.toFixed(3)} L</td>
                           <td className="p-3 font-mono text-slate-500 text-right">{row.price.toFixed(2)}</td>
-                          <td className="p-3 font-mono font-black text-slate-800 text-right">{row.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                          <td className="p-3 font-mono font-black text-slate-800 text-right">{row.total.toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
-                        <td colSpan={5} className="p-3 text-right text-slate-500 uppercase text-xs">Total ventes carburants</td>
-                        <td className="p-3 font-mono text-lg text-emerald-600 text-right">{fuelSalesDetails.totalFuelAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td colSpan={6} className="p-3 text-right text-slate-500 uppercase text-xs">Total ventes carburants</td>
+                        <td className="p-3 font-mono text-lg text-emerald-600 text-right">{fuelSalesDetails.totalFuelAmount.toFixed(2)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -449,8 +463,25 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
                 <div className="flex gap-4 items-end">
                   <div className="flex-[2]">
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Nouveau Produit</label>
-                    <input type="text" id="newProdName" placeholder="Ex: Additif Moteur" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500" />
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Sélectionner Produit</label>
+                    <select 
+                      id="newProdId"
+                      className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500"
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        const prod = store.shopProducts.find(p => p.id === selectedId);
+                        if (prod) {
+                           (document.getElementById('newProdPrice') as HTMLInputElement).value = prod.salePrice.toString();
+                        } else {
+                           (document.getElementById('newProdPrice') as HTMLInputElement).value = '';
+                        }
+                      }}
+                    >
+                      <option value="">Sélectionnez un produit...</option>
+                      {store.shopProducts.map(sp => (
+                        <option key={sp.id} value={sp.id}>{sp.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex-1">
                     <label className="block text-xs font-bold text-slate-700 mb-1">Qté</label>
@@ -461,16 +492,28 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                     <input type="number" id="newProdPrice" placeholder="0.00" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500" />
                   </div>
                   <button onClick={() => {
-                    const name = (document.getElementById('newProdName') as HTMLInputElement).value;
+                    const select = document.getElementById('newProdId') as HTMLSelectElement;
+                    const selectedId = select.value;
+                    let name = '';
+                    let productId = '';
+                    if (selectedId) {
+                      const prod = store.shopProducts.find(p => p.id === selectedId);
+                      if (prod) {
+                        name = prod.name;
+                        productId = prod.id;
+                      }
+                    }
                     const qty = parseFloat((document.getElementById('newProdQty') as HTMLInputElement).value) || 0;
                     const price = parseFloat((document.getElementById('newProdPrice') as HTMLInputElement).value) || 0;
                     if(name && qty && price) {
-                      setProductSales([...productSales, { id: `prod_${Date.now()}`, name, qty, price, total: qty * price }]);
-                      (document.getElementById('newProdName') as HTMLInputElement).value = '';
+                      setProductSales([...productSales, { id: `prod_${Date.now()}`, shopProductId: productId, name, qty, price, total: qty * price }]);
+                      select.value = '';
                       (document.getElementById('newProdQty') as HTMLInputElement).value = '1';
                       (document.getElementById('newProdPrice') as HTMLInputElement).value = '';
+                    } else {
+                      alert('Veuillez sélectionner un produit et saisir une quantité et un prix valides.');
                     }
-                  }} className="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg text-sm hover:bg-slate-900 transition-colors h-[38px]">
+                  }} className="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg text-sm hover:bg-slate-900 transition-colors h-[38px] mt-[20px]">
                     Ajouter
                   </button>
                 </div>
@@ -492,7 +535,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                       {productSales.map(item => (
                         <tr key={item.id}>
                           <td className="p-3 font-bold text-slate-700">{item.name}</td>
-                          <td className="p-3 font-mono font-bold text-indigo-600 text-right">
+                          <td className="p-3 font-mono font-bold text-indigo-600 text-right whitespace-nowrap">
                             <input type="number" value={item.qty} onChange={e => {
                               const qty = parseFloat(e.target.value) || 0;
                               setProductSales(productSales.map(p => p.id === item.id ? { ...p, qty, total: qty * p.price } : p));
@@ -504,7 +547,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                               setProductSales(productSales.map(p => p.id === item.id ? { ...p, price, total: p.qty * price } : p));
                             }} className="w-20 text-right bg-transparent border-b border-slate-200 focus:outline-none focus:border-slate-500" />
                           </td>
-                          <td className="p-3 font-mono font-black text-slate-800 text-right">{item.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                          <td className="p-3 font-mono font-black text-slate-800 text-right">{item.total.toFixed(2)}</td>
                           <td className="p-3 text-center">
                             <button onClick={() => setProductSales(productSales.filter(p => p.id !== item.id))} className="text-rose-400 hover:text-rose-600">
                               <Trash2 className="w-4 h-4 mx-auto" />
@@ -516,7 +559,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
                         <td colSpan={3} className="p-3 text-right text-slate-500 uppercase text-xs">Total Boutique</td>
-                        <td className="p-3 font-mono text-lg text-amber-600 text-right">{totalProductSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-3 font-mono text-lg text-amber-600 text-right">{totalProductSales.toFixed(2)}</td>
                         <td></td>
                       </tr>
                     </tfoot>
@@ -588,7 +631,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
                         <td className="p-3 text-right text-slate-500 uppercase text-xs">Total Services</td>
-                        <td className="p-3 font-mono text-lg text-cyan-600 text-right">{totalServiceSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-3 font-mono text-lg text-cyan-600 text-right">{totalServiceSales.toFixed(2)}</td>
                         <td></td>
                       </tr>
                     </tfoot>
@@ -681,7 +724,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
                         <td colSpan={3} className="p-3 text-right text-slate-500 uppercase text-xs">Total Dépenses</td>
-                        <td className="p-3 font-mono text-lg text-rose-600 text-right">{totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-3 font-mono text-lg text-rose-600 text-right">{totalExpenses.toFixed(2)}</td>
                         <td></td>
                       </tr>
                     </tfoot>
@@ -705,17 +748,18 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                 </div>
                 <div className="text-right">
                   <span className="block text-[10px] uppercase font-bold text-slate-400">Total Ventes</span>
-                  <span className="text-xl font-black text-slate-800 font-mono">{grandTotalSales.toLocaleString()} MAD</span>
+                  <span className="text-xl font-black text-slate-800 font-mono">{grandTotalSales} MAD</span>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { key: 'taqati', label: 'TAQATI' },
-                  { key: 'cmi', label: 'CMI' },
-                  { key: 'vignette', label: 'VIGNETTE' },
-                  { key: 'bonClient', label: 'BON CLIENT' }
-                ].map(method => (
+    { key: 'carteSntl', label: 'CARTE SNTL' },
+    { key: 'espece', label: 'ESPECE' },
+    { key: 'tpe', label: 'TPE' },
+    { key: 'vignette', label: 'VIGNETTE' },
+    { key: 'bonClient', label: 'BON CLIENT' }
+  ].map(method => (
                   <div key={method.key} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                     <div className="flex items-center justify-between mb-3">
                       <label className="block text-sm font-bold text-slate-700">{method.label}</label>
@@ -723,7 +767,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                         onClick={() => {
                           setNonCashPayments({
                             ...nonCashPayments,
-                            [method.key]: [...nonCashPayments[method.key as keyof typeof nonCashPayments], { amount: 0, clientId: '' }]
+                            [method.key]: [...nonCashPayments[method.key as keyof typeof nonCashPayments], method.key === 'bonClient' ? { amount: 0, clientName: '', date: new Date().toISOString().split('T')[0] } : { amount: 0, clientId: '', date: new Date().toISOString().split('T')[0] }]
                           });
                         }}
                         className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded"
@@ -753,21 +797,32 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400 font-bold text-xs">MAD</div>
                             </div>
                           </div>
+                          {method.key === 'bonClient' && (
                           <div className="flex-1 w-full">
-                            <select
-                              value={entry.clientId || ''}
+                              <input
+                                type="text"
+                                placeholder="Nom du client"
+                                value={(entry as any).clientName || ''}
+                                onChange={e => {
+                                  const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
+                                  newArr[idx].clientName = e.target.value;
+                                  setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                                }}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                              />
+                          </div>
+                        )}
+                          <div className="flex-1 w-full">
+                            <input
+                              type="date"
+                              value={(entry as any).date || ''}
                               onChange={e => {
-                                const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]];
-                                newArr[idx].clientId = e.target.value;
+                                const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
+                                newArr[idx].date = e.target.value;
                                 setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
                               }}
                               className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
-                            >
-                              <option value="">Sélectionner un partenaire</option>
-                              {store.clients && store.clients.map(client => (
-                                <option key={client.id} value={client.id}>{client.name}</option>
-                              ))}
-                            </select>
+                            />
                           </div>
                           <button
                             onClick={() => {
@@ -789,7 +844,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
               <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
                 <span className="font-bold text-indigo-800">Total Encaissement non espèce :</span>
                 <span className="font-black text-xl text-indigo-900 font-mono">
-                  {totalNonCashPayments.toLocaleString()} MAD
+                  {totalNonCashPayments} MAD
                 </span>
               </div>
             </div>
@@ -814,121 +869,220 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                   const attendantName = attendant ? `${attendant.firstName} ${attendant.lastName}` : '';
                   const especeARemettre = theoreticalCash;
 
+
+                  const nozzleRows = fuelSalesDetails.details.map(d => ({
+                    nozzleName: d.nozzle.name,
+                    productName: d.nozzle.productName,
+                    startElec: d.startElec,
+                    startMech: d.startMech,
+                    endElec: d.endElec,
+                    endMech: d.endMech,
+                    liters: d.qtyElec,
+                    amount: d.total
+                  }));
+
+                  const productAggregates: Record<string, { name: string, liters: number, amount: number }> = {};
+                  const usedTanks = new Set<string>();
+
+                  fuelSalesDetails.details.forEach(d => {
+                    if (d.qtyElec > 0) {
+                      usedTanks.add(d.nozzle.tankId);
+                      const prodName = d.nozzle.productName || 'Carburant Inconnu';
+                      if (!productAggregates[prodName]) {
+                        productAggregates[prodName] = { name: prodName, liters: 0, amount: 0 };
+                      }
+                      productAggregates[prodName].liters += d.qtyElec;
+                      productAggregates[prodName].amount += d.total;
+                    }
+                  });
+
                   return (
                     <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-slate-200">
-                          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-                            <User className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pompiste</div>
-                            <div className="font-bold text-slate-800 text-lg">{attendantName}</div>
+                      {/* EN TÊTE COMPACT */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div>
+                          <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase mb-1">Pompiste</div>
+                          <div className="font-bold text-slate-800 text-lg uppercase">{attendantName}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase mb-1">Période</div>
+                          <div className="font-bold text-slate-800">
+                            {new Date(date).toLocaleDateString('fr-FR')} {startTime} &rarr; {endDate ? new Date(endDate).toLocaleDateString('fr-FR') : ''} {endTime || 'En cours'}
                           </div>
                         </div>
-                        <div className="bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-slate-200">
-                          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-                            <Calendar className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Période</div>
-                            <div className="font-bold text-slate-800 text-sm">
-                              {new Date(date).toLocaleDateString('fr-FR')} ({startTime}) → {endDate ? new Date(endDate).toLocaleDateString('fr-FR') : ''} ({endTime ? endTime : '--:--'})
-                            </div>
-                          </div>
+                      </div>
+
+                      {/* RELEVÉ DES INDEX */}
+                      <div>
+                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                          <Fuel className="w-3.5 h-3.5 text-indigo-500" />
+                          Relevé des Index
+                        </h4>
+                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                              <tr>
+                                <th className="px-3 py-2 font-medium">Pistolet</th>
+                                <th className="px-3 py-2 font-medium">Produit</th>
+                                <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Début (Elec/Méc)</th>
+                                <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Fin (Elec/Méc)</th>
+                                <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Volume (Elec/Méc)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {nozzleRows.map((row, idx) => (
+                                <tr key={idx}>
+                                  <td className="px-3 py-2 font-bold text-slate-800">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-md bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                                        <Fuel className="w-3.5 h-3.5 text-indigo-500" />
+                                      </div>
+                                      {row.nozzleName}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2 text-slate-500">
+                                    <div className="flex items-center gap-1.5">
+                                      <Droplet className="w-3 h-3 text-slate-400" />
+                                      {row.productName}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
+                                    {row.startElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.startMech.toFixed(0)}</span>
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
+                                    {row.endElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.endMech.toFixed(0)}</span>
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono font-bold text-slate-900 bg-slate-50/50 whitespace-nowrap">
+                                    <span className="text-blue-700">{row.liters.toFixed(2)}</span> <span className="text-slate-400 font-normal mx-1">/</span> <span className="text-orange-600">{(row.endMech - row.startMech).toFixed(2)}</span>
+                                  </td>
+                                </tr>
+                              ))}
+                              {nozzleRows.length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-full">
-                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-6">Chiffre d'Affaires</h4>
-                          <div className="space-y-4 flex-grow">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Fuel className="w-4 h-4 text-amber-500" />
-                                <span className="text-slate-600 font-medium">Carburants</span>
-                              </div>
-                              <span className="font-bold font-mono text-slate-800 text-[15px]">{fuelSalesDetails.totalFuelAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Package className="w-4 h-4 text-blue-500" />
-                                <span className="text-slate-600 font-medium">Produits</span>
-                              </div>
-                              <span className="font-bold font-mono text-slate-800 text-[15px]">{totalProductSales.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Wrench className="w-4 h-4 text-purple-500" />
-                                <span className="text-slate-600 font-medium">Services</span>
-                              </div>
-                              <span className="font-bold font-mono text-slate-800 text-[15px]">{totalServiceSales.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
-                            </div>
-                          </div>
-                          <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-                            <span className="font-bold text-slate-800">Total</span>
-                            <span className="font-bold font-mono text-emerald-600 text-lg">{grandTotalSales.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</span>
+                        <div>
+                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                              <Droplet className="w-3.5 h-3.5 text-blue-500" />
+                              Volumes par Carburant
+                          </h4>
+                          <div className="rounded-lg border border-slate-200 overflow-hidden">
+                            <table className="w-full text-xs text-left">
+                              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                                <tr>
+                                  <th className="px-3 py-2 font-medium">Type</th>
+                                  <th className="px-3 py-2 font-medium text-right">Volume (L)</th>
+                                  <th className="px-3 py-2 font-medium text-right">Montant (DH)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {Object.values(productAggregates).map((prod, idx) => (
+                                  <tr key={idx}>
+                                    <td className="px-3 py-2 font-medium text-slate-800">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                                          <Droplet className="w-3.5 h-3.5 text-blue-500" />
+                                        </div>
+                                        {prod.name}
+                                      </div>
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-mono">{prod.liters.toFixed(2)}</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold">{prod.amount.toFixed(2)}</td>
+                                  </tr>
+                                ))}
+                                {Object.keys(productAggregates).length === 0 && (
+                                  <tr>
+                                    <td colSpan={3} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
 
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-full">
-                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-6">Mouvements de Caisse</h4>
-                          <div className="space-y-4 flex-grow">
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600 font-medium text-sm">Encaissements Non-Espèces</span>
-                              <span className="font-bold font-mono text-rose-600 text-[15px]">- {totalNonCashPayments.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
+                        {usedTanks.size > 0 && (
+                          <div>
+                            <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                              <Database className="w-3.5 h-3.5 text-slate-500" />
+                              Cuves (Consommées)
+                            </h4>
+                            <div className="rounded-lg border border-slate-200 overflow-hidden">
+                              <table className="w-full text-xs text-left">
+                                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                                  <tr>
+                                    <th className="px-3 py-2 font-medium">Cuve</th>
+                                    <th className="px-3 py-2 font-medium">Produit</th>
+                                    <th className="px-3 py-2 font-medium text-right">Niveau Actuel (L)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {Array.from(usedTanks).map(tankId => {
+                                    const tank = store.tanks.find(t => t.id === tankId);
+                                    if (!tank) return null;
+                                    return (
+                                      <tr key={tank.id}>
+                                        <td className="px-3 py-2 font-bold text-slate-800">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                                              <Database className="w-3 h-3 text-slate-500" />
+                                            </div>
+                                            {tank.number}
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2 text-slate-500">
+                                          <div className="flex items-center gap-1.5">
+                                            <Droplet className="w-3 h-3 text-slate-400" />
+                                            {tank.productName}
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2 text-right font-mono font-bold">{tank.currentLevel.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-600 font-medium text-sm">Dépenses (Espèces)</span>
-                              <span className="font-bold font-mono text-rose-600 text-[15px]">- {cashExpenses.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* FINANCES COMPACTES */}
+                      <div>
+                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                          <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                          Bilan Financier
+                        </h4>
+                        <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
+                          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-200">
+                            <div className="p-3">
+                              <div className="text-[10px] uppercase text-slate-500 mb-1">Total Ventes</div>
+                              <div className="font-mono font-bold text-slate-800">{grandTotalSales.toFixed(2)} DH</div>
+                            </div>
+                            <div className="p-3">
+                              <div className="text-[10px] uppercase text-slate-500 mb-1">Non-Espèces</div>
+                              <div className="font-mono font-bold text-rose-600">-{totalNonCashPayments.toFixed(2)} DH</div>
+                            </div>
+                            <div className="p-3">
+                              <div className="text-[10px] uppercase text-slate-500 mb-1">Dépenses</div>
+                              <div className="font-mono font-bold text-rose-600">-{cashExpenses.toFixed(2)} DH</div>
+                            </div>
+                            <div className="p-3 bg-emerald-50">
+                              <div className="text-[10px] uppercase text-emerald-600 font-bold mb-1">Espèces à remettre</div>
+                              <div className="font-mono font-black text-emerald-700 text-lg">{especeARemettre.toFixed(2)} DH</div>
                             </div>
                           </div>
                         </div>
                       </div>
-
-                      <div className="bg-emerald-700 rounded-xl p-8 relative overflow-hidden shadow-lg mt-6">
-                        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-emerald-500 rounded-full opacity-50 blur-2xl pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-emerald-900 rounded-full opacity-30 blur-2xl pointer-events-none"></div>
-                        
-                        <div className="relative z-10 flex flex-col items-center text-center space-y-3">
-                          <div className="flex items-center gap-2 text-emerald-100 uppercase tracking-widest text-[11px] font-bold">
-                            <Wallet className="w-4 h-4" />
-                            Espèces à remettre par {attendantName}
-                          </div>
-                          <div className="text-4xl md:text-5xl font-black font-mono text-white tracking-tight">
-                            {especeARemettre.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH
-                          </div>
-                        </div>
-                      </div>
-
-                      <details className="bg-white rounded-xl shadow-sm border border-slate-200 group overflow-hidden">
-                        <summary className="cursor-pointer p-5 flex items-center justify-between font-bold text-slate-700 uppercase tracking-wider text-xs list-none focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                          DÉTAIL ENCAISSEMENTS NON-ESPÈCES
-                          <ChevronDown className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" />
-                        </summary>
-                        <div className="p-5 pt-0 border-t border-slate-100 bg-slate-50 space-y-3 mt-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">TAQATI:</span>
-                            <strong className="font-mono">{nonCashPayments.taqati.reduce((a, b) => a + b.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">CMI:</span>
-                            <strong className="font-mono">{nonCashPayments.cmi.reduce((a, b) => a + b.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Vignette:</span>
-                            <strong className="font-mono">{nonCashPayments.vignette.reduce((a, b) => a + b.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Bon Client:</span>
-                            <strong className="font-mono">{nonCashPayments.bonClient.reduce((a, b) => a + b.amount, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} DH</strong>
-                          </div>
-                        </div>
-                      </details>
-
-
                     </div>
                   );
+
                 })()}
               </div>
 

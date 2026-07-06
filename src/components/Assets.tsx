@@ -341,7 +341,7 @@ export default function Assets({ store }: AssetsProps) {
                         {pumpNozzles.map(noz => (
                           <div key={noz.id} className="flex justify-between items-center text-slate-500 py-0.5">
                             <span className="font-medium text-slate-700">{noz.name}</span>
-                            <span>{noz.productName.split(' ')[0]}</span>
+                            <span>{noz.productName}</span>
                           </div>
                         ))}
                       </div>
@@ -413,8 +413,8 @@ export default function Assets({ store }: AssetsProps) {
                     </td>
                     <td className="p-3 font-sans text-slate-600">{noz.pumpNumber}</td>
                     <td className="p-3 font-sans text-slate-400">{noz.tankNumber}</td>
-                    <td className="p-3 text-right text-slate-700 font-bold">{noz.currentElecCounter.toLocaleString()} L</td>
-                    <td className="p-3 text-right text-slate-700 font-bold">{noz.currentMechCounter.toLocaleString()} L</td>
+                    <td className="p-3 text-right text-slate-700 font-bold">{noz.currentElecCounter.toFixed(3)} L</td>
+                    <td className="p-3 text-right text-slate-700 font-bold">{noz.currentMechCounter} L</td>
                     <td className="p-3">
                       <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border font-sans ${
                         noz.status === 'active' 
@@ -580,27 +580,15 @@ export default function Assets({ store }: AssetsProps) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Fabricant</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={pManufacturer}
-                    onChange={(e) => setPManufacturer(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Numéro de série</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={pSerial}
-                    onChange={(e) => setPSerial(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm font-mono focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Numéro de série</label>
+                <input 
+                  type="text" 
+                  required
+                  value={pSerial}
+                  onChange={(e) => setPSerial(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg p-2 text-sm font-mono focus:outline-none focus:border-indigo-500"
+                />
               </div>
 
               <div className="space-y-1">
@@ -658,42 +646,44 @@ export default function Assets({ store }: AssetsProps) {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Carburant</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Carburant</label>
                   <select 
                     value={nozProdId}
                     onChange={(e) => setNozProdId(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg p-1.5 text-xs focus:outline-none focus:border-indigo-500 bg-white"
+                    className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500 bg-white"
                   >
                     {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name.split(' ')[0]}</option>
+                      <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Pompe</label>
-                  <select 
-                    value={nozPumpId}
-                    onChange={(e) => setNozPumpId(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg p-1.5 text-xs focus:outline-none focus:border-indigo-500 bg-white"
-                  >
-                    {pumps.map(p => (
-                      <option key={p.id} value={p.id}>{p.number}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Cuve relie</label>
-                  <select 
-                    value={nozTankId}
-                    onChange={(e) => setNozTankId(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg p-1.5 text-xs focus:outline-none focus:border-indigo-500 bg-white"
-                  >
-                    {tanks.map(t => (
-                      <option key={t.id} value={t.id}>{t.number.split(' ')[1]}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Pompe</label>
+                    <select 
+                      value={nozPumpId}
+                      onChange={(e) => setNozPumpId(e.target.value)}
+                      className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500 bg-white"
+                    >
+                      {pumps.map(p => (
+                        <option key={p.id} value={p.id}>{p.number}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Cuve reliée</label>
+                    <select 
+                      value={nozTankId}
+                      onChange={(e) => setNozTankId(e.target.value)}
+                      className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500 bg-white"
+                    >
+                      {tanks.map(t => (
+                        <option key={t.id} value={t.id}>{t.number}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 

@@ -273,7 +273,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
   ];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+    <div className="max-w-7xl mx-auto space-y-6 pb-20">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -414,9 +414,10 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     <tr>
                       <th className="p-3">Pompe & Pistolet</th>
                       <th className="p-3">Produit</th>
-                      <th className="p-3 text-right">Index Début</th>
-                      <th className="p-3 text-right">Index Fin</th>
-                      <th className="p-3 text-right">Quantité (L)</th>
+                      <th className="p-3 text-right">Index Début (E/M)</th>
+                      <th className="p-3 text-right">Index Fin (E/M)</th>
+                      <th className="p-3 text-right whitespace-nowrap">Vol. Vendu (ELEC)</th>
+                      <th className="p-3 text-right whitespace-nowrap">Vol. Vendu (MEC)</th>
                       <th className="p-3 text-right">Prix (MAD)</th>
                       <th className="p-3 text-right">Total (MAD)</th>
                         <th className="p-3 text-center w-20">Action</th>
@@ -431,25 +432,45 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                             {row.nozzle.productName}
                           </span>
                         </td>
-                        <td className="p-3 font-mono text-slate-500 text-right">{row.start.toLocaleString()}</td>
-                        <td className="p-3 font-mono font-bold text-slate-800 text-right bg-emerald-50/30">
-                          <input 
-                            type="number" 
-                            value={row.end}
-                            onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], elec: parseFloat(e.target.value) || 0 }})}
-                            className="w-24 text-right bg-transparent border-b border-emerald-200 focus:outline-none focus:border-emerald-500 font-bold"
-                          />
+                        <td className="p-3 text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="font-mono text-slate-500 text-xs">E: {row.startElec.toFixed(3)}</span>
+                            <span className="font-mono text-slate-500 text-xs">M: {row.startMech.toFixed(3)}</span>
+                          </div>
                         </td>
-                        <td className="p-3 font-mono font-bold text-indigo-600 text-right">{row.qty.toLocaleString()}</td>
+                        <td className="p-3 bg-emerald-50/30 text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] text-emerald-600/60 font-bold uppercase">E</span>
+                              <input 
+                                type="number" 
+                                value={endCounters[row.nozzle.id]?.elec !== undefined ? endCounters[row.nozzle.id].elec : ''}
+                                onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], elec: e.target.value }})}
+                                className="w-20 text-right bg-transparent border-b border-emerald-200 focus:outline-none focus:border-emerald-500 font-bold font-mono text-xs"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] text-emerald-600/60 font-bold uppercase">M</span>
+                              <input 
+                                type="number" 
+                                value={endCounters[row.nozzle.id]?.mech !== undefined ? endCounters[row.nozzle.id].mech : ''}
+                                onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], mech: e.target.value }})}
+                                className="w-20 text-right bg-transparent border-b border-emerald-200 focus:outline-none focus:border-emerald-500 font-bold font-mono text-xs"
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3 font-mono font-bold text-indigo-600 text-right whitespace-nowrap">{row.qtyElec.toFixed(3)} L</td>
+                        <td className="p-3 font-mono font-bold text-emerald-600 text-right whitespace-nowrap">{row.qtyMech.toFixed(3)} L</td>
                         <td className="p-3 font-mono text-slate-500 text-right">{row.price.toFixed(2)}</td>
-                        <td className="p-3 font-mono font-black text-slate-800 text-right">{row.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-3 font-mono font-black text-slate-800 text-right">{row.total.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                     <tr>
                       <td colSpan={6} className="p-3 text-right text-slate-500 uppercase text-xs">Total ventes carburants</td>
-                      <td className="p-3 font-mono text-lg text-emerald-600 text-right">{fuelSalesDetails.totalFuelAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      <td className="p-3 font-mono text-lg text-emerald-600 text-right">{fuelSalesDetails.totalFuelAmount.toFixed(2)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -515,7 +536,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                       {productSales.map(item => (
                         <tr key={item.id} className="hover:bg-slate-50">
                           <td className="p-3 font-bold text-slate-700">{item.name}</td>
-                          <td className="p-3 font-mono font-bold text-indigo-600 text-right">
+                          <td className="p-3 font-mono font-bold text-indigo-600 text-right whitespace-nowrap">
                           <input type="number" value={item.qty} onChange={e => {
                             const qty = parseFloat(e.target.value) || 0;
                             setProductSales(productSales.map(p => p.id === item.id ? { ...p, qty, total: qty * p.price } : p));
@@ -549,7 +570,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
                         <td colSpan={3} className="p-3 text-right text-slate-500 uppercase text-xs">Total ventes produits</td>
-                        <td className="p-3 font-mono text-lg text-amber-600 text-right">{totalProductSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-3 font-mono text-lg text-amber-600 text-right">{totalProductSales.toFixed(2)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -629,7 +650,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
                         <td className="p-3 text-right text-slate-500 uppercase text-xs">Total ventes services</td>
-                        <td className="p-3 font-mono text-lg text-cyan-600 text-right">{totalServiceSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-3 font-mono text-lg text-cyan-600 text-right">{totalServiceSales.toFixed(2)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -656,7 +677,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
               </div>
 
                             <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6 space-y-4">
-                <h4 className="font-bold text-slate-800 text-sm">Ajuster la répartition (Total requis: {grandTotalSales.toLocaleString()} MAD)</h4>
+                <h4 className="font-bold text-slate-800 text-sm">Ajuster la répartition (Total requis: {grandTotalSales} MAD)</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {Object.entries({ cash: 'Espèces', card: 'CB', check: 'Chèques', voucher: 'Bons Clients', transfer: 'Virements', other: 'Autres' }).map(([key, label]) => (
                     <div key={key}>
@@ -678,27 +699,27 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm text-center">
                   <span className="text-xs uppercase font-bold text-slate-400 block mb-2">Espèces</span>
-                  <span className="text-2xl font-black text-emerald-600 font-mono">{paymentsBreakdown.cash.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  <span className="text-2xl font-black text-emerald-600 font-mono">{paymentsBreakdown.cash.toFixed(2)}</span>
                 </div>
                 <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm text-center">
                   <span className="text-xs uppercase font-bold text-slate-400 block mb-2">Carte Bancaire (TPE)</span>
-                  <span className="text-2xl font-black text-blue-600 font-mono">{paymentsBreakdown.card.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  <span className="text-2xl font-black text-blue-600 font-mono">{paymentsBreakdown.card.toFixed(2)}</span>
                 </div>
                 <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm text-center">
                   <span className="text-xs uppercase font-bold text-slate-400 block mb-2">Chèques</span>
-                  <span className="text-2xl font-black text-slate-700 font-mono">{paymentsBreakdown.check.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  <span className="text-2xl font-black text-slate-700 font-mono">{paymentsBreakdown.check.toFixed(2)}</span>
                 </div>
                 <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm text-center">
                   <span className="text-xs uppercase font-bold text-slate-400 block mb-2">Bons Clients (Vouchers)</span>
-                  <span className="text-2xl font-black text-amber-600 font-mono">{paymentsBreakdown.voucher.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  <span className="text-2xl font-black text-amber-600 font-mono">{paymentsBreakdown.voucher.toFixed(2)}</span>
                 </div>
                 <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm text-center">
                   <span className="text-xs uppercase font-bold text-slate-400 block mb-2">Virements</span>
-                  <span className="text-2xl font-black text-indigo-600 font-mono">{paymentsBreakdown.transfer.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  <span className="text-2xl font-black text-indigo-600 font-mono">{paymentsBreakdown.transfer.toFixed(2)}</span>
                 </div>
                 <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm text-center">
                   <span className="text-xs uppercase font-bold text-slate-400 block mb-2">Autres</span>
-                  <span className="text-2xl font-black text-slate-600 font-mono">{paymentsBreakdown.other.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  <span className="text-2xl font-black text-slate-600 font-mono">{paymentsBreakdown.other.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -767,7 +788,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                           <td className="p-3 font-bold text-slate-700">{exp.type}</td>
                           <td className="p-3 text-slate-600">{exp.description}</td>
                           <td className="p-3 text-slate-500">{exp.method === 'cash' ? 'Espèces' : 'Autre'}</td>
-                          <td className="p-3 font-mono font-bold text-rose-600 text-right">-{exp.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                          <td className="p-3 font-mono font-bold text-rose-600 text-right">-{exp.amount.toFixed(2)}</td>
                           <td className="p-3 text-center">
                             <button onClick={() => handleRemoveExpense(exp.id)} className="text-rose-400 hover:text-rose-600">
                               <Trash2 className="w-4 h-4 mx-auto" />
@@ -779,7 +800,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
                         <td colSpan={3} className="p-3 text-right text-slate-500 uppercase text-xs">Total dépenses</td>
-                        <td className="p-3 font-mono text-lg text-rose-600 text-right">-{totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="p-3 font-mono text-lg text-rose-600 text-right">-{totalExpenses.toFixed(2)}</td>
                         <td></td>
                       </tr>
                     </tfoot>
@@ -813,19 +834,19 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     <h4 className="font-bold text-slate-800 uppercase text-[10px] tracking-wider mb-2">Chiffre d'Affaires</h4>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600 font-medium">Ventes Carburants</span>
-                      <span className="font-mono text-slate-800">{fuelSalesDetails.totalFuelAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                      <span className="font-mono text-slate-800">{fuelSalesDetails.totalFuelAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600 font-medium">Ventes Produits</span>
-                      <span className="font-mono text-slate-800">{totalProductSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                      <span className="font-mono text-slate-800">{totalProductSales.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600 font-medium">Ventes Services</span>
-                      <span className="font-mono text-slate-800">{totalServiceSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                      <span className="font-mono text-slate-800">{totalServiceSales.toFixed(2)}</span>
                     </div>
                     <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
                       <span className="font-bold text-slate-800">TOTAL CA</span>
-                      <span className="font-mono font-black text-xl text-slate-900">{grandTotalSales.toLocaleString(undefined, {minimumFractionDigits: 2})} MAD</span>
+                      <span className="font-mono font-black text-xl text-slate-900">{grandTotalSales.toFixed(2)} MAD</span>
                     </div>
                   </div>
 
@@ -833,15 +854,15 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     <h4 className="font-bold text-slate-800 uppercase text-[10px] tracking-wider mb-2">Flux Espèces (Caisse)</h4>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600 font-medium flex items-center gap-2"><Plus className="w-3 h-3 text-emerald-500" /> Paiements Espèces</span>
-                      <span className="font-mono text-emerald-600">+{paymentsBreakdown.cash.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                      <span className="font-mono text-emerald-600">+{paymentsBreakdown.cash.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600 font-medium flex items-center gap-2"><Trash2 className="w-3 h-3 text-rose-500" /> Dépenses Espèces</span>
-                      <span className="font-mono text-rose-600">-{cashExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                      <span className="font-mono text-rose-600">-{cashExpenses.toFixed(2)}</span>
                     </div>
                     <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
                       <span className="font-bold text-slate-800">CAISSE THÉORIQUE</span>
-                      <span className="font-mono font-black text-xl text-slate-900">{theoreticalCash.toLocaleString(undefined, {minimumFractionDigits: 2})} MAD</span>
+                      <span className="font-mono font-black text-xl text-slate-900">{theoreticalCash.toFixed(2)} MAD</span>
                     </div>
                   </div>
                 </div>
@@ -878,7 +899,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                           <AlertTriangle className={`w-5 h-5 mt-0.5 shrink-0 ${Math.abs(ecart) <= 50 ? 'text-amber-500' : 'text-rose-500'}`} />
                         )}
                         <div>
-                          <span className="font-bold block mb-1">Écart constaté : {ecart > 0 ? '+' : ''}{ecart.toLocaleString(undefined, {minimumFractionDigits: 2})} MAD</span>
+                          <span className="font-bold block mb-1">Écart constaté : {ecart > 0 ? '+' : ''}{ecart.toFixed(2)} MAD</span>
                           <span className="text-xs opacity-80 leading-tight block">
                             {Math.abs(ecart) === 0 ? 'Caisse parfaite. Aucun écart détecté.' :
                              Math.abs(ecart) <= 50 ? 'Écart mineur. Peut être dû à de la petite monnaie.' :

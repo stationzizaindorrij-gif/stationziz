@@ -54,6 +54,7 @@ export interface Attendant {
   hireDate: string;
   status: 'active' | 'inactive';
   notes: string;
+  photo?: string;
 }
 
 export type ShiftStatus = 'active' | 'ready_to_close' | 'completed';
@@ -105,10 +106,11 @@ export interface Shift {
   servicesSold?: any[];
   expenses?: any[];
   nonCashPayments?: {
-    taqati: { amount: number; clientId?: string }[];
-    cmi: { amount: number; clientId?: string }[];
-    vignette: { amount: number; clientId?: string }[];
-    bonClient: { amount: number; clientId?: string }[];
+    carteSntl: { amount: number; clientId?: string; date?: string }[];
+    espece: { amount: number; clientId?: string; date?: string }[];
+    tpe: { amount: number; clientId?: string; date?: string }[];
+    vignette: { amount: number; clientId?: string; date?: string }[];
+    bonClient: { amount: number; clientName?: string; date?: string }[];
   };
 }
 
@@ -278,4 +280,14 @@ export interface StationConfig {
   theme: 'light' | 'dark';
   printerIp: string;
   iotConfigured: boolean;
+}
+
+export interface ShopProduct {
+  id: string;
+  name: string;
+  photo?: string;
+  purchasePrice: number;
+  salePrice: number;
+  stockQuantity: number;
+  status: 'active' | 'inactive';
 }

@@ -5,6 +5,7 @@ import {
   Upload, Trash2
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
+import { ConfirmModal } from './ConfirmModal';
 
 interface SettingsProps {
   store: ERPStoreType;
@@ -12,6 +13,7 @@ interface SettingsProps {
 
 export default function Settings({ store }: SettingsProps) {
   const { config, updateConfig, resetAllData, currentRole } = store;
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
 
   const [name, setName] = useState(config.name);
   const [logo, setLogo] = useState(config.logo);
