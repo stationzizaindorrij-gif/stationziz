@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import {
   Product, Tank, Pump, Nozzle, Attendant, Shift, Sale, Supply,
   CashRegistry, StockCorrection, AuditLog, Alert, User, StationConfig, UserRole,
-  Supplier, Client, PurchaseInvoice, SalesInvoice
+  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct
 } from './types';
 export function useERPStore() {
   // Initialize Storage
@@ -425,6 +425,12 @@ export function useERPStore() {
     logAction(author, 'Jaugeage Manuel', 'Stock', `Jaugeage manuel de ${original.number} : Théorique ${original.currentLevel} L, Réel jaugé ${newLevel} L. Note : ${reason}`);
   };
 
+  const deleteStockCorrection = (id: string, author: string) => {
+    const updated = stockCorrections.filter(c => c.id !== id);
+    saveState('stock_corrections', updated, setStockCorrections);
+    logAction(author, 'Suppression Correction', 'Stock', `Suppression d'une correction manuelle de stock ${id}`);
+  };
+
   // MODULE 6: PUMPS
   const addPump = (pump: Omit<Pump, 'id'>, author: string) => {
     const newPump: Pump = { ...pump, id: `pump_${Date.now()}` };
@@ -833,7 +839,7 @@ export function useERPStore() {
       productsSold: Sale[];
       servicesSold: any[];
       expenses: any[];
-      nonCashPayments?: { carteSntl: { amount: number; clientId?: string; date?: string }[]; espece: { amount: number; clientId?: string; date?: string }[]; tpe: { amount: number; clientId?: string; date?: string }[]; vignette: { amount: number; clientId?: string; date?: string }[]; bonClient: { amount: number; clientName?: string; date?: string }[]; };
+      nonCashPayments?: { carteSntl: { amount: number; clientId?: string; date?: string }[]; espece: { amount: number; clientId?: string; date?: string }[]; bonCarburantsVivo: { amount: number; clientId?: string; date?: string }[]; vignette: { amount: number; clientId?: string; date?: string }[]; bonClient: { amount: number; clientName?: string; date?: string }[]; };
     },
     author: string
   ) => {
@@ -1137,6 +1143,7 @@ export function useERPStore() {
     updateTank,
     deleteTank,
     correctTankLevel,
+    deleteStockCorrection,
 
     // Pump & Nozzles CRUD
     addPump,

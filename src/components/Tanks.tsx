@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { Tank, Product, Nozzle, Pump } from '../types';
+import { ConfirmModal } from './ConfirmModal';
 
 // Helper function to get fuel properties and colors: Vert -> Gazoil, Bleu -> Sans Plomb, Orange -> Mélange
 const getFuelColor = (productId: string, customHex?: string) => {
@@ -87,7 +88,7 @@ export default function Tanks({ store }: TanksProps) {
   };
 
   const { 
-    tanks, products, supplies, stockCorrections, addSupply, correctTankLevel, currentRole,
+    tanks, products, supplies, stockCorrections, addSupply, correctTankLevel, deleteStockCorrection, currentRole,
     nozzles = [], pumps = [], sales = []
   } = store;
 
@@ -134,6 +135,8 @@ export default function Tanks({ store }: TanksProps) {
   const [isTankDetailOpen, setIsTankDetailOpen] = useState(false);
   const [selectedTankDetail, setSelectedTankDetail] = useState<Tank | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [tankToDelete, setTankToDelete] = useState<string | null>(null);
+  const [tankToDeactivate, setTankToDeactivate] = useState<string | null>(null);
 
   const handleOpenTankForm = (tank?: Tank) => {
     setEditingTank(tank || null);
@@ -142,6 +145,7 @@ export default function Tanks({ store }: TanksProps) {
 
   const [isSupplyFormOpen, setIsSupplyFormOpen] = useState(false);
   const [isCorrectionFormOpen, setIsCorrectionFormOpen] = useState(false);
+  const [correctionToDelete, setCorrectionToDelete] = useState<string | null>(null);
 
   // Supply Delivery Form state
   const [supplier, setSupplier] = useState('');
@@ -220,11 +224,11 @@ export default function Tanks({ store }: TanksProps) {
         qtyDelivered: qty,
         purchasePrice: price,
         invoiceNumber,
-        deliveryDate: new Date().toISOString()
+        date: new Date().toISOString()
       }, currentRole);
       
       const newLevel = Math.min(tank.capacity, tank.currentLevel + qty);
-      updateTank(tank.id, { currentLevel: newLevel }, currentRole);
+      store.updateTank(tank.id, { currentLevel: newLevel }, currentRole);
 
       setSupplier('');
       setSupplyTankId('');
@@ -289,6 +293,18 @@ export default function Tanks({ store }: TanksProps) {
 
   return (
     <div className="space-y-6" id="tanks-view">
+      <ConfirmModal
+        isOpen={!!correctionToDelete}
+        title="Supprimer la correction"
+        message="Voulez-vous vraiment supprimer cette correction manuelle de jaugeage ?"
+        onConfirm={() => {
+          if (correctionToDelete) {
+            deleteStockCorrection(correctionToDelete, 'Administrateur');
+            setCorrectionToDelete(null);
+          }
+        }}
+        onCancel={() => setCorrectionToDelete(null)}
+      />
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -446,20 +462,16 @@ export default function Tanks({ store }: TanksProps) {
                                   </button>
                                   <div className="h-px bg-slate-100 my-1"></div>
                                   <button onClick={() => { 
-                                      if(window.confirm('Voulez-vous désactiver cette cuve ?')) {
-                                        store.updateTank(tank.id, { status: 'offline' }, 'Directeur ERP');
-                                      }
+                                      setTankToDeactivate(tank.id);
                                       setActiveDropdown(null);
                                     }} className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 flex items-center gap-2">
                                     <Power className="w-3.5 h-3.5 text-slate-400" /> Désactiver
                                   </button>
                                   <button onClick={() => { 
                                       if(tank.currentLevel > 0 || countPumps > 0) {
-                                        alert('Impossible de supprimer une cuve qui contient du carburant ou qui est reliée à des pompes. Vous pouvez seulement la désactiver.');
+                                        setTankToDelete('error:' + tank.id);
                                       } else {
-                                        if(window.confirm('Voulez-vous vraiment supprimer cette cuve ? Cette action est irréversible.')) {
-                                          store.deleteTank(tank.id, 'Directeur ERP');
-                                        }
+                                        setTankToDelete(tank.id);
                                       }
                                       setActiveDropdown(null);
                                     }} className="w-full text-left px-3 py-2 hover:bg-rose-50 text-xs text-rose-600 flex items-center gap-2 font-medium">
@@ -1394,11 +1406,12 @@ export default function Tanks({ store }: TanksProps) {
                   <th className="p-3">Opérateur</th>
                   <th className="p-3">Raison d'intervention</th>
                   <th className="p-3">Date</th>
+                  {hasWriteAccess && <th className="p-3">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
                 {stockCorrections.map(corr => {
-                  const diff = corr.qtyAfter - corr.qtyBefore;
+                  const diff = parseFloat((corr.qtyAfter - corr.qtyBefore).toFixed(2));
                   return (
                     <tr key={corr.id} className="hover:bg-[#f8fafc99] transition-colors">
                       <td className="p-3 text-slate-400">#{corr.id.split('_')[1] || corr.id}</td>
@@ -1413,12 +1426,23 @@ export default function Tanks({ store }: TanksProps) {
                       <td className="p-3 font-sans text-slate-600">{corr.user}</td>
                       <td className="p-3 font-sans text-slate-500 italic max-w-xs truncate" title={corr.reason}>{corr.reason}</td>
                       <td className="p-3 font-sans text-slate-500">{new Date(corr.date).toLocaleDateString('fr-FR')}</td>
+                      {hasWriteAccess && (
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => setCorrectionToDelete(corr.id)}
+                            className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                            title="Supprimer la correction"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
                 {stockCorrections.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="p-6 text-center text-slate-400 italic font-sans">
+                    <td colSpan={hasWriteAccess ? 9 : 8} className="p-6 text-center text-slate-400 italic font-sans">
                       Aucune correction manuelle effectuée.
                     </td>
                   </tr>
@@ -1646,9 +1670,83 @@ export default function Tanks({ store }: TanksProps) {
         />
       )}
 
+
+      {tankToDeactivate && (
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Désactiver la cuve</h3>
+              <p className="text-sm text-slate-500 mb-6">Voulez-vous désactiver cette cuve ?</p>
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setTankToDeactivate(null)}
+                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={() => {
+                    store.updateTank(tankToDeactivate, { status: 'offline' }, 'Directeur ERP');
+                    setTankToDeactivate(null);
+                  }}
+                  className="px-4 py-2 text-sm font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors"
+                >
+                  Désactiver
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tankToDelete && (
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              {tankToDelete.startsWith('error:') ? (
+                <>
+                  <h3 className="text-lg font-bold text-rose-600 mb-2">Impossible de supprimer</h3>
+                  <p className="text-sm text-slate-500 mb-6">Impossible de supprimer une cuve qui contient du carburant ou qui est reliée à des pompes. Vous pouvez seulement la désactiver.</p>
+                  <div className="flex gap-3 justify-end">
+                    <button 
+                      onClick={() => setTankToDelete(null)}
+                      className="px-4 py-2 text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">Confirmer la suppression</h3>
+                  <p className="text-sm text-slate-500 mb-6">Voulez-vous vraiment supprimer cette cuve ? Cette action est irréversible.</p>
+                  <div className="flex gap-3 justify-end">
+                    <button 
+                      onClick={() => setTankToDelete(null)}
+                      className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button 
+                      onClick={() => {
+                        store.deleteTank(tankToDelete, 'Directeur ERP');
+                        setTankToDelete(null);
+                      }}
+                      className="px-4 py-2 text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 interface TankFormModalProps {
   store: ERPStoreType;

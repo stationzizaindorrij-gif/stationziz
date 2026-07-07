@@ -8,7 +8,7 @@ import { ERPStoreType } from '../store';
 import { ConfirmModal } from './ConfirmModal';
 import { Supplier, Client, PurchaseInvoice, SalesInvoice } from '../types';
 import { useReactToPrint } from 'react-to-print';
-import { useRef } from 'react';
+import html2pdf from 'html2pdf.js';
 
 export function Billing({ store }: { store: ERPStoreType }) {
   const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
@@ -23,6 +23,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'purchase' | 'sale'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending' | 'validated'>('all');
   
@@ -67,13 +68,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
   };
 
   const handleDelete = (inv: any) => {
-    if (window.confirm('Voulez-vous vraiment supprimer cette facture ?')) {
-      if (inv.type === 'purchase') {
-        store.deletePurchaseInvoice(inv.id, 'Admin');
-      } else {
-        store.deleteSalesInvoice(inv.id, 'Admin');
-      }
-    }
+    setInvoiceToDelete(inv.id);
   };
 
   const exportToExcel = () => {
@@ -469,7 +464,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
       {activeTab === 'suppliers' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-            <h3 className="font-bold text-slate-800">Fournisseurs & Clients Pro</h3>
+            <h3 className="font-bold text-slate-800">Fournisseurs</h3>
             <div className="flex gap-2">
               <button 
                 onClick={() => setShowPartnerModal('supplier')}
@@ -477,12 +472,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
               >
                 <Plus className="w-4 h-4" /> Fournisseur
               </button>
-              <button 
-                onClick={() => setShowPartnerModal('client')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" /> Client
-              </button>
+              
             </div>
           </div>
           <div className="p-0 overflow-x-auto">
@@ -504,14 +494,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                     <td className="p-4 text-slate-600 font-mono">{s.ice}</td>
                   </tr>
                 ))}
-                {store.clients.map(c => (
-                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">Client Pro</span></td>
-                    <td className="p-4 font-bold text-slate-800">{c.name}</td>
-                    <td className="p-4 text-slate-600">{c.phone}<br/><span className="text-xs text-slate-400">{c.email}</span></td>
-                    <td className="p-4 text-slate-600 font-mono">{c.ice}</td>
-                  </tr>
-                ))}
+                
               </tbody>
             </table>
           </div>
@@ -1169,6 +1152,39 @@ export function Billing({ store }: { store: ERPStoreType }) {
           </div>
         </div>
       )}
+
+      {invoiceToDelete && (
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Confirmer la suppression</h3>
+              <p className="text-sm text-slate-500 mb-6">Voulez-vous vraiment supprimer cette facture ?</p>
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setInvoiceToDelete(null)}
+                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={() => {
+                    const invoice = filteredInvoices.find(inv => inv.id === invoiceToDelete);
+                    if (invoice) {
+                        if (invoice.type === 'purchase') store.deletePurchaseInvoice(invoice.id, 'Admin');
+                        else store.deleteSalesInvoice(invoice.id, 'Admin');
+                    }
+                    setInvoiceToDelete(null);
+                  }}
+                  className="px-4 py-2 text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

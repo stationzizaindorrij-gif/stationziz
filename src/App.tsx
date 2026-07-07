@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import { BarChart2, 
   LayoutDashboard, Users, Clock, Fuel, HelpCircle, 
   Settings as SettingsIcon, Sliders, Bell, FileText, 
   DollarSign, Menu, X, Landmark, User, ShieldCheck, RefreshCw, CheckSquare 
@@ -22,6 +22,8 @@ import Alerts from './components/Alerts';
 import Settings from './components/Settings';
 import { Billing } from './components/Billing';
 import { Shop } from './components/Shop';
+import Analytics from './components/Analytics';
+import Clients from './components/Clients';
 
 type ActiveModule = 
   | 'dashboard' 
@@ -33,7 +35,9 @@ type ActiveModule =
   | 'reports' 
   | 'alerts' 
   | 'settings'
-  | 'billing' | 'daily_closing';
+  | 'billing' | 'daily_closing'
+  | 'analytics'
+  | 'clients';
 
 function AppContent({ session }: { session: any }) {
   const store = useERPStore();
@@ -97,9 +101,10 @@ function AppContent({ session }: { session: any }) {
     { id: 'tanks', label: 'Cuves & Stock', icon: Fuel, badge: 0 },
     { id: 'assets', label: 'Installations & Prix', icon: Sliders, badge: 0 },
     { id: 'shop', label: 'Boutique', icon: Package, badge: 0 },
-    { id: 'registry', label: 'Session de Caisse', icon: DollarSign, badge: 0 },
+    { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
     { id: 'billing', label: 'Facturation & Achats', icon: Landmark, badge: 0 },
     { id: 'reports', label: 'Centre de Rapports', icon: FileText, badge: 0 },
+    { id: 'analytics', label: 'Analyse & Rentabilité', icon: BarChart2, badge: 0 },
     { id: 'alerts', label: 'Supervision & IoT', icon: Bell, badge: unreadAlertsCount },
     { id: 'settings', label: 'Paramètres', icon: SettingsIcon, badge: 0 }
   ];
@@ -296,6 +301,8 @@ function AppContent({ session }: { session: any }) {
             {activeModule === 'billing' && <Billing store={store} />}
             {activeModule === 'reports' && <Reports store={store} />}
             {activeModule === 'alerts' && <Alerts store={store} />}
+            {activeModule === 'clients' && <Clients store={store} />}
+            {activeModule === 'analytics' && <Analytics store={store} />}
             {activeModule === 'settings' && <Settings store={store} />}
           </div>
         </main>

@@ -10,43 +10,38 @@ import { Shift, Product, Nozzle, Sale } from '../types';
 interface ShiftWizardProps {
   store: ERPStoreType;
   onBack: () => void;
+  editingShift?: Shift;
 }
 
-export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
+export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isCompleted, setIsCompleted] = useState(false);
 
   // Step 1: Info
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [attendantId, setAttendantId] = useState('');
-  const [shiftName, setShiftName] = useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>('Journée');
-  const [startTime, setStartTime] = useState('06:00');
-  const [endTime, setEndTime] = useState('14:00');
-  const [selectedPumps, setSelectedPumps] = useState<string[]>([]);
+  const [date, setDate] = useState(editingShift?.date || new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(editingShift?.endDate || editingShift?.date || new Date().toISOString().split('T')[0]);
+  const [attendantId, setAttendantId] = useState(editingShift?.attendantId || '');
+  const [shiftName, setShiftName] = useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>(editingShift?.shiftName || 'Journée');
+  const [startTime, setStartTime] = useState(editingShift?.startTime || '06:00');
+  const [endTime, setEndTime] = useState(editingShift?.endTime || '14:00');
+  const [selectedPumps, setSelectedPumps] = useState<string[]>(editingShift?.pumpIds || []);
 
   // Step 2: Counters
-  const [startCounters, setStartCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>({});
-  const [endCounters, setEndCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>({});
+  const [startCounters, setStartCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>(editingShift?.startCounters || {});
+  const [endCounters, setEndCounters] = useState<{ [nozzleId: string]: { mech: number | ''; elec: number | '' } }>(editingShift?.endCounters || {});
 
   // Step 3-6: Sales, Expenses, Payments
-  const [productSales, setProductSales] = useState<any[]>([]);
-  const [serviceSales, setServiceSales] = useState<any[]>([]);
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [nonCashPayments, setNonCashPayments] = useState<{
-    carteSntl: { amount: number; clientId: string; date: string }[];
-    espece: { amount: number; clientId: string; date: string }[];
-    tpe: { amount: number; clientId: string; date: string }[];
-    vignette: { amount: number; clientId: string; date: string }[];
-    bonClient: { amount: number; clientName: string; date: string }[];
-  }>({ 
-    carteSntl: [], 
-    espece: [], 
-    tpe: [],
-    vignette: [], 
-    bonClient: [] 
+  const [productSales, setProductSales] = useState<any[]>(editingShift?.productsSold || []);
+  const [serviceSales, setServiceSales] = useState<any[]>(editingShift?.servicesSold || []);
+  const [expenses, setExpenses] = useState<any[]>(editingShift?.expenses || []);
+  const [nonCashPayments, setNonCashPayments] = useState<any>({
+    carteSntl: editingShift?.nonCashPayments?.carteSntl || [],
+    espece: editingShift?.nonCashPayments?.espece || [],
+    bonCarburantsVivo: editingShift?.nonCashPayments?.bonCarburantsVivo || [],
+    vignette: editingShift?.nonCashPayments?.vignette || [],
+    bonClient: editingShift?.nonCashPayments?.bonClient || []
   });
-  const [realCashInput, setRealCashInput] = useState('');
+  const [realCashInput, setRealCashInput] = useState(editingShift?.realCashReceived?.toString() || '');
 
   useEffect(() => {
     const newStartCounters: any = {};
@@ -153,11 +148,11 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
   const grandTotalSales = fuelSalesDetails.totalFuelAmount + totalProductSales + totalServiceSales;
 
   const totalNonCashPayments = 
-    nonCashPayments.carteSntl.reduce((acc, curr) => acc + curr.amount, 0) +
-    nonCashPayments.espece.reduce((acc, curr) => acc + curr.amount, 0) +
-    nonCashPayments.tpe.reduce((acc, curr) => acc + curr.amount, 0) +
-    nonCashPayments.vignette.reduce((acc, curr) => acc + curr.amount, 0) +
-    nonCashPayments.bonClient.reduce((acc, curr) => acc + curr.amount, 0);
+    (nonCashPayments?.carteSntl || []).reduce((acc, curr) => acc + curr.amount, 0) +
+    (nonCashPayments?.espece || []).reduce((acc, curr) => acc + curr.amount, 0) +
+    (nonCashPayments?.bonCarburantsVivo || []).reduce((acc, curr) => acc + curr.amount, 0) +
+    (nonCashPayments?.vignette || []).reduce((acc, curr) => acc + curr.amount, 0) +
+    (nonCashPayments?.bonClient || []).reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const cashExpenses = expenses.filter(e => e.method === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
   
@@ -176,8 +171,8 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
   const handleSaveShift = () => {
     const attendant = store.attendants.find(a => a.id === attendantId);
     if (!attendant) return;
-
-    store.addCompletedShift({
+    
+    const shiftData = {
       date,
       endDate,
       startTime,
@@ -200,7 +195,13 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
       amountSold: fuelSalesDetails.amountSold,
       totalLiters: fuelSalesDetails.totalFuelLiters,
       totalAmount: fuelSalesDetails.totalFuelAmount
-    }, 'Directeur ERP');
+    };
+
+    if (editingShift) {
+      store.updateShift(editingShift.id, shiftData, store.currentRole);
+    } else {
+      store.addCompletedShift(shiftData, store.currentRole);
+    }
 
     setIsCompleted(true);
   };
@@ -756,7 +757,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                 {[
     { key: 'carteSntl', label: 'CARTE SNTL' },
     { key: 'espece', label: 'ESPECE' },
-    { key: 'tpe', label: 'TPE' },
+    { key: 'bonCarburantsVivo', label: 'BON CARBURANTS VIVO' },
     { key: 'vignette', label: 'VIGNETTE' },
     { key: 'bonClient', label: 'BON CLIENT' }
   ].map(method => (
@@ -797,7 +798,22 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400 font-bold text-xs">MAD</div>
                             </div>
                           </div>
-                          {method.key === 'bonClient' && (
+                          {method.key === 'carteSntl' && (
+                          <div className="w-24 shrink-0">
+                              <input
+                                type="text"
+                                placeholder="STAN"
+                                value={(entry as any).stan || ''}
+                                onChange={e => {
+                                  const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
+                                  newArr[idx].stan = e.target.value;
+                                  setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                                }}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px] font-mono"
+                              />
+                          </div>
+                        )}
+                        {method.key === 'bonClient' && (
                           <div className="flex-1 w-full">
                               <input
                                 type="text"
@@ -923,7 +939,6 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                               <tr>
                                 <th className="px-3 py-2 font-medium">Pistolet</th>
-                                <th className="px-3 py-2 font-medium">Produit</th>
                                 <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Début (Elec/Méc)</th>
                                 <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Fin (Elec/Méc)</th>
                                 <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Volume (Elec/Méc)</th>
@@ -940,12 +955,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                                       {row.nozzleName}
                                     </div>
                                   </td>
-                                  <td className="px-3 py-2 text-slate-500">
-                                    <div className="flex items-center gap-1.5">
-                                      <Droplet className="w-3 h-3 text-slate-400" />
-                                      {row.productName}
-                                    </div>
-                                  </td>
+                                  
                                   <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
                                     {row.startElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.startMech.toFixed(0)}</span>
                                   </td>
@@ -959,7 +969,35 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                               ))}
                               {nozzleRows.length === 0 && (
                                 <tr>
-                                  <td colSpan={5} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
+                                  <td colSpan={4} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
+                                </tr>
+                              )}
+                            </tbody>
+                            <thead className="bg-slate-100 border-y border-slate-200 text-slate-600">
+                              <tr>
+                                <th colSpan={2} className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500"><div className="flex items-center gap-1.5"><Droplet className="w-3.5 h-3.5 text-blue-500" /> Volumes par Carburant</div></th>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Volume (L)</th>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Montant (DH)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 bg-slate-50/50">
+                              {Object.values(productAggregates).map((prod, idx) => (
+                                <tr key={idx}>
+                                  <td colSpan={2} className="px-3 py-2 font-medium text-slate-800">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                                        <Droplet className="w-3.5 h-3.5 text-blue-500" />
+                                      </div>
+                                      {prod.name}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono font-bold text-slate-700">{prod.liters.toFixed(2)}</td>
+                                  <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{prod.amount.toFixed(2)}</td>
+                                </tr>
+                              ))}
+                              {Object.keys(productAggregates).length === 0 && (
+                                <tr>
+                                  <td colSpan={4} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
                                 </tr>
                               )}
                             </tbody>
@@ -967,45 +1005,7 @@ export default function ShiftWizard({ store, onBack }: ShiftWizardProps) {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                              <Droplet className="w-3.5 h-3.5 text-blue-500" />
-                              Volumes par Carburant
-                          </h4>
-                          <div className="rounded-lg border border-slate-200 overflow-hidden">
-                            <table className="w-full text-xs text-left">
-                              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
-                                <tr>
-                                  <th className="px-3 py-2 font-medium">Type</th>
-                                  <th className="px-3 py-2 font-medium text-right">Volume (L)</th>
-                                  <th className="px-3 py-2 font-medium text-right">Montant (DH)</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100">
-                                {Object.values(productAggregates).map((prod, idx) => (
-                                  <tr key={idx}>
-                                    <td className="px-3 py-2 font-medium text-slate-800">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
-                                          <Droplet className="w-3.5 h-3.5 text-blue-500" />
-                                        </div>
-                                        {prod.name}
-                                      </div>
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-mono">{prod.liters.toFixed(2)}</td>
-                                    <td className="px-3 py-2 text-right font-mono font-bold">{prod.amount.toFixed(2)}</td>
-                                  </tr>
-                                ))}
-                                {Object.keys(productAggregates).length === 0 && (
-                                  <tr>
-                                    <td colSpan={3} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
+                      <div className="grid grid-cols-1 gap-6">
 
                         {usedTanks.size > 0 && (
                           <div>

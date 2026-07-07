@@ -106,9 +106,9 @@ export interface Shift {
   servicesSold?: any[];
   expenses?: any[];
   nonCashPayments?: {
-    carteSntl: { amount: number; clientId?: string; date?: string }[];
+    carteSntl: { amount: number; clientId?: string; date?: string; stan?: string }[];
     espece: { amount: number; clientId?: string; date?: string }[];
-    tpe: { amount: number; clientId?: string; date?: string }[];
+    bonCarburantsVivo: { amount: number; clientId?: string; date?: string }[];
     vignette: { amount: number; clientId?: string; date?: string }[];
     bonClient: { amount: number; clientName?: string; date?: string }[];
   };

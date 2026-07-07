@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  ArrowLeft, CheckCircle2, DollarSign, Fuel, Package, Settings, Users, User, Droplet, 
+  ArrowLeft, CheckCircle2, DollarSign, Fuel, Package, Database, Settings, Users, User, Droplet, 
   CreditCard, Receipt, FileText, ChevronRight, ChevronLeft, Calendar, 
   Clock, Lock, CheckCircle, AlertTriangle, Plus, Trash2, Printer, Check
 } from 'lucide-react';
+import { useReactToPrint } from 'react-to-print';
+import html2pdf from 'html2pdf.js';
+import { useRef } from 'react';
 import { ERPStoreType } from '../store';
 import { Shift, Product, Nozzle, Sale } from '../types';
 
@@ -45,6 +48,20 @@ interface Expense {
 }
 
 export default function DailyClosing({ store, shiftId, onBack }: DailyClosingProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const reactToPrintFn = useReactToPrint({ contentRef });
+  const handlePrint = () => {
+    const element = contentRef.current;
+    if (!element) return;
+    const opt = {
+      margin: 10,
+      filename: `Cloture-${activeShift?.date || 'Journaliere'}.pdf`,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+    };
+    html2pdf().from(element).set(opt).save();
+  };
   const [currentStep, setCurrentStep] = useState(1);
   const activeShift = store.shifts.find(s => s.id === shiftId);
 
@@ -117,7 +134,13 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
             end: end.elec,
             qty,
             price,
-            total
+            total,
+            startElec: start.elec,
+            startMech: start.mech,
+            endElec: end.elec,
+            endMech: end.mech,
+            qtyElec: end.elec - start.elec,
+            qtyMech: end.mech - start.mech
           });
         }
       });
@@ -128,6 +151,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
   const totalProductSales = productSales.reduce((acc, curr) => acc + curr.total, 0);
   const totalServiceSales = serviceSales.reduce((acc, curr) => acc + curr.total, 0);
   const grandTotalSales = fuelSalesDetails.totalFuelAmount + totalProductSales + totalServiceSales;
+  const totalNonCashPayments = paymentsBreakdown.card + paymentsBreakdown.check + paymentsBreakdown.voucher + paymentsBreakdown.transfer + paymentsBreakdown.other;
 
   useEffect(() => {
     if (!hasEditedPayments && grandTotalSales > 0) {
@@ -238,8 +262,182 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
           <h2 className="text-3xl font-black text-slate-800 font-display">Clôture Journalière Réussie</h2>
           <p className="text-slate-500 mt-2 text-lg">La journée a été clôturée et archivée avec succès.</p>
         </div>
+        
+        {/* HIDDEN PRINTABLE DIV */}
+        <div style={{ display: 'none' }}>
+          <div id="daily-closing-print" ref={contentRef} className="p-8 bg-white text-slate-800 text-sm">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Rapport de Clôture Journalière</h2>
+                <p className="text-slate-500">Date: {activeShift ? new Date(activeShift.date).toLocaleDateString('fr-FR') : ''}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold text-slate-800">Station ERP Pro</p>
+                <p className="text-xs text-slate-500">Généré le {new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* RELEVÉ DES INDEX & VOLUMES */}
+              <div>
+                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <Fuel className="w-3.5 h-3.5 text-indigo-500" />
+                  Relevé des Index & Volumes
+                </h4>
+                <div className="rounded-lg border border-slate-200 overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Pistolet</th>
+                        <th className="px-3 py-2 font-medium text-right">Début (Elec/Méc)</th>
+                        <th className="px-3 py-2 font-medium text-right">Fin (Elec/Méc)</th>
+                        <th className="px-3 py-2 font-medium text-right text-slate-900">Volume (Elec/Méc)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {fuelSalesDetails.details.map((row, idx) => (
+                        <tr key={idx}>
+                          <td className="px-3 py-2 font-bold text-slate-800">
+                            {row.nozzle.name}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
+                            {row.startElec.toFixed(2)} / <span className="text-orange-500">{row.startMech.toFixed(0)}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
+                            {row.endElec.toFixed(2)} / <span className="text-orange-500">{row.endMech.toFixed(0)}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                            <span className="text-blue-700">{row.qtyElec.toFixed(2)}</span> / <span className="text-orange-600">{row.qtyMech.toFixed(2)}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <thead className="bg-slate-100 border-y border-slate-200 text-slate-600">
+                      <tr>
+                        <th colSpan={2} className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500">
+                          Volumes par Carburant
+                        </th>
+                        <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Volume (L)</th>
+                        <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Montant (DH)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-slate-50/50">
+                      {(() => {
+                        const productAggregates = {};
+                        fuelSalesDetails.details.forEach(d => {
+                          if (d.qtyElec > 0) {
+                            const prodName = d.nozzle.productName || 'Carburant Inconnu';
+                            if (!productAggregates[prodName]) productAggregates[prodName] = { name: prodName, liters: 0, amount: 0 };
+                            productAggregates[prodName].liters += d.qtyElec;
+                            productAggregates[prodName].amount += d.total;
+                          }
+                        });
+                        return Object.values(productAggregates).map((prod: any, idx) => (
+                          <tr key={idx}>
+                            <td colSpan={2} className="px-3 py-2 font-medium text-slate-800">
+                              {prod.name}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-slate-700">{prod.liters.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{prod.amount.toFixed(2)}</td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* CUVES */}
+              <div>
+                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5 text-slate-500" />
+                  État des Cuves
+                </h4>
+                <div className="rounded-lg border border-slate-200 overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Cuve</th>
+                        <th className="px-3 py-2 font-medium">Produit</th>
+                        <th className="px-3 py-2 font-medium text-right">Niveau Actuel (L)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(() => {
+                        const usedTanks = new Set<string>();
+                        fuelSalesDetails.details.forEach(d => {
+                          if (d.qtyElec > 0) usedTanks.add(d.nozzle.tankId);
+                        });
+                        return Array.from(usedTanks).map(tankId => {
+                          const tank = store.tanks.find(t => t.id === tankId);
+                          if (!tank) return null;
+                          return (
+                            <tr key={tank.id}>
+                              <td className="px-3 py-2 font-bold text-slate-800">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                                    <Database className="w-3 h-3 text-slate-500" />
+                                  </div>
+                                  {tank.number}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 text-slate-500">
+                                <div className="flex items-center gap-1.5">
+                                  <Droplet className="w-3 h-3 text-slate-400" />
+                                  {tank.productName}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono font-bold">{tank.currentLevel.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* BILAN FINANCIER */}
+              <div>
+                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Bilan Financier</h4>
+                <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
+                  <div className="grid grid-cols-4 divide-x divide-slate-200">
+                    <div className="p-3">
+                      <div className="text-[10px] uppercase text-slate-500 mb-1">Total Ventes</div>
+                      <div className="font-mono font-bold text-slate-800">{grandTotalSales.toFixed(2)} DH</div>
+                    </div>
+                    <div className="p-3">
+                      <div className="text-[10px] uppercase text-slate-500 mb-1">Non-Espèces</div>
+                      <div className="font-mono font-bold text-rose-600">-{totalNonCashPayments.toFixed(2)} DH</div>
+                    </div>
+                    <div className="p-3">
+                      <div className="text-[10px] uppercase text-slate-500 mb-1">Dépenses</div>
+                      <div className="font-mono font-bold text-rose-600">-{totalExpenses.toFixed(2)} DH</div>
+                    </div>
+                    <div className="p-3 bg-emerald-50">
+                      <div className="text-[10px] uppercase text-emerald-600 font-bold mb-1">Caisse Théorique</div>
+                      <div className="font-mono font-black text-emerald-700 text-lg">{theoreticalCash.toFixed(2)} DH</div>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-200 p-3 grid grid-cols-2 divide-x divide-slate-200">
+                    <div>
+                      <div className="text-[10px] uppercase text-slate-500 mb-1">Caisse Réelle</div>
+                      <div className="font-mono font-bold text-slate-800">{parseFloat(realCashInput).toFixed(2)} DH</div>
+                    </div>
+                    <div className="pl-3">
+                      <div className="text-[10px] uppercase text-slate-500 mb-1">Écart</div>
+                      <div className={`font-mono font-bold ${ecart < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{ecart > 0 ? '+' : ''}{ecart.toFixed(2)} DH</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
         <div className="flex gap-4 mt-6">
-          <button className="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl shadow-sm hover:bg-slate-50 flex items-center gap-2">
+          <button onClick={handlePrint} className="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl shadow-sm hover:bg-slate-50 flex items-center gap-2">
             <Printer className="w-5 h-5" /> Imprimer le Rapport PDF
           </button>
           <button onClick={() => { setIsCompleted(false); setCurrentStep(1); }} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-sm hover:bg-indigo-700 flex items-center gap-2">
@@ -413,7 +611,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                   <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
                     <tr>
                       <th className="p-3">Pompe & Pistolet</th>
-                      <th className="p-3">Produit</th>
+                      
                       <th className="p-3 text-right">Index Début (E/M)</th>
                       <th className="p-3 text-right">Index Fin (E/M)</th>
                       <th className="p-3 text-right whitespace-nowrap">Vol. Vendu (ELEC)</th>
@@ -427,11 +625,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     {fuelSalesDetails.details.map((row, i) => (
                       <tr key={i} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-700">{row.nozzle.pumpNumber} - {row.nozzle.name}</td>
-                        <td className="p-3">
-                          <span className="inline-block px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-600">
-                            {row.nozzle.productName}
-                          </span>
-                        </td>
+                        
                         <td className="p-3 text-right">
                           <div className="flex flex-col items-end gap-1">
                             <span className="font-mono text-slate-500 text-xs">E: {row.startElec.toFixed(3)}</span>

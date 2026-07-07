@@ -33,6 +33,7 @@ export default function Shifts({ store }: ShiftsProps) {
 
   // Tabs for sub-workflows
   const [activeTab, setActiveTab] = useState<'list' | 'wizard'>('list');
+  const [editingShift, setEditingShift] = useState<Shift | undefined>(undefined);
   const [closingShiftId, setClosingShiftId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const shiftsPerPage = 8;
@@ -237,7 +238,7 @@ export default function Shifts({ store }: ShiftsProps) {
   const activeAttendantsList = attendants.filter(a => a.status === 'active');
 
   if (activeTab === 'wizard') {
-    return <ShiftWizard store={store} onBack={() => setActiveTab('list')} />;
+    return <ShiftWizard store={store} onBack={() => { setActiveTab('list'); setEditingShift(undefined); }} editingShift={editingShift} />;
   }
 
   return (
@@ -411,7 +412,7 @@ export default function Shifts({ store }: ShiftsProps) {
                             const espece = s.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const vignette = s.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const bonClient = s.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0;
-                            return (carteSntl + espece + (s.nonCashPayments?.tpe?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0) + vignette + bonClient).toFixed(2);
+                            return (carteSntl + espece + (s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0) + vignette + bonClient).toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono text-slate-600">
@@ -440,13 +441,11 @@ export default function Shifts({ store }: ShiftsProps) {
                               </button>
                               <button
                                 onClick={() => {
-                                  // Prompt user for new real cash for simplicity, or we can use a proper edit state. 
-                                  // Since we don't have a complex form right now, let's use a native prompt as an immediate quick edit.
-                                  setShiftToEdit(s);
-                                  setEditRealCashValue(s.realCashReceived?.toString() || '');
+                                  setEditingShift(s);
+                                  setActiveTab('wizard');
                                 }}
                                 className="p-1 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded transition-colors"
-                                title="Modifier (Caisse réelle)"
+                                title="Modifier"
                               >
                                 <Edit className="w-3.5 h-3.5" />
                               </button>
@@ -825,7 +824,7 @@ export default function Shifts({ store }: ShiftsProps) {
                 const nonCashTotal = selectedDetailShift.nonCashPayments ? (
                   (selectedDetailShift.nonCashPayments?.carteSntl?.reduce((sum, item) => sum + item.amount, 0) || 0) + 
                   (selectedDetailShift.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0) + 
-                  (selectedDetailShift.nonCashPayments?.tpe?.reduce((sum, item) => sum + item.amount, 0) || 0) +
+                  (selectedDetailShift.nonCashPayments?.bonCarburantsVivo?.reduce((sum, item) => sum + item.amount, 0) || 0) +
                   (selectedDetailShift.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0) +
                   (selectedDetailShift.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0)
                 ) : 0;
@@ -844,7 +843,7 @@ export default function Shifts({ store }: ShiftsProps) {
 
                 if (selectedDetailShift.litersSold) {
                   Object.entries(selectedDetailShift.litersSold).forEach(([nozzleId, liters]) => {
-                    if (liters > 0) {
+                    if ((liters as number) > 0) {
                       const nozzle = store.nozzles.find(n => n.id === nozzleId);
                       if (nozzle) {
                         usedTanks.add(nozzle.tankId);
@@ -866,8 +865,8 @@ export default function Shifts({ store }: ShiftsProps) {
                         if (!productAggregates[prodName]) {
                           productAggregates[prodName] = { name: prodName, liters: 0, amount: 0 };
                         }
-                        productAggregates[prodName].liters += liters;
-                        productAggregates[prodName].amount += amount;
+                        productAggregates[prodName].liters += (liters as number);
+                        productAggregates[prodName].amount += (amount as number);
                       }
                     }
                   });
@@ -900,7 +899,7 @@ export default function Shifts({ store }: ShiftsProps) {
                           <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                             <tr>
                               <th className="px-3 py-2 font-medium">Pistolet</th>
-                              <th className="px-3 py-2 font-medium">Produit</th>
+                              
                               <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Début (Elec/Méc)</th>
                               <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Fin (Elec/Méc)</th>
                               <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Volume (Elec/Méc)</th>
@@ -917,12 +916,7 @@ export default function Shifts({ store }: ShiftsProps) {
                                     {row.nozzleName}
                                   </div>
                                 </td>
-                                <td className="px-3 py-2 text-slate-500">
-                                  <div className="flex items-center gap-1.5">
-                                    <Droplet className="w-3 h-3 text-slate-400" />
-                                    {row.productName}
-                                  </div>
-                                </td>
+                                
                                 <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
                                   {row.startElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.startMech.toFixed(0)}</span>
                                 </td>
@@ -936,7 +930,35 @@ export default function Shifts({ store }: ShiftsProps) {
                             ))}
                             {nozzleRows.length === 0 && (
                               <tr>
-                                <td colSpan={5} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
+                                <td colSpan={4} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
+                              </tr>
+                            )}
+                          </tbody>
+                          <thead className="bg-slate-100 border-y border-slate-200 text-slate-600">
+                            <tr>
+                              <th colSpan={2} className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500"><div className="flex items-center gap-1.5"><Droplet className="w-3.5 h-3.5 text-blue-500" /> Volumes par Carburant</div></th>
+                              <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Volume (L)</th>
+                              <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Montant (DH)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-slate-50/50">
+                            {Object.values(productAggregates).map((prod, idx) => (
+                              <tr key={idx}>
+                                <td colSpan={2} className="px-3 py-2 font-medium text-slate-800">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                                      <Droplet className="w-3.5 h-3.5 text-blue-500" />
+                                    </div>
+                                    {prod.name}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono font-bold text-slate-700">{prod.liters.toFixed(2)}</td>
+                                <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{prod.amount.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                            {Object.keys(productAggregates).length === 0 && (
+                              <tr>
+                                <td colSpan={4} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
                               </tr>
                             )}
                           </tbody>
@@ -944,45 +966,7 @@ export default function Shifts({ store }: ShiftsProps) {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <Droplet className="w-3.5 h-3.5 text-blue-500" />
-                            Volumes par Carburant
-                          </h4>
-                        <div className="rounded-lg border border-slate-200 overflow-hidden">
-                          <table className="w-full text-xs text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
-                              <tr>
-                                <th className="px-3 py-2 font-medium">Type</th>
-                                <th className="px-3 py-2 font-medium text-right">Volume (L)</th>
-                                <th className="px-3 py-2 font-medium text-right">Montant (DH)</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {Object.values(productAggregates).map((prod, idx) => (
-                                <tr key={idx}>
-                                  <td className="px-3 py-2 font-medium text-slate-800">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
-                                        <Droplet className="w-3.5 h-3.5 text-blue-500" />
-                                      </div>
-                                      {prod.name}
-                                    </div>
-                                  </td>
-                                  <td className="px-3 py-2 text-right font-mono">{prod.liters.toFixed(2)}</td>
-                                  <td className="px-3 py-2 text-right font-mono font-bold">{prod.amount.toFixed(2)}</td>
-                                </tr>
-                              ))}
-                              {Object.keys(productAggregates).length === 0 && (
-                                <tr>
-                                  <td colSpan={3} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
+                    <div className="grid grid-cols-1 gap-6">
 
                       {usedTanks.size > 0 && (
                         <div>
@@ -1081,58 +1065,6 @@ export default function Shifts({ store }: ShiftsProps) {
           </div>
         </div>
       )}
-      {/* Edit Shift Modal */}
-      {shiftToEdit && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Modifier le shift</h3>
-            <p className="text-sm text-slate-500 mb-6">Modifier le montant de la caisse réelle pour ce shift.</p>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Nouveau montant Caisse Réelle (MAD)</label>
-              <input
-                type="number"
-                value={editRealCashValue}
-                onChange={e => setEditRealCashValue(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-lg font-bold font-mono rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-3"
-                placeholder="0.00"
-              />
-            </div>
-            
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShiftToEdit(null);
-                  setEditRealCashValue('');
-                }}
-                className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => {
-                  const parsed = parseFloat(editRealCashValue);
-                  if (!isNaN(parsed)) {
-                    const diff = parsed - (shiftToEdit.theoreticalCash || 0);
-                    if ((store as any).updateShift) {
-                      (store as any).updateShift(shiftToEdit.id, { 
-                        realCashReceived: parsed,
-                        discrepancy: parseFloat(diff.toFixed(2))
-                      }, 'Propriétaire');
-                    }
-                    setShiftToEdit(null);
-                    setEditRealCashValue('');
-                  }
-                }}
-                className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-bold transition-colors"
-              >
-                Enregistrer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Shift Modal */}
       {shiftToDelete && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">

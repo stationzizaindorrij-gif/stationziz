@@ -15,6 +15,7 @@ export default function Settings({ store }: SettingsProps) {
   const { config, updateConfig, resetAllData, currentRole } = store;
   const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
 
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [name, setName] = useState(config.name);
   const [logo, setLogo] = useState(config.logo);
   const [address, setAddress] = useState(config.address);
@@ -51,12 +52,7 @@ export default function Settings({ store }: SettingsProps) {
   };
 
   const handleReset = () => {
-    const confirmReset = window.confirm("ATTENTION: Vous êtes sur le point de réinitialiser l'intégralité de la base de données ERP aux valeurs par défaut d'usine (réinitialisation des cuves, des pompistes, des ventes et des shifts). Souhaitez-vous continuer ?");
-    if (confirmReset) {
-      resetAllData();
-      alert("La base de données ERP a été réinitialisée avec succès.");
-      window.location.reload();
-    }
+    setShowResetConfirm(true);
   };
 
   const hasWriteAccess = currentRole === 'admin' || currentRole === 'manager';
@@ -339,6 +335,37 @@ export default function Settings({ store }: SettingsProps) {
           </div>
         </div>
       </div>
+
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-rose-600 mb-2">ATTENTION DANGER</h3>
+              <p className="text-sm text-slate-500 mb-6">Vous êtes sur le point de réinitialiser l'intégralité de la base de données ERP aux valeurs par défaut d'usine (réinitialisation des cuves, des pompistes, des ventes et des shifts). Souhaitez-vous continuer ?</p>
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setShowResetConfirm(false)}
+                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={() => {
+                    resetAllData();
+                    setShowResetConfirm(false);
+                    // Instead of alert, we just reload
+                    window.location.reload();
+                  }}
+                  className="px-4 py-2 text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors"
+                >
+                  Oui, Réinitialiser
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
