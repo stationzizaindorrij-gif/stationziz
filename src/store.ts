@@ -1181,15 +1181,131 @@ export function useERPStore() {
     submitShiftCounters,
     finalizeShiftClosing,
     deleteShift: (id: string, author: string) => {
-      // Remove the shift
-      const updatedShifts = shifts.filter(s => s.id !== id);
-      saveState('shifts', updatedShifts, setShifts);
-      
-      // Remove associated sales
-      const updatedSales = sales.filter(s => s.shiftId !== id);
-      saveState('sales', updatedSales, setSales);
-      
-      logAction(author, 'Suppression', 'Shifts', `Suppression du shift ${id}`);
+      const shift = shifts.find(s => s.id === id);
+      if (!shift) return;
+
+      // 1. Constraint: check if any newer shift uses the same pumps.
+      let hasDependentShift = false;
+      if (shift.status === 'completed' && shift.endCounters) {
+        const nozzlesModified = Object.keys(shift.endCounters);
+        for (const nozId of nozzlesModified) {
+          const noz = nozzles.find(n => n.id === nozId);
+          if (noz) {
+            // Check if current counters have advanced beyond this shift's end counters
+            if (parseFloat(noz.currentElecCounter as any) > parseFloat(shift.endCounters[nozId].elec as any) || parseFloat(noz.currentMechCounter as any) > parseFloat(shift.endCounters[nozId].mech as any)) {
+              hasDependentShift = true;
+              break;
+            }
+          }
+        }
+      } else if (shift.status !== 'completed' && shift.startCounters) {
+         // Active shift check
+         const newerCompletedShifts = shifts.filter(s => s.id !== id && s.status === 'completed' && new Date(s.startTime).getTime() > new Date(shift.startTime).getTime());
+         if (newerCompletedShifts.some(s => s.pumpIds.some(pid => shift.pumpIds.includes(pid)))) {
+           hasDependentShift = true;
+         }
+      }
+
+      if (hasDependentShift) {
+        window.alert("Impossible de supprimer ce shift car un shift plus récent dépend de ses données.");
+        return;
+      }
+
+      // Rollback Transaction
+
+      // 1. Rollback Nozzles
+      let nextNozzles = [...nozzles];
+      if (shift.startCounters && Object.keys(shift.startCounters).length > 0) {
+        Object.entries(shift.startCounters).forEach(([nozzleId, startCount]) => {
+          const nozIndex = nextNozzles.findIndex(n => n.id === nozzleId);
+          if (nozIndex !== -1) {
+            nextNozzles[nozIndex] = {
+              ...nextNozzles[nozIndex],
+              currentElecCounter: parseFloat((startCount as any).elec) || 0,
+              currentMechCounter: parseFloat((startCount as any).mech) || 0
+            };
+          }
+        });
+        saveState('nozzles', nextNozzles, setNozzles);
+      } else if (shift.endCounters && shift.litersSold) {
+        // Fallback if startCounters is missing or empty
+        Object.keys(shift.endCounters).forEach(nozId => {
+          const nozIndex = nextNozzles.findIndex(n => n.id === nozId);
+          if (nozIndex !== -1) {
+            const qty = shift.litersSold[nozId] || 0;
+            nextNozzles[nozIndex] = {
+              ...nextNozzles[nozIndex],
+              currentElecCounter: Math.max(0, parseFloat((nextNozzles[nozIndex].currentElecCounter as any)) - qty),
+              currentMechCounter: Math.max(0, parseFloat((nextNozzles[nozIndex].currentMechCounter as any)) - qty)
+            };
+          }
+        });
+        saveState('nozzles', nextNozzles, setNozzles);
+      }
+
+      // 2. Rollback Tanks
+      let nextTanks = [...tanks];
+      const associatedSales = sales.filter(s => s.shiftId === id);
+      associatedSales.forEach(sale => {
+        if (sale.nozzleId) {
+          const noz = nozzles.find(n => n.id === sale.nozzleId);
+          if (noz) {
+            const tankIndex = nextTanks.findIndex(t => t.id === noz.tankId);
+            if (tankIndex !== -1) {
+              nextTanks[tankIndex] = {
+                ...nextTanks[tankIndex],
+                currentLevel: parseFloat((nextTanks[tankIndex].currentLevel + sale.qty).toFixed(2))
+              };
+            }
+          }
+        }
+      });
+      saveState('tanks', nextTanks, setTanks);
+
+      // 3. Rollback Shop Products
+      let nextShopProducts = [...shopProducts];
+      if (shift.productsSold && shift.productsSold.length > 0) {
+        shift.productsSold.forEach(p => {
+          if (p.shopProductId) {
+             const spIndex = nextShopProducts.findIndex(sp => sp.id === p.shopProductId);
+             if (spIndex !== -1) {
+                nextShopProducts[spIndex] = {
+                  ...nextShopProducts[spIndex],
+                  stockQuantity: nextShopProducts[spIndex].stockQuantity + p.qty
+                };
+             }
+          }
+        });
+        saveState('shop_products', nextShopProducts, setShopProducts);
+      }
+
+      // 4. Rollback Sales
+      const nextSales = sales.filter(s => s.shiftId !== id);
+      saveState('sales', nextSales, setSales);
+
+      // 5. Rollback Cash Registry
+      if (shift.status === 'completed' && cashRegistry.isOpen && shift.realCashReceived !== undefined) {
+        const expectedLabel = `Clôture journalière (${shift.attendantName} - Shift ${shift.shiftName})`;
+        const matchingInputIndex = cashRegistry.inputs.findIndex(i => i.label === expectedLabel && i.amount === shift.realCashReceived);
+        
+        if (matchingInputIndex !== -1) {
+          const matchingInput = cashRegistry.inputs[matchingInputIndex];
+          const nextInputs = [...cashRegistry.inputs];
+          nextInputs.splice(matchingInputIndex, 1);
+          
+          saveState('cash_registry', {
+            ...cashRegistry,
+            inputs: nextInputs,
+            theoreticalCash: cashRegistry.theoreticalCash - matchingInput.amount
+          }, setCashRegistry);
+        }
+      }
+
+      // 6. Delete Shift
+      const nextShifts = shifts.filter(s => s.id !== id);
+      saveState('shifts', nextShifts, setShifts);
+
+      logAction(author, 'Suppression Shift', 'Shifts', `Suppression avec rollback du shift ${id} (Pompiste: ${shift.attendantName})`);
     },
     updateShift: (id: string, updatedFields: Partial<Shift>, author: string) => {
       const updated = shifts.map(s => s.id === id ? { ...s, ...updatedFields } : s);

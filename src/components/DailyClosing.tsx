@@ -122,7 +122,11 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
         const start = activeShift.startCounters[noz.id];
         const end = endCounters[noz.id];
         if (start && end) {
-          const qty = end.elec - start.elec;
+          const startElecNum = parseFloat(start.elec as any) || 0;
+          const startMechNum = parseFloat(start.mech as any) || 0;
+          const endElecNum = parseFloat(end.elec as any) || 0;
+          const endMechNum = parseFloat(end.mech as any) || 0;
+          const qty = endElecNum - startElecNum;
           const product = store.products.find(p => p.id === noz.productId);
           const price = product ? product.salePrice : 0;
           const total = qty * price;
@@ -130,17 +134,17 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
           
           details.push({
             nozzle: noz,
-            start: start.elec,
-            end: end.elec,
+            start: startElecNum,
+            end: endElecNum,
             qty,
             price,
             total,
-            startElec: start.elec,
-            startMech: start.mech,
-            endElec: end.elec,
-            endMech: end.mech,
-            qtyElec: end.elec - start.elec,
-            qtyMech: end.mech - start.mech
+            startElec: startElecNum,
+            startMech: startMechNum,
+            endElec: endElecNum,
+            endMech: endMechNum,
+            qtyElec: qty,
+            qtyMech: endMechNum - startMechNum
           });
         }
       });

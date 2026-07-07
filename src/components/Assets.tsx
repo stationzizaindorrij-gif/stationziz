@@ -271,11 +271,11 @@ export default function Assets({ store }: AssetsProps) {
                   <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs font-mono">
                     <div className="bg-slate-50 p-2 rounded text-center border border-slate-100">
                       <span className="text-[10px] text-slate-400 font-sans block">Achat (Moyenne)</span>
-                      <strong className="text-slate-700">{prod.purchasePrice.toFixed(3)} MAD</strong>
+                      <strong className="text-slate-700">{prod.purchasePrice.toFixed(2)} MAD</strong>
                     </div>
                     <div className="bg-slate-50 p-2 rounded text-center border border-slate-100">
                       <span className="text-[10px] text-slate-400 font-sans block">Vente Pompe</span>
-                      <strong className="text-indigo-600">{prod.salePrice.toFixed(3)} MAD</strong>
+                      <strong className="text-indigo-600">{prod.salePrice.toFixed(2)} MAD</strong>
                     </div>
                   </div>
                 </div>
@@ -413,7 +413,7 @@ export default function Assets({ store }: AssetsProps) {
                     </td>
                     <td className="p-3 font-sans text-slate-600">{noz.pumpNumber}</td>
                     <td className="p-3 font-sans text-slate-400">{noz.tankNumber}</td>
-                    <td className="p-3 text-right text-slate-700 font-bold">{noz.currentElecCounter.toFixed(3)} L</td>
+                    <td className="p-3 text-right text-slate-700 font-bold">{parseFloat(noz.currentElecCounter as any).toFixed(3)} L</td>
                     <td className="p-3 text-right text-slate-700 font-bold">{noz.currentMechCounter} L</td>
                     <td className="p-3">
                       <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border font-sans ${

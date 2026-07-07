@@ -3,7 +3,7 @@ import {
   Database, Droplet,  
   ClipboardList, Plus, Play, CheckCircle2, AlertTriangle, ArrowRight, 
   Fuel, ShieldAlert, FileSpreadsheet, Calendar, User, Info, Clock, CheckCircle, X, Check 
-, Download , Edit, Trash2, ChevronLeft, ChevronRight , Wallet, Package, Wrench, ChevronDown, ChevronUp} from 'lucide-react';
+, Download , Edit, Trash2, ChevronLeft, ChevronRight , Wallet, Package, Wrench, ChevronDown, ChevronUp, CreditCard } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { useRef } from 'react';
 import { ERPStoreType } from '../store';
@@ -67,7 +67,7 @@ export default function Shifts({ store }: ShiftsProps) {
 
   // Active shifts list
   const activeShifts = shifts.filter(s => s.status === 'active');
-  const completedShifts = shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const completedShifts = shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close').sort((a, b) => new Date(`${b.date}T${b.startTime || '00:00'}`).getTime() - new Date(`${a.date}T${a.startTime || '00:00'}`).getTime());
   
   const totalPages = Math.ceil(completedShifts.length / shiftsPerPage);
   const currentCompletedShifts = completedShifts.slice((currentPage - 1) * shiftsPerPage, currentPage * shiftsPerPage);
@@ -266,28 +266,17 @@ export default function Shifts({ store }: ShiftsProps) {
         </div>
       </div>
 
-      {/* Alerte si la caisse générale est fermée */}
-      {!cashRegistry.isOpen && (
-        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 text-xs leading-relaxed">
-          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <strong className="font-bold">Attention : La caisse générale de la station est fermée.</strong>
-            <p className="mt-0.5 text-slate-600">Vous pouvez toujours démarrer ou clôturer des shifts de pompistes, mais les remises de caisse de fin de shift ne seront pas créditées dans le tiroir-caisse principal de la station tant que la session de caisse n'aura pas été ouverte.</p>
-          </div>
-        </div>
-      )}
-
       {/* 1. ON-GOING ACTIVE SHIFTS AND ARCHIVES */}
       {activeTab === 'list' && (
         <div className="space-y-6">
           {/* Section: Shifts Actifs en cours */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
-              Shifts de piste actifs ({activeShifts.length})
-            </h3>
-            
-            {activeShifts.length > 0 ? (
+          {activeShifts.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
+                Shifts de piste actifs ({activeShifts.length})
+              </h3>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {activeShifts.map(s => {
                   const assignedNozzles = nozzles.filter(n => s.pumpIds.includes(n.pumpId));
@@ -352,16 +341,10 @@ export default function Shifts({ store }: ShiftsProps) {
                       </div>
                     </div>
                   );
-                }
-)}
+                })}
               </div>
-            ) : (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 text-center text-slate-500">
-                <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs">Aucun shift de piste actif pour le moment. Cliquez sur "Saisir un Shift" pour démarrer.</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Section: Historique des shifts terminés */}
           <div className="space-y-3 pt-4">
@@ -854,10 +837,10 @@ export default function Shifts({ store }: ShiftsProps) {
                         nozzleRows.push({
                           nozzleName: nozzle.name,
                           productName: prodName,
-                          startElec: selectedDetailShift.startCounters?.[nozzleId]?.elec || 0,
-                          startMech: selectedDetailShift.startCounters?.[nozzleId]?.mech || 0,
-                          endElec: selectedDetailShift.endCounters?.[nozzleId]?.elec || 0,
-                          endMech: selectedDetailShift.endCounters?.[nozzleId]?.mech || 0,
+                          startElec: parseFloat(selectedDetailShift.startCounters?.[nozzleId]?.elec as any) || 0,
+                          startMech: parseFloat(selectedDetailShift.startCounters?.[nozzleId]?.mech as any) || 0,
+                          endElec: parseFloat(selectedDetailShift.endCounters?.[nozzleId]?.elec as any) || 0,
+                          endMech: parseFloat(selectedDetailShift.endCounters?.[nozzleId]?.mech as any) || 0,
                           liters,
                           amount
                         });
@@ -1014,6 +997,7 @@ export default function Shifts({ store }: ShiftsProps) {
                       )}
                     </div>
 
+
                     {/* FINANCES COMPACTES */}
                     <div>
                       <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
@@ -1042,7 +1026,64 @@ export default function Shifts({ store }: ShiftsProps) {
                       </div>
                     </div>
 
+                    {/* NON-CASH BREAKDOWN IN REPORT */}
+                    {nonCashTotal > 0 && (
+                      <div>
+                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                          Détail des Encaissements Non-Espèces
+                        </h4>
+                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                          <table className="w-full text-xs text-left">
+                            <tbody className="divide-y divide-slate-100">
+                              {(() => {
+                                const tCarteSntl = selectedDetailShift.nonCashPayments?.carteSntl?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                                const tEspece = selectedDetailShift.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                                const tBonVivo = selectedDetailShift.nonCashPayments?.bonCarburantsVivo?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                                const tVignette = selectedDetailShift.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                                const tBonClient = selectedDetailShift.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                                return (
+                                  <>
+                                    {tCarteSntl > 0 && (
+                                      <tr>
+                                        <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Carte SNTL</td>
+                                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tCarteSntl.toFixed(2)} DH</td>
+                                      </tr>
+                                    )}
+                                    {tEspece > 0 && (
+                                      <tr>
+                                        <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Espèce (Déclaration)</td>
+                                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tEspece.toFixed(2)} DH</td>
+                                      </tr>
+                                    )}
+                                    {tBonVivo > 0 && (
+                                      <tr>
+                                        <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Bon Carburants Vivo</td>
+                                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tBonVivo.toFixed(2)} DH</td>
+                                      </tr>
+                                    )}
+                                    {tVignette > 0 && (
+                                      <tr>
+                                        <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Vignette</td>
+                                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tVignette.toFixed(2)} DH</td>
+                                      </tr>
+                                    )}
+                                    {tBonClient > 0 && (
+                                      <tr>
+                                        <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Bon Client</td>
+                                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tBonClient.toFixed(2)} DH</td>
+                                      </tr>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
+
                 );
               })()}
             </div>

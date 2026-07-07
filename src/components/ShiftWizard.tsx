@@ -122,7 +122,7 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
         // Actually, we should just find the most recent shift's end counter for this nozzle
         const previousShifts = [...store.shifts]
           .filter(s => s.status === 'completed' && s.endCounters && s.endCounters[noz.id])
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          .sort((a, b) => new Date(`${b.date}T${b.startTime || '00:00'}`).getTime() - new Date(`${a.date}T${a.startTime || '00:00'}`).getTime());
           
         if (previousShifts.length > 0) {
           const lastEndCounter = previousShifts[0].endCounters[noz.id];
@@ -147,12 +147,13 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   const totalServiceSales = serviceSales.reduce((acc, curr) => acc + curr.total, 0);
   const grandTotalSales = fuelSalesDetails.totalFuelAmount + totalProductSales + totalServiceSales;
 
-  const totalNonCashPayments = 
-    (nonCashPayments?.carteSntl || []).reduce((acc, curr) => acc + curr.amount, 0) +
-    (nonCashPayments?.espece || []).reduce((acc, curr) => acc + curr.amount, 0) +
-    (nonCashPayments?.bonCarburantsVivo || []).reduce((acc, curr) => acc + curr.amount, 0) +
-    (nonCashPayments?.vignette || []).reduce((acc, curr) => acc + curr.amount, 0) +
-    (nonCashPayments?.bonClient || []).reduce((acc, curr) => acc + curr.amount, 0);
+  const totalCarteSntl = (nonCashPayments?.carteSntl || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+  const totalEspeceClient = (nonCashPayments?.espece || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+  const totalBonVivo = (nonCashPayments?.bonCarburantsVivo || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+  const totalVignette = (nonCashPayments?.vignette || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+  const totalBonClient = (nonCashPayments?.bonClient || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+
+  const totalNonCashPayments = totalCarteSntl + totalEspeceClient + totalBonVivo + totalVignette + totalBonClient;
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const cashExpenses = expenses.filter(e => e.method === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
   
@@ -190,12 +191,34 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
       realCashReceived: realCash,
       theoreticalCash,
       discrepancy: ecart,
-      notes: `Saisi manuellement. Écart: ${ecart} MAD. Dépenses: ${totalExpenses} MAD.`,
+      notes: `Saisi manuellement. Écart: ${ecart.toFixed(2)} MAD. Dépenses: ${totalExpenses.toFixed(2)} MAD.`,
       litersSold: fuelSalesDetails.litersSold,
       amountSold: fuelSalesDetails.amountSold,
       totalLiters: fuelSalesDetails.totalFuelLiters,
       totalAmount: fuelSalesDetails.totalFuelAmount
     };
+
+    if (nonCashPayments && nonCashPayments.bonClient && nonCashPayments.bonClient.length > 0) {
+      nonCashPayments.bonClient.forEach((bc: any) => {
+        if (bc.clientName && bc.clientName.trim() !== '') {
+          const clientNameTrimmed = bc.clientName.trim();
+          const exists = store.clients.some(c => c.name.toLowerCase() === clientNameTrimmed.toLowerCase());
+          if (!exists) {
+            if ((store as any).addClient) {
+              (store as any).addClient({
+                name: clientNameTrimmed,
+                phone: '',
+                email: '',
+                address: '',
+                ice: '',
+                contact: '',
+                notes: 'Client ajouté automatiquement depuis un Bon Client'
+              }, store.currentRole);
+            }
+          }
+        }
+      });
+    }
 
     if (editingShift) {
       store.updateShift(editingShift.id, shiftData, store.currentRole);
@@ -749,7 +772,7 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
                 </div>
                 <div className="text-right">
                   <span className="block text-[10px] uppercase font-bold text-slate-400">Total Ventes</span>
-                  <span className="text-xl font-black text-slate-800 font-mono">{grandTotalSales} MAD</span>
+                  <span className="text-xl font-black text-slate-800 font-mono">{grandTotalSales.toFixed(2)} MAD</span>
                 </div>
               </div>
               
@@ -857,10 +880,43 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
                 ))}
               </div>
               
-              <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
+              <div className="mt-6 space-y-2">
+                {totalCarteSntl > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="text-sm font-medium text-slate-600">Total Carte SNTL</span>
+                    <span className="font-bold text-slate-900 font-mono">{totalCarteSntl.toFixed(2)} MAD</span>
+                  </div>
+                )}
+                {totalEspeceClient > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="text-sm font-medium text-slate-600">Total Espèce (Client)</span>
+                    <span className="font-bold text-slate-900 font-mono">{totalEspeceClient.toFixed(2)} MAD</span>
+                  </div>
+                )}
+                {totalBonVivo > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="text-sm font-medium text-slate-600">Total Bon Carburants Vivo</span>
+                    <span className="font-bold text-slate-900 font-mono">{totalBonVivo.toFixed(2)} MAD</span>
+                  </div>
+                )}
+                {totalVignette > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="text-sm font-medium text-slate-600">Total Vignette</span>
+                    <span className="font-bold text-slate-900 font-mono">{totalVignette.toFixed(2)} MAD</span>
+                  </div>
+                )}
+                {totalBonClient > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="text-sm font-medium text-slate-600">Total Bon Client</span>
+                    <span className="font-bold text-slate-900 font-mono">{totalBonClient.toFixed(2)} MAD</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
                 <span className="font-bold text-indigo-800">Total Encaissement non espèce :</span>
                 <span className="font-black text-xl text-indigo-900 font-mono">
-                  {totalNonCashPayments} MAD
+                  {totalNonCashPayments.toFixed(2)} MAD
                 </span>
               </div>
             </div>

@@ -1273,7 +1273,7 @@ export default function Tanks({ store }: TanksProps) {
                               </div>
                               <div className="bg-slate-50 p-2.5 rounded-lg border border-[#e2e8f099] space-y-1">
                                 <span className="text-slate-400 text-[9px] uppercase font-bold block">Dernier index électronique</span>
-                                <span className="text-xs font-bold text-slate-800 font-mono block">{noz.currentElecCounter.toFixed(3)} L</span>
+                                <span className="text-xs font-bold text-slate-800 font-mono block">{parseFloat(noz.currentElecCounter as any).toFixed(3)} L</span>
                               </div>
                             </div>
                           </div>
