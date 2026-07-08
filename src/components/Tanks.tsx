@@ -374,7 +374,7 @@ export default function Tanks({ store }: TanksProps) {
 
           {/* Grid des cuves graphiques */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            {tanks.map(tank => {
+            {[...tanks].sort((a, b) => (b.currentLevel / b.capacity) - (a.currentLevel / a.capacity)).map(tank => {
               const currentPercent = Math.round((tank.currentLevel / tank.capacity) * 100);
               const isLow = tank.currentLevel <= tank.minLevel;
               
@@ -1404,8 +1404,7 @@ export default function Tanks({ store }: TanksProps) {
                   <th className="p-3">Quantité Corrigée</th>
                   <th className="p-3">Écart d'Ajustement</th>
                   <th className="p-3">Opérateur</th>
-                  <th className="p-3">Raison d'intervention</th>
-                  <th className="p-3">Date</th>
+                                    <th className="p-3">Date</th>
                   {hasWriteAccess && <th className="p-3">Actions</th>}
                 </tr>
               </thead>
@@ -1416,16 +1415,15 @@ export default function Tanks({ store }: TanksProps) {
                     <tr key={corr.id} className="hover:bg-[#f8fafc99] transition-colors">
                       <td className="p-3 text-slate-400">#{corr.id.split('_')[1] || corr.id}</td>
                       <td className="p-3 font-sans text-slate-800">{corr.tankNumber}</td>
-                      <td className="p-3 text-right text-slate-500">{corr.qtyBefore} L</td>
-                      <td className="p-3 font-bold text-slate-800 text-right">{corr.qtyAfter} L</td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-slate-500">{Number(corr.qtyBefore).toFixed(2)} L</td>
+                      <td className="p-3 font-bold text-slate-800">{Number(corr.qtyAfter).toFixed(2)} L</td>
+                      <td className="p-3">
                         <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${diff < 0 ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                          {diff > 0 ? '+' : ''}{diff} L
+                          {diff > 0 ? '+' : ''}{diff.toFixed(2)} L
                         </span>
                       </td>
                       <td className="p-3 font-sans text-slate-600">{corr.user}</td>
-                      <td className="p-3 font-sans text-slate-500 italic max-w-xs truncate" title={corr.reason}>{corr.reason}</td>
-                      <td className="p-3 font-sans text-slate-500">{new Date(corr.date).toLocaleDateString('fr-FR')}</td>
+                                            <td className="p-3 font-sans text-slate-500">{new Date(corr.date).toLocaleDateString('fr-FR')}</td>
                       {hasWriteAccess && (
                         <td className="p-3 text-right">
                           <button
@@ -1442,7 +1440,7 @@ export default function Tanks({ store }: TanksProps) {
                 })}
                 {stockCorrections.length === 0 && (
                   <tr>
-                    <td colSpan={hasWriteAccess ? 9 : 8} className="p-6 text-center text-slate-400 italic font-sans">
+                    <td colSpan={hasWriteAccess ? 8 : 7} className="p-6 text-center text-slate-400 italic font-sans">
                       Aucune correction manuelle effectuée.
                     </td>
                   </tr>

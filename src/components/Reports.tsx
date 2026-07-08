@@ -22,9 +22,16 @@ export default function Reports({ store }: ReportsProps) {
   const totalRevenue = sales.reduce((acc, s) => acc + s.total, 0);
 
   // Total gross margin
+  const getHistoricalPrice = (productId: string, date: string) => {
+    const sortedChanges = [...(store.priceChanges || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const changesBeforeDate = sortedChanges.filter(c => c.productId === productId && c.date.split('T')[0] <= date.split('T')[0]);
+    if (changesBeforeDate.length > 0) return changesBeforeDate[0].purchasePrice;
+    const currentProd = products.find(p => p.id === productId);
+    return currentProd ? currentProd.purchasePrice : 1.45;
+  };
+
   const totalMargin = sales.reduce((acc, s) => {
-    const prod = products.find(p => p.id === s.productId);
-    const purchaseCost = prod ? prod.purchasePrice : 1.45;
+    const purchaseCost = getHistoricalPrice(s.productId, s.date);
     return acc + (s.qty * (s.price - purchaseCost));
   }, 0);
 

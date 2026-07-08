@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ERPStoreType } from '../store';
-import { Plus, Search, Users, Mail, Phone, Building, Edit2, Trash2, X, Save, User, Check } from 'lucide-react';
+import { Plus, Search, Users, Mail, Phone, Building, Edit2, Trash2, X, Save, User, Check, Wallet, Calendar, PlusCircle, History } from 'lucide-react';
 import { Client } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -10,9 +10,14 @@ interface ClientsProps {
 
 export default function Clients({ store }: ClientsProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentNotes, setPaymentNotes] = useState('');
 
   const [formData, setFormData] = useState<Partial<Client>>({
     name: '',
@@ -23,6 +28,29 @@ export default function Clients({ store }: ClientsProps) {
     contact: '',
     notes: ''
   });
+
+
+  const handleAddPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    
+    const newPayment = {
+      id: `pay_${Date.now()}`,
+      amount,
+      date: paymentDate,
+      notes: paymentNotes
+    };
+    
+    const updatedPayments = [...(selectedClient.payments || []), newPayment];
+    store.updateClient(selectedClient.id, { payments: updatedPayments }, 'Utilisateur');
+    
+    // Update local selected client to reflect changes immediately
+    setSelectedClient({ ...selectedClient, payments: updatedPayments });
+    setPaymentAmount('');
+    setPaymentNotes('');
+  };
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -59,6 +87,14 @@ export default function Clients({ store }: ClientsProps) {
     (c.ice || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (c.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const ITEMS_PER_PAGE = 7;
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / ITEMS_PER_PAGE));
+  
+  // Safe current page
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedClients = filteredClients.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   return (
     <div className="space-y-6">
@@ -122,7 +158,7 @@ export default function Clients({ store }: ClientsProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredClients.map(client => (
+              {paginatedClients.map(client => (
                 <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -160,6 +196,13 @@ export default function Clients({ store }: ClientsProps) {
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => setSelectedClient(client)}
+                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Détails & Règlements"
+                      >
+                        <Wallet className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => openEditModal(client)}
                         className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                         title="Modifier"
@@ -187,10 +230,212 @@ export default function Clients({ store }: ClientsProps) {
                   </td>
                 </tr>
               )}
+
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50">
+            <span className="text-sm text-slate-500">
+              Affichage {startIndex + 1} à {Math.min(startIndex + ITEMS_PER_PAGE, filteredClients.length)} sur {filteredClients.length} clients
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={safeCurrentPage === 1}
+                className="px-3 py-1 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Précédent
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1 text-sm font-medium border rounded-md ${
+                    page === safeCurrentPage
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={safeCurrentPage === totalPages}
+                className="px-3 py-1 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
+
+      
+      {selectedClient && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-indigo-600" />
+                Situation de compte : {selectedClient.name}
+              </h2>
+              <button onClick={() => setSelectedClient(null)} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              {(() => {
+                const clientBonsList = store.shifts
+                  .filter(s => s.status === 'completed' || s.status === 'ready_to_close')
+                  .flatMap(shift => {
+                    const bons = shift.nonCashPayments?.bonClient || [];
+                    return bons
+                      .filter(b => b.clientName?.toLowerCase().trim() === selectedClient.name.toLowerCase().trim())
+                      .map(b => ({ ...b, shiftDate: shift.date, shiftName: shift.shiftName }));
+                  });
+
+                const totalBons = clientBonsList.reduce((sum, b) => sum + (parseFloat(b.amount as any) || 0), 0);
+                const totalPayments = (selectedClient.payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
+                const balance = totalBons - totalPayments;
+
+                return (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                        <div className="text-slate-500 text-xs font-bold uppercase mb-1">Total Bons (Crédit)</div>
+                        <div className="text-2xl font-black text-slate-800">{totalBons.toFixed(2)} <span className="text-sm">MAD</span></div>
+                      </div>
+                      <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                        <div className="text-emerald-600/80 text-xs font-bold uppercase mb-1">Total Réglé</div>
+                        <div className="text-2xl font-black text-emerald-700">{totalPayments.toFixed(2)} <span className="text-sm">MAD</span></div>
+                      </div>
+                      <div className={`rounded-xl p-4 border ${balance > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className={`text-xs font-bold uppercase mb-1 ${balance > 0 ? 'text-rose-600/80' : 'text-slate-500'}`}>Reste à payer</div>
+                        <div className={`text-2xl font-black ${balance > 0 ? 'text-rose-700' : 'text-slate-800'}`}>{Math.max(0, balance).toFixed(2)} <span className="text-sm">MAD</span></div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
+                          <History className="w-4 h-4 text-slate-400" />
+                          Historique des Bons
+                        </h3>
+                        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 sticky top-0">
+                              <tr>
+                                <th className="p-2 font-bold text-slate-600">Date Shift</th>
+                                <th className="p-2 font-bold text-slate-600 text-right">Montant</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {clientBonsList.length > 0 ? clientBonsList.map((bon, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50">
+                                  <td className="p-2 text-slate-600">
+                                    {new Date(bon.shiftDate).toLocaleDateString('fr-FR')} - Shift {bon.shiftName}
+                                  </td>
+                                  <td className="p-2 font-mono font-bold text-slate-800 text-right">
+                                    {parseFloat(bon.amount as any).toFixed(2)}
+                                  </td>
+                                </tr>
+                              )) : (
+                                <tr><td colSpan={2} className="p-4 text-center text-slate-400 italic">Aucun bon trouvé</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
+                          <Wallet className="w-4 h-4 text-slate-400" />
+                          Historique des Règlements
+                        </h3>
+                        
+                        <form onSubmit={handleAddPayment} className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
+                              <input
+                                type="date"
+                                required
+                                value={paymentDate}
+                                onChange={e => setPaymentDate(e.target.value)}
+                                className="w-full px-2 py-1.5 text-sm bg-white border border-slate-200 rounded focus:ring-1 focus:ring-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-700 mb-1">Montant (MAD)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                required
+                                value={paymentAmount}
+                                onChange={e => setPaymentAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full px-2 py-1.5 text-sm bg-white border border-slate-200 rounded focus:ring-1 focus:ring-indigo-500 font-mono"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Notes (Optionnel)</label>
+                            <input
+                              type="text"
+                              value={paymentNotes}
+                              onChange={e => setPaymentNotes(e.target.value)}
+                              placeholder="Chèque N°, Espèces..."
+                              className="w-full px-2 py-1.5 text-sm bg-white border border-slate-200 rounded focus:ring-1 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div className="pt-1">
+                            <button type="submit" className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded flex justify-center items-center gap-1 transition-colors">
+                              <PlusCircle className="w-4 h-4" /> Ajouter Règlement
+                            </button>
+                          </div>
+                        </form>
+
+                        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden max-h-[160px] overflow-y-auto">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 sticky top-0">
+                              <tr>
+                                <th className="p-2 font-bold text-slate-600">Date</th>
+                                <th className="p-2 font-bold text-slate-600 text-right">Montant</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {(selectedClient.payments || []).length > 0 ? [...(selectedClient.payments || [])].reverse().map((pay: any, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50">
+                                  <td className="p-2 text-slate-600">
+                                    {new Date(pay.date).toLocaleDateString('fr-FR')}
+                                    {pay.notes && <div className="text-[10px] text-slate-400 truncate max-w-[150px]">{pay.notes}</div>}
+                                  </td>
+                                  <td className="p-2 font-mono font-bold text-emerald-600 text-right">
+                                    {parseFloat(pay.amount).toFixed(2)}
+                                  </td>
+                                </tr>
+                              )) : (
+                                <tr><td colSpan={2} className="p-4 text-center text-slate-400 italic">Aucun règlement</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">

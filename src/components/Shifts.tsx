@@ -36,7 +36,9 @@ export default function Shifts({ store }: ShiftsProps) {
   const [editingShift, setEditingShift] = useState<Shift | undefined>(undefined);
   const [closingShiftId, setClosingShiftId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const shiftsPerPage = 8;
+  const shiftsPerPage = 10;
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
   const [shiftToDelete, setShiftToDelete] = useState<string | null>(null);
   const [shiftToEdit, setShiftToEdit] = useState<Shift | null>(null);
@@ -67,7 +69,15 @@ export default function Shifts({ store }: ShiftsProps) {
 
   // Active shifts list
   const activeShifts = shifts.filter(s => s.status === 'active');
-  const completedShifts = shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close').sort((a, b) => new Date(`${b.date}T${b.startTime || '00:00'}`).getTime() - new Date(`${a.date}T${a.startTime || '00:00'}`).getTime());
+  const completedShifts = shifts.filter(s => {
+    if (s.status !== 'completed' && s.status !== 'ready_to_close') return false;
+    
+    // Apply date filters if they exist
+    if (filterStartDate && s.date < filterStartDate) return false;
+    if (filterEndDate && s.date > filterEndDate) return false;
+    
+    return true;
+  }).sort((a, b) => new Date(`${b.date}T${b.startTime || '00:00'}`).getTime() - new Date(`${a.date}T${a.startTime || '00:00'}`).getTime());
   
   const totalPages = Math.ceil(completedShifts.length / shiftsPerPage);
   const currentCompletedShifts = completedShifts.slice((currentPage - 1) * shiftsPerPage, currentPage * shiftsPerPage);
@@ -273,70 +283,40 @@ export default function Shifts({ store }: ShiftsProps) {
           {activeShifts.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
-                Shifts de piste actifs ({activeShifts.length})
+                <Play className="w-4 h-4 text-slate-400" />
+                Shifts actifs en cours
               </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {activeShifts.map(s => {
-                  const assignedNozzles = nozzles.filter(n => s.pumpIds.includes(n.pumpId));
                   return (
-                    <div key={s.id} className="bg-white border-2 border-indigo-500 rounded-xl shadow-xs overflow-hidden flex flex-col justify-between">
-                      <div className="p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                            Shift {s.shiftName}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono font-bold">Début: {s.startTime}</span>
+                    <div key={s.id} className="bg-white border-2 border-indigo-200 rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                              En cours
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-slate-800 flex items-center gap-2"><User className="w-4 h-4 text-slate-400"/> {s.attendantName}</h4>
                         </div>
-                        <div className="flex items-center gap-2.5 py-1">
-                          <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                            <User className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-sm leading-tight">{s.attendantName}</h4>
-                            <span className="text-[10px] text-slate-400">Date: {s.date}</span>
-                          </div>
-                        </div>
-
-                        {/* Pompes associées */}
-                        <div className="space-y-1.5 border-t border-slate-100 pt-3">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pompes affectées</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {s.pumpIds.map(pId => {
-                              const p = pumps.find(pump => pump.id === pId);
-                              return (
-                                <span key={pId} className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-semibold text-slate-600 flex items-center gap-1">
-                                  <Fuel className="w-3 h-3 text-slate-400" />
-                                  {p ? p.number : pId}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Index de départ (Détectés) */}
-                        <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-[11px] text-slate-500">
-                          <span className="font-bold text-slate-700 block mb-1">Index initiaux enregistrés :</span>
-                          <div className="max-h-24 overflow-y-auto divide-y divide-[#e2e8f099]">
-                            {assignedNozzles.map(noz => (
-                              <div key={noz.id} className="py-1 flex justify-between font-mono">
-                                <span>{noz.name}</span>
-                                <span>{s.startCounters[noz.id]?.elec?.toFixed(3)} L (élec)</span>
-                              </div>
-                            ))}
-                          </div>
+                        <div className="text-right">
+                          <span className="block text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">{s.startTime} - ...</span>
                         </div>
                       </div>
-
-                      {/* Action de clôture */}
-                      <div className="bg-[#eef2ff99] border-t border-indigo-100 p-3 flex justify-end">
-                        <button 
-                          onClick={() => handleInitCheckout(s)}
-                          className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center gap-1 shadow-xs"
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mb-4 font-medium">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {new Date(s.date).toLocaleDateString('fr-FR')} - Shift {s.shiftName}
+                      </div>
+                      <div className="pt-3 border-t border-slate-100 mt-auto flex justify-end">
+                        <button
+                          onClick={() => {
+                            setEditingShift(s);
+                            setActiveTab('wizard');
+                          }}
+                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Relever les index & Enregistrer Index Fin
+                          Saisie & Clôture <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -348,10 +328,42 @@ export default function Shifts({ store }: ShiftsProps) {
 
           {/* Section: Historique des shifts terminés */}
           <div className="space-y-3 pt-4">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-slate-400" />
-              Historique des shifts clos
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-slate-400" />
+                Historique des shifts clos
+              </h3>
+              
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Du:</span>
+                  <input 
+                    type="date" 
+                    value={filterStartDate} 
+                    onChange={(e) => { setFilterStartDate(e.target.value); setCurrentPage(1); }} 
+                    className="text-xs border-slate-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Au:</span>
+                  <input 
+                    type="date" 
+                    value={filterEndDate} 
+                    onChange={(e) => { setFilterEndDate(e.target.value); setCurrentPage(1); }} 
+                    className="text-xs border-slate-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1"
+                  />
+                </div>
+                {(filterStartDate || filterEndDate) && (
+                  <button 
+                    onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setCurrentPage(1); }}
+                    className="p-1 text-slate-400 hover:text-rose-500"
+                    title="Effacer les filtres"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
@@ -998,34 +1010,6 @@ export default function Shifts({ store }: ShiftsProps) {
                     </div>
 
 
-                    {/* FINANCES COMPACTES */}
-                    <div>
-                      <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                        <Wallet className="w-3.5 h-3.5 text-emerald-500" />
-                        Bilan Financier
-                      </h4>
-                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
-                        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-200">
-                          <div className="p-3">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1">Total Ventes</div>
-                            <div className="font-mono font-bold text-slate-800">{chiffreAffaires.toFixed(2)} DH</div>
-                          </div>
-                          <div className="p-3">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1">Non-Espèces</div>
-                            <div className="font-mono font-bold text-rose-600">-{nonCashTotal.toFixed(2)} DH</div>
-                          </div>
-                          <div className="p-3">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1">Dépenses</div>
-                            <div className="font-mono font-bold text-rose-600">-{depensesTotal.toFixed(2)} DH</div>
-                          </div>
-                          <div className="p-3 bg-emerald-50">
-                            <div className="text-[10px] uppercase text-emerald-600 font-bold mb-1">Espèces à remettre</div>
-                            <div className="font-mono font-black text-emerald-700 text-lg">{especeARemettre.toFixed(2)} DH</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                     {/* NON-CASH BREAKDOWN IN REPORT */}
                     {nonCashTotal > 0 && (
                       <div>
@@ -1082,6 +1066,34 @@ export default function Shifts({ store }: ShiftsProps) {
                         </div>
                       </div>
                     )}
+                    {/* FINANCES COMPACTES */}
+                    <div>
+                      <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                        Bilan Financier
+                      </h4>
+                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
+                        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-200">
+                          <div className="p-3">
+                            <div className="text-[10px] uppercase text-slate-500 mb-1">Total Ventes</div>
+                            <div className="font-mono font-bold text-slate-800">{chiffreAffaires.toFixed(2)} DH</div>
+                          </div>
+                          <div className="p-3">
+                            <div className="text-[10px] uppercase text-slate-500 mb-1">Non-Espèces</div>
+                            <div className="font-mono font-bold text-rose-600">-{nonCashTotal.toFixed(2)} DH</div>
+                          </div>
+                          <div className="p-3">
+                            <div className="text-[10px] uppercase text-slate-500 mb-1">Dépenses</div>
+                            <div className="font-mono font-bold text-rose-600">-{depensesTotal.toFixed(2)} DH</div>
+                          </div>
+                          <div className="p-3 bg-emerald-50">
+                            <div className="text-[10px] uppercase text-emerald-600 font-bold mb-1">Espèces à remettre</div>
+                            <div className="font-mono font-black text-emerald-700 text-lg">{especeARemettre.toFixed(2)} DH</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
 
                 );

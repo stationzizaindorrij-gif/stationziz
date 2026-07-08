@@ -142,6 +142,15 @@ export interface Supplier {
   ice: string;
   contact: string;
   notes: string;
+  payments?: ClientPayment[];
+}
+
+
+export interface ClientPayment {
+  id: string;
+  amount: number;
+  date: string;
+  notes?: string;
 }
 
 export interface Client {
@@ -290,4 +299,14 @@ export interface ShopProduct {
   salePrice: number;
   stockQuantity: number;
   status: 'active' | 'inactive';
+}
+
+
+export interface PriceChange {
+  id: string;
+  date: string; // ISO date string YYYY-MM-DD
+  productId: string;
+  productType: string;
+  purchasePrice: number;
+  salePrice: number;
 }

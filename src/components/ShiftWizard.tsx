@@ -43,23 +43,37 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   });
   const [realCashInput, setRealCashInput] = useState(editingShift?.realCashReceived?.toString() || '');
 
-  useEffect(() => {
-    const newStartCounters: any = {};
-    const newEndCounters: any = {};
-    selectedPumps.forEach(pumpId => {
-      const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
-      pumpNozzles.forEach(noz => {
-        newStartCounters[noz.id] = { mech: noz.currentMechCounter, elec: noz.currentElecCounter };
-        if (!endCounters[noz.id]) {
-          newEndCounters[noz.id] = { mech: '', elec: '' };
-        } else {
-          newEndCounters[noz.id] = endCounters[noz.id];
-        }
+useEffect(() => {
+    setStartCounters(prevStart => {
+      const newStart = { ...prevStart };
+      let hasChanges = false;
+      selectedPumps.forEach(pumpId => {
+        const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
+        pumpNozzles.forEach(noz => {
+          if (!newStart[noz.id] && !editingShift) {
+            newStart[noz.id] = { mech: noz.currentMechCounter, elec: noz.currentElecCounter };
+            hasChanges = true;
+          }
+        });
       });
+      return hasChanges ? newStart : prevStart;
     });
-    setStartCounters(newStartCounters);
-    setEndCounters(newEndCounters);
-  }, [selectedPumps, store.nozzles]);
+
+    setEndCounters(prevEnd => {
+      const newEnd = { ...prevEnd };
+      let hasChanges = false;
+      selectedPumps.forEach(pumpId => {
+        const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
+        pumpNozzles.forEach(noz => {
+          if (!newEnd[noz.id]) {
+            newEnd[noz.id] = { mech: '', elec: '' };
+            hasChanges = true;
+          }
+        });
+      });
+      return hasChanges ? newEnd : prevEnd;
+    });
+  }, [selectedPumps, store.nozzles, editingShift]);
 
   const fuelSalesDetails = useMemo(() => {
     const details = [];
@@ -108,40 +122,37 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   }, [selectedPumps, startCounters, endCounters, store.nozzles, store.products]);
 
 
-  // Auto-fill start counters based on previous shifts when pumps are selected
+// Auto-fill start counters based on previous shifts when pumps are selected
   useEffect(() => {
-    if (selectedPumps.length === 0) return;
+    if (selectedPumps.length === 0 || editingShift) return;
     
-    const newStartCounters = { ...startCounters };
-    let hasChanges = false;
-    
-    selectedPumps.forEach(pumpId => {
-      const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
-      pumpNozzles.forEach(noz => {
-        // Only auto-fill if not already filled with a specific value or if it's currently matching the nozzle's current counter
-        // Actually, we should just find the most recent shift's end counter for this nozzle
-        const previousShifts = [...store.shifts]
-          .filter(s => s.status === 'completed' && s.endCounters && s.endCounters[noz.id])
-          .sort((a, b) => new Date(`${b.date}T${b.startTime || '00:00'}`).getTime() - new Date(`${a.date}T${a.startTime || '00:00'}`).getTime());
-          
-        if (previousShifts.length > 0) {
-          const lastEndCounter = previousShifts[0].endCounters[noz.id];
-          if (!newStartCounters[noz.id] || 
-              (newStartCounters[noz.id].elec === noz.currentElecCounter && newStartCounters[noz.id].elec !== lastEndCounter.elec)) {
-            newStartCounters[noz.id] = {
-              elec: lastEndCounter.elec,
-              mech: lastEndCounter.mech
-            };
-            hasChanges = true;
+    setStartCounters(prevStart => {
+      const newStart = { ...prevStart };
+      let hasChanges = false;
+      
+      selectedPumps.forEach(pumpId => {
+        const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
+        pumpNozzles.forEach(noz => {
+          const previousShifts = [...store.shifts]
+            .filter(s => s.status === 'completed' && s.endCounters && s.endCounters[noz.id])
+            .sort((a, b) => new Date(`${b.date}T${b.startTime || '00:00'}`).getTime() - new Date(`${a.date}T${a.startTime || '00:00'}`).getTime());
+                    
+          if (previousShifts.length > 0) {
+            const lastEndCounter = previousShifts[0].endCounters[noz.id];
+            if (!newStart[noz.id] || 
+                 (newStart[noz.id].elec === noz.currentElecCounter && newStart[noz.id].elec !== lastEndCounter.elec)) {
+              newStart[noz.id] = {
+                elec: lastEndCounter.elec,
+                mech: lastEndCounter.mech
+              };
+              hasChanges = true;
+            }
           }
-        }
+        });
       });
+      return hasChanges ? newStart : prevStart;
     });
-    
-    if (hasChanges) {
-      setStartCounters(newStartCounters);
-    }
-  }, [selectedPumps, store.shifts, store.nozzles]);
+  }, [selectedPumps, store.shifts, store.nozzles, editingShift]);
 
   const totalProductSales = productSales.reduce((acc, curr) => acc + curr.total, 0);
   const totalServiceSales = serviceSales.reduce((acc, curr) => acc + curr.total, 0);
@@ -199,25 +210,31 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
     };
 
     if (nonCashPayments && nonCashPayments.bonClient && nonCashPayments.bonClient.length > 0) {
+      const newClientsToAdd: any[] = [];
+      const currentClientNames = new Set(store.clients.map(c => c.name.toLowerCase()));
+      
       nonCashPayments.bonClient.forEach((bc: any) => {
         if (bc.clientName && bc.clientName.trim() !== '') {
           const clientNameTrimmed = bc.clientName.trim();
-          const exists = store.clients.some(c => c.name.toLowerCase() === clientNameTrimmed.toLowerCase());
-          if (!exists) {
-            if ((store as any).addClient) {
-              (store as any).addClient({
-                name: clientNameTrimmed,
-                phone: '',
-                email: '',
-                address: '',
-                ice: '',
-                contact: '',
-                notes: 'Client ajouté automatiquement depuis un Bon Client'
-              }, store.currentRole);
-            }
+          const lowerName = clientNameTrimmed.toLowerCase();
+          if (!currentClientNames.has(lowerName)) {
+            currentClientNames.add(lowerName);
+            newClientsToAdd.push({
+              name: clientNameTrimmed,
+              phone: '',
+              email: '',
+              address: '',
+              ice: '',
+              contact: '',
+              notes: 'Client ajouté automatiquement depuis un Bon Client'
+            });
           }
         }
       });
+
+      if (newClientsToAdd.length > 0 && (store as any).addClients) {
+        (store as any).addClients(newClientsToAdd, store.currentRole);
+      }
     }
 
     if (editingShift) {
@@ -425,8 +442,8 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
                                 <input 
                                   type="number" 
                                   value={startCounters[row.nozzle.id]?.elec || 0}
-                                  onChange={(e) => setStartCounters({...startCounters, [row.nozzle.id]: { ...startCounters[row.nozzle.id], elec: parseFloat(e.target.value) || 0 }})}
-                                  className="w-24 text-right bg-transparent border-b border-slate-200 font-mono text-slate-500 focus:outline-none focus:border-slate-500"
+                                  onChange={(e) => setStartCounters(prev => ({...prev, [row.nozzle.id]: { ...prev[row.nozzle.id], elec: parseFloat(e.target.value) || 0 }}))}
+                                  className="w-32 text-right bg-transparent border-b border-slate-200 font-mono text-slate-500 focus:outline-none focus:border-slate-500"
                                 />
                               </div>
                               <div className="flex flex-col items-end">
@@ -434,8 +451,8 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
                                 <input 
                                   type="number" 
                                   value={startCounters[row.nozzle.id]?.mech || 0}
-                                  onChange={(e) => setStartCounters({...startCounters, [row.nozzle.id]: { ...startCounters[row.nozzle.id], mech: parseFloat(e.target.value) || 0 }})}
-                                  className="w-24 text-right bg-transparent border-b border-slate-200 font-mono text-slate-500 focus:outline-none focus:border-slate-500"
+                                  onChange={(e) => setStartCounters(prev => ({...prev, [row.nozzle.id]: { ...prev[row.nozzle.id], mech: parseFloat(e.target.value) || 0 }}))}
+                                  className="w-32 text-right bg-transparent border-b border-slate-200 font-mono text-slate-500 focus:outline-none focus:border-slate-500"
                                 />
                               </div>
                             </div>
@@ -447,8 +464,8 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
                                 <input 
                                   type="number" 
                                   value={endCounters[row.nozzle.id]?.elec !== undefined ? endCounters[row.nozzle.id].elec : ''}
-                                  onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], elec: e.target.value }})}
-                                  className="w-24 text-right bg-transparent border-b border-emerald-200 font-mono font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
+                                  onChange={(e) => setEndCounters(prev => ({...prev, [row.nozzle.id]: { ...prev[row.nozzle.id], elec: e.target.value }}))}
+                                  className="w-32 text-right bg-transparent border-b border-emerald-200 font-mono font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
                                 />
                               </div>
                               <div className="flex flex-col items-end">
@@ -456,8 +473,8 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
                                 <input 
                                   type="number" 
                                   value={endCounters[row.nozzle.id]?.mech !== undefined ? endCounters[row.nozzle.id].mech : ''}
-                                  onChange={(e) => setEndCounters({...endCounters, [row.nozzle.id]: { ...endCounters[row.nozzle.id], mech: e.target.value }})}
-                                  className="w-24 text-right bg-transparent border-b border-emerald-200 font-mono font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
+                                  onChange={(e) => setEndCounters(prev => ({...prev, [row.nozzle.id]: { ...prev[row.nozzle.id], mech: e.target.value }}))}
+                                  className="w-32 text-right bg-transparent border-b border-emerald-200 font-mono font-bold text-emerald-700 focus:outline-none focus:border-emerald-500"
                                 />
                               </div>
                             </div>
@@ -642,7 +659,7 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
                             <input type="number" value={item.total} onChange={e => {
                               const total = parseFloat(e.target.value) || 0;
                               setServiceSales(serviceSales.map(s => s.id === item.id ? { ...s, total } : s));
-                            }} className="w-24 text-right bg-transparent border-b border-cyan-200 focus:outline-none focus:border-cyan-500 font-bold" />
+                            }} className="w-32 text-right bg-transparent border-b border-cyan-200 focus:outline-none focus:border-cyan-500 font-bold" />
                           </td>
                           <td className="p-3 text-center">
                             <button onClick={() => setServiceSales(serviceSales.filter(s => s.id !== item.id))} className="text-rose-400 hover:text-rose-600">
@@ -1109,7 +1126,54 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
                         )}
                       </div>
 
+{/* NON-CASH BREAKDOWN IN CLOSING REPORT */}
+                      {totalNonCashPayments > 0 && (
+                        <div>
+                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                            Détail des Encaissements Non-Espèces
+                          </h4>
+                          <div className="rounded-lg border border-slate-200 overflow-hidden">
+                            <table className="w-full text-xs text-left">
+                              <tbody className="divide-y divide-slate-100">
+                                {totalCarteSntl > 0 && (
+                                  <tr>
+                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Carte SNTL</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalCarteSntl.toFixed(2)} DH</td>
+                                  </tr>
+                                )}
+                                {totalEspeceClient > 0 && (
+                                  <tr>
+                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Espèce (Déclaration)</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalEspeceClient.toFixed(2)} DH</td>
+                                  </tr>
+                                )}
+                                {totalBonVivo > 0 && (
+                                  <tr>
+                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Bon Carburants Vivo</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalBonVivo.toFixed(2)} DH</td>
+                                  </tr>
+                                )}
+                                {totalVignette > 0 && (
+                                  <tr>
+                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Vignette</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalVignette.toFixed(2)} DH</td>
+                                  </tr>
+                                )}
+                                {totalBonClient > 0 && (
+                                  <tr>
+                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Bon Client</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalBonClient.toFixed(2)} DH</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
                       {/* FINANCES COMPACTES */}
+
                       <div>
                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                           <Wallet className="w-3.5 h-3.5 text-emerald-500" />

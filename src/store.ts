@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import {
   Product, Tank, Pump, Nozzle, Attendant, Shift, Sale, Supply,
   CashRegistry, StockCorrection, AuditLog, Alert, User, StationConfig, UserRole,
-  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct
+  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, PriceChange
 } from './types';
 export function useERPStore() {
   // Initialize Storage
@@ -12,6 +12,7 @@ export function useERPStore() {
 
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [priceChanges, setPriceChanges] = useState<PriceChange[]>([]);
   const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
   const [tanks, setTanks] = useState<Tank[]>([]);
   const [pumps, setPumps] = useState<Pump[]>([]);
@@ -142,7 +143,22 @@ export function useERPStore() {
     if (data.users) setUsers(data.users);
     if (data.config) setConfig(data.config);
     if (data.suppliers) setSuppliers(data.suppliers);
-    if (data.clients) setClients(data.clients);
+    if (data.clients) {
+      const decodedClients = data.clients.map((c: any) => {
+        let payments = [];
+        let notes = c.notes || '';
+        if (notes.includes('|__PAYMENTS:')) {
+          const parts = notes.split('|__PAYMENTS:');
+          notes = parts[0];
+          try { 
+            const jsonStr = parts[1].replace('__|', '');
+            payments = JSON.parse(jsonStr); 
+          } catch(e) {}
+        }
+        return { ...c, notes, payments };
+      });
+      setClients(decodedClients);
+    }
     if (data.purchase_invoices) setPurchaseInvoices(data.purchase_invoices);
     if (data.sales_invoices) setSalesInvoices(data.sales_invoices);
   };
@@ -222,6 +238,7 @@ export function useERPStore() {
       case 'cash_registry': oldValue = cashRegistry; break;
       case 'stock_corrections': oldValue = stockCorrections; break;
       case 'audit_logs': oldValue = auditLogs; break;
+      case 'price_changes': oldValue = priceChanges; break;
       case 'alerts': oldValue = alerts; break;
       case 'users': oldValue = users; break;
       case 'config': oldValue = config; break;
@@ -248,6 +265,17 @@ export function useERPStore() {
         const mappedShopProducts = newValue.map(mapShopToProduct);
         const mappedOldValue = (oldValue || []).map(mapShopToProduct);
         await syncArrayToSupabase('erp_products', mappedOldValue, mappedShopProducts);
+      } else if (key === 'clients') {
+        const mapClient = (c: any) => {
+           const { payments, ...rest } = c;
+           return {
+             ...rest,
+             notes: payments && payments.length > 0 ? `${rest.notes || ''}|__PAYMENTS:${JSON.stringify(payments)}__|` : (rest.notes || '')
+           };
+        };
+        const mappedNew = newValue.map(mapClient);
+        const mappedOld = (oldValue || []).map(mapClient);
+        await syncArrayToSupabase('erp_clients', mappedOld, mappedNew);
       } else {
         await syncArrayToSupabase(`erp_${key}`, oldValue || [], newValue);
       }
@@ -859,7 +887,11 @@ export function useERPStore() {
         const endCount = shiftData.endCounters[noz.id];
         if (endCount) {
           const startCount = shiftData.startCounters[noz.id];
-          const diffLiters = endCount.elec - startCount.elec;
+const eElec = parseFloat(endCount.elec) || parseFloat(startCount.elec) || 0;
+          const eMech = parseFloat(endCount.mech) || parseFloat(startCount.mech) || 0;
+          const sElec = parseFloat(startCount.elec) || 0;
+          
+          const diffLiters = eElec - sElec;
           const roundedDiff = Math.max(0, parseFloat(diffLiters.toFixed(2)));
           
           // Decrease tank level
@@ -878,10 +910,10 @@ export function useERPStore() {
             }
           }
           
-          return {
+return {
             ...noz,
-            currentMechCounter: endCount.mech,
-            currentElecCounter: endCount.elec
+            currentMechCounter: eMech,
+            currentElecCounter: eElec
           };
         }
       }
@@ -1014,6 +1046,14 @@ export function useERPStore() {
     const updated = [...clients, newClient];
     saveState('clients', updated, setClients);
     logAction(author, 'Création Client', 'Ventes', `Création du client pro ${newClient.name}`);
+  };
+
+  const addClients = (newClients: Omit<Client, 'id'>[], author: string) => {
+    if (newClients.length === 0) return;
+    const clientsToAdd = newClients.map((client, idx) => ({ ...client, id: `client_${Date.now()}_${idx}` }));
+    const updated = [...clients, ...clientsToAdd];
+    saveState('clients', updated, setClients);
+    logAction(author, 'Création Clients', 'Ventes', `Création de ${clientsToAdd.length} clients pro`);
   };
 
   const updateClient = (id: string, updatedFields: Partial<Client>, author: string) => {
@@ -1161,6 +1201,7 @@ export function useERPStore() {
     updateSupplier,
     deleteSupplier,
     addClient,
+    addClients,
     updateClient,
     deleteClient,
     addPurchaseInvoice,

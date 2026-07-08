@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import { History, 
   BarChart2, LayoutDashboard, Users, Clock, Fuel, 
   Settings as SettingsIcon, Sliders, Bell, FileText, 
   Menu, X, Landmark, User, Package
@@ -17,6 +17,7 @@ import Assets from './components/Assets';
 import Reports from './components/Reports';
 import Alerts from './components/Alerts';
 import Settings from './components/Settings';
+import PriceHistory from './components/PriceHistory';
 import { Billing } from './components/Billing';
 import { Shop } from './components/Shop';
 import Analytics from './components/Analytics';
@@ -26,7 +27,7 @@ import DailyClosing from './components/DailyClosing';
 type ActiveModule = 
   | 'dashboard' | 'attendants' | 'shifts' | 'tanks' | 'assets' 
   | 'reports' | 'alerts' | 'settings' | 'billing' | 'daily_closing'  
-  | 'analytics' | 'clients' | 'shop';
+  | 'analytics' | 'clients' | 'shop' | 'price_history';
 
 function AppContent({ session }: { session: any }) {
   const store = useERPStore();
@@ -36,7 +37,7 @@ function AppContent({ session }: { session: any }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const arrayKeys = [
+        const arrayKeys = ['price_changes', 
           'products', 'tanks', 'pumps', 'nozzles', 'attendants', 'shifts', 
           'sales', 'supplies', 'stock_corrections', 'audit_logs', 
           'alerts', 'users', 'suppliers', 'clients', 'purchase_invoices', 'sales_invoices'
@@ -114,6 +115,7 @@ function AppContent({ session }: { session: any }) {
     { id: 'shifts', label: 'Gestion des Shifts', icon: Clock, badge: 0 },
     { id: 'tanks', label: 'Cuves & Stock', icon: Fuel, badge: 0 },
     { id: 'assets', label: 'Installations & Prix', icon: Sliders, badge: 0 },
+    { id: 'price_history', label: 'Historique des Prix', icon: History, badge: 0 },
     { id: 'shop', label: 'Boutique', icon: Package, badge: 0 },
     { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
     { id: 'billing', label: 'Facturation & Achats', icon: Landmark, badge: 0 },
@@ -152,6 +154,7 @@ function AppContent({ session }: { session: any }) {
             {activeModule === 'analytics' && <Analytics store={store} />}
             {activeModule === 'alerts' && <Alerts store={store} />}
             {activeModule === 'settings' && <Settings store={store} />}
+            {activeModule === 'price_history' && <PriceHistory store={store} />}
             {activeModule === 'clients' && <Clients store={store} />}
             {activeModule === 'daily_closing' && <DailyClosing store={store} shiftId={""} onBack={() => setActiveModule("dashboard")} />}
           </div>
@@ -306,6 +309,7 @@ function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen }: {
 function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuClick: () => void }) {
   const moduleNames: Record<string, string> = {
     dashboard: 'Tableau de Bord',
+    price_history: 'Historique des Prix',
     attendants: 'Pompistes',
     shifts: 'Gestion des Shifts',
     tanks: 'Cuves & Stock',
