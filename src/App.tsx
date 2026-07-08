@@ -17,7 +17,6 @@ import Assets from './components/Assets';
 import Reports from './components/Reports';
 import Alerts from './components/Alerts';
 import Settings from './components/Settings';
-import PriceHistory from './components/PriceHistory';
 import { Billing } from './components/Billing';
 import { Shop } from './components/Shop';
 import Analytics from './components/Analytics';
@@ -115,7 +114,6 @@ function AppContent({ session }: { session: any }) {
     { id: 'shifts', label: 'Gestion des Shifts', icon: Clock, badge: 0 },
     { id: 'tanks', label: 'Cuves & Stock', icon: Fuel, badge: 0 },
     { id: 'assets', label: 'Installations & Prix', icon: Sliders, badge: 0 },
-    { id: 'price_history', label: 'Historique des Prix', icon: History, badge: 0 },
     { id: 'shop', label: 'Boutique', icon: Package, badge: 0 },
     { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
     { id: 'billing', label: 'Facturation & Achats', icon: Landmark, badge: 0 },
@@ -155,7 +153,6 @@ function AppContent({ session }: { session: any }) {
             {activeModule === 'analytics' && <Analytics store={store} />}
             {activeModule === 'alerts' && <Alerts store={store} />}
             {activeModule === 'settings' && <Settings store={store} />}
-            {activeModule === 'price_history' && <PriceHistory store={store} />}
             {activeModule === 'clients' && <Clients store={store} />}
             {activeModule === 'daily_closing' && <DailyClosing store={store} shiftId={""} onBack={() => setActiveModule("dashboard")} />}
           </div>
@@ -311,7 +308,6 @@ function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen, stor
 function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuClick: () => void }) {
   const moduleNames: Record<string, string> = {
     dashboard: 'Tableau de Bord',
-    price_history: 'Historique des Prix',
     attendants: 'Pompistes',
     shifts: 'Gestion des Shifts',
     tanks: 'Cuves & Stock',

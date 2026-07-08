@@ -298,6 +298,7 @@ export interface ShopProduct {
   purchasePrice: number;
   salePrice: number;
   stockQuantity: number;
+  minStockAlert?: number;
   status: 'active' | 'inactive';
 }
 

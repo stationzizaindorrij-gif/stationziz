@@ -853,7 +853,7 @@ useEffect(() => {
     { key: 'vignette', label: 'VIGNETTE' },
     { key: 'bonClient', label: 'BON CLIENT' }
   ].map(method => (
-                  <div key={method.key} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div key={method.key} className={`p-4 bg-slate-50 rounded-xl border border-slate-200 ${method.key === 'bonClient' ? 'md:col-span-2' : ''}`}>
                     <div className="flex items-center justify-between mb-3">
                       <label className="block text-sm font-bold text-slate-700">{method.label}</label>
                       <button
@@ -906,17 +906,31 @@ useEffect(() => {
                           </div>
                         )}
                         {method.key === 'bonClient' && (
-                          <div className="flex-1 w-full">
-                              <input
-                                type="text"
-                                placeholder="Nom du client"
-                                value={(entry as any).clientName || ''}
+                          <div className="flex-[2] w-full flex flex-col lg:flex-row gap-2">
+                              <select 
+                                className="w-full lg:w-1/2 bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                                value={store.clients?.some(c => c.name === (entry as any).clientName) ? (entry as any).clientName : ''}
                                 onChange={e => {
                                   const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
                                   newArr[idx].clientName = e.target.value;
                                   setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
                                 }}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                              >
+                                <option value="">-- Sélectionner un client existant --</option>
+                                {store.clients?.map(c => (
+                                  <option key={c.id} value={c.name}>{c.name}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="text"
+                                placeholder="Ou saisir un nouveau client"
+                                value={store.clients?.some(c => c.name === (entry as any).clientName) ? '' : ((entry as any).clientName || '')}
+                                onChange={e => {
+                                  const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
+                                  newArr[idx].clientName = e.target.value;
+                                  setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                                }}
+                                className="w-full lg:w-1/2 bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
                               />
                           </div>
                         )}

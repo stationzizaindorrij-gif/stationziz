@@ -4,6 +4,7 @@ import {
   Settings, Layers, Link, Sliders, Play, X, SlidersHorizontal 
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
+import PriceHistory from './PriceHistory';
 import { Product, Pump, Nozzle } from '../types';
 
 interface AssetsProps {
@@ -17,7 +18,7 @@ export default function Assets({ store }: AssetsProps) {
   } = store;
 
   // Tab for products vs pumps vs nozzles
-  const [activeTab, setActiveTab] = useState<'products' | 'pumps' | 'nozzles'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'pumps' | 'nozzles' | 'history'>('products');
 
   // Addition forms toggles
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
@@ -229,6 +230,12 @@ export default function Assets({ store }: AssetsProps) {
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'nozzles' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Pistolets & Compteurs
+          </button>
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'history' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            Historique des Prix
           </button>
         </div>
       </div>
@@ -740,6 +747,12 @@ export default function Assets({ store }: AssetsProps) {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'history' && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6 p-6">
+          <PriceHistory store={store} />
         </div>
       )}
     </div>
