@@ -1069,27 +1069,27 @@ export default function Shifts({ store }: ShiftsProps) {
                     {/* FINANCES COMPACTES */}
                     <div>
                       <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                        <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                        <Wallet className="w-3.5 h-3.5 text-slate-500" />
                         Bilan Financier
                       </h4>
-                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50/50">
-                        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-200">
-                          <div className="p-3">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1">Total Ventes</div>
-                            <div className="font-mono font-bold text-slate-800">{chiffreAffaires.toFixed(2)} DH</div>
+                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+                          <div className="p-4 flex flex-col">
+                            <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Non-Espèces</div>
+                            <div className="font-mono font-bold text-rose-600 text-lg">-{nonCashTotal.toFixed(2)} DH</div>
                           </div>
-                          <div className="p-3">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1">Non-Espèces</div>
-                            <div className="font-mono font-bold text-rose-600">-{nonCashTotal.toFixed(2)} DH</div>
+                          <div className="p-4 flex flex-col">
+                            <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses</div>
+                            <div className="font-mono font-bold text-rose-600 text-lg">-{depensesTotal.toFixed(2)} DH</div>
                           </div>
-                          <div className="p-3">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1">Dépenses</div>
-                            <div className="font-mono font-bold text-rose-600">-{depensesTotal.toFixed(2)} DH</div>
-                          </div>
-                          <div className="p-3 bg-emerald-50">
+                          <div className="p-4 bg-emerald-50 flex flex-col justify-center">
                             <div className="text-[10px] uppercase text-emerald-600 font-bold mb-1">Espèces à remettre</div>
-                            <div className="font-mono font-black text-emerald-700 text-lg">{especeARemettre.toFixed(2)} DH</div>
+                            <div className="font-mono font-black text-emerald-700 text-xl">{especeARemettre.toFixed(2)} DH</div>
                           </div>
+                        </div>
+                        <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
+                          <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Ventes</div>
+                          <div className="font-mono font-black text-white text-2xl">{chiffreAffaires.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
                         </div>
                       </div>
                     </div>

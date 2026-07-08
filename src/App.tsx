@@ -133,6 +133,7 @@ function AppContent({ session }: { session: any }) {
         setActiveModule={setActiveModule} 
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
+        store={store}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
@@ -204,14 +205,15 @@ function App() {
 
 export default App;
 
-function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen }: {
+function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen, store }: {
   items: any[];
   activeModule: string;
   setActiveModule: (m: string) => void;
   isOpen: boolean;
   setIsOpen: (o: boolean) => void;
+  store: any;
 }) {
-  const store = useERPStore();
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };

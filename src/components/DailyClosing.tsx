@@ -403,35 +403,37 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
 
               {/* BILAN FINANCIER */}
               <div>
-                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Bilan Financier</h4>
-                <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
-                  <div className="grid grid-cols-4 divide-x divide-slate-200">
-                    <div className="p-3">
-                      <div className="text-[10px] uppercase text-slate-500 mb-1">Total Ventes</div>
-                      <div className="font-mono font-bold text-slate-800">{grandTotalSales.toFixed(2)} DH</div>
+                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  Bilan Financier
+                </h4>
+                <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+                    <div className="p-4 flex flex-col">
+                      <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Non-Espèces</div>
+                      <div className="font-mono font-bold text-rose-600 text-lg">-{totalNonCashPayments.toFixed(2)} DH</div>
                     </div>
-                    <div className="p-3">
-                      <div className="text-[10px] uppercase text-slate-500 mb-1">Non-Espèces</div>
-                      <div className="font-mono font-bold text-rose-600">-{totalNonCashPayments.toFixed(2)} DH</div>
+                    <div className="p-4 flex flex-col">
+                      <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses</div>
+                      <div className="font-mono font-bold text-rose-600 text-lg">-{totalExpenses.toFixed(2)} DH</div>
                     </div>
-                    <div className="p-3">
-                      <div className="text-[10px] uppercase text-slate-500 mb-1">Dépenses</div>
-                      <div className="font-mono font-bold text-rose-600">-{totalExpenses.toFixed(2)} DH</div>
-                    </div>
-                    <div className="p-3 bg-emerald-50">
+                    <div className="p-4 bg-emerald-50 flex flex-col justify-center">
                       <div className="text-[10px] uppercase text-emerald-600 font-bold mb-1">Caisse Théorique</div>
-                      <div className="font-mono font-black text-emerald-700 text-lg">{theoreticalCash.toFixed(2)} DH</div>
+                      <div className="font-mono font-black text-emerald-700 text-xl">{theoreticalCash.toFixed(2)} DH</div>
                     </div>
                   </div>
-                  <div className="border-t border-slate-200 p-3 grid grid-cols-2 divide-x divide-slate-200">
-                    <div>
-                      <div className="text-[10px] uppercase text-slate-500 mb-1">Caisse Réelle</div>
-                      <div className="font-mono font-bold text-slate-800">{parseFloat(realCashInput).toFixed(2)} DH</div>
+                  <div className="border-t border-slate-200 grid grid-cols-2 divide-x divide-slate-200 bg-slate-50">
+                    <div className="p-4 flex flex-col">
+                      <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Caisse Réelle</div>
+                      <div className="font-mono font-bold text-slate-800 text-lg">{parseFloat(realCashInput || "0").toFixed(2)} DH</div>
                     </div>
-                    <div className="pl-3">
-                      <div className="text-[10px] uppercase text-slate-500 mb-1">Écart</div>
-                      <div className={`font-mono font-bold ${ecart < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{ecart > 0 ? '+' : ''}{ecart.toFixed(2)} DH</div>
+                    <div className="p-4 flex flex-col justify-center">
+                      <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Écart</div>
+                      <div className={`font-mono font-black text-xl ${ecart < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{ecart > 0 ? '+' : ''}{ecart.toFixed(2)} DH</div>
                     </div>
+                  </div>
+                  <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
+                    <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Ventes</div>
+                    <div className="font-mono font-black text-white text-2xl">{grandTotalSales.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
                   </div>
                 </div>
               </div>

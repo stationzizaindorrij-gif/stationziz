@@ -372,7 +372,7 @@ export default function Analytics({ store }: AnalyticsProps) {
               Détails par Carburant (Mécanique)
             </h3>
             <div className="flex flex-wrap gap-4">
-              {store.products.map(p => renderFuelCard(reportData.mechStats, p.id))}
+              {store.products.map(p => <React.Fragment key={p.id}>{renderFuelCard(reportData.mechStats, p.id)}</React.Fragment>)}
             </div>
           </div>
 
@@ -382,7 +382,7 @@ export default function Analytics({ store }: AnalyticsProps) {
               Détails par Carburant (Électronique)
             </h3>
             <div className="flex flex-wrap gap-4">
-              {store.products.map(p => renderFuelCard(reportData.elecStats, p.id))}
+              {store.products.map(p => <React.Fragment key={p.id}>{renderFuelCard(reportData.elecStats, p.id)}</React.Fragment>)}
             </div>
           </div>
 

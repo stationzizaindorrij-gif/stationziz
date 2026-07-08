@@ -29,6 +29,19 @@ export default function Settings({ store }: SettingsProps) {
 
   const [saving, setSaving] = useState(false);
 
+  React.useEffect(() => {
+    setName(config.name);
+    setLogo(config.logo);
+    setAddress(config.address);
+    setPhone(config.phone);
+    setTaxId(config.taxId);
+    setAutoBackup(config.autoBackup);
+    setLanguage(config.language);
+    setTheme(config.theme);
+    setPrinterIp(config.printerIp);
+    setIotConfigured(config.iotConfigured);
+  }, [config]);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);

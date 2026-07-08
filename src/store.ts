@@ -282,10 +282,10 @@ export function useERPStore() {
     } else {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { error } = await supabase.from(`erp_${key}`).upsert({ ...newValue, id: newValue.id || 'default', user_id: session.user.id }, { onConflict: 'id' });
+        const { error } = await supabase.from(`erp_${key}`).upsert({ ...newValue, id: newValue.id || 'default', user_id: session.user.id });
         if (error) {
           console.error(`Erreur de sauvegarde ${key}:`, error);
-          alert(`Erreur de sauvegarde pour ${key}`);
+          alert(`Erreur de sauvegarde pour ${key}: ${error.message || JSON.stringify(error)}`);
         }
       }
     }
