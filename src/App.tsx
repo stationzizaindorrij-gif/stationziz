@@ -65,8 +65,8 @@ function AppContent({ session }: { session: any }) {
         
         const objectKeys = ['cash_registry', 'config'];
         await runInChunks(objectKeys, async (k) => {
-          const { data } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id).single();
-          if (data) fetchedData[k] = data;
+          const { data } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id).limit(1);
+          if (data && data.length > 0) fetchedData[k] = data[0];
         }, 2);
 
         store.loadInitialData(fetchedData);
@@ -117,7 +117,6 @@ function AppContent({ session }: { session: any }) {
     { id: 'shop', label: 'Boutique', icon: Package, badge: 0 },
     { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
     { id: 'billing', label: 'Facturation & Achats', icon: Landmark, badge: 0 },
-    { id: 'reports', label: 'Centre de Rapports', icon: FileText, badge: 0 },
     { id: 'analytics', label: 'Analyse & Rentabilité', icon: BarChart2, badge: 0 },
     { id: 'alerts', label: 'Supervision & IoT', icon: Bell, badge: unreadAlertsCount },
     { id: 'settings', label: 'Paramètres', icon: SettingsIcon, badge: 0 }
@@ -231,8 +230,12 @@ function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen, stor
       `}>
         <div className="p-6 flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-              <span className="text-xl">{store.config.logo || '⛽'}</span>
+            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 overflow-hidden">
+              {(store.config.logo && (store.config.logo.startsWith('data:') || store.config.logo.startsWith('http') || store.config.logo.length > 5)) ? (
+                <img src={store.config.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="text-xl">{store.config.logo || '⛽'}</span>
+              )}
             </div>
             <div>
               <h1 className="text-lg font-black text-white tracking-tight">{store.config.name}</h1>

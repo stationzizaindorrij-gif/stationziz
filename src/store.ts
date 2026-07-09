@@ -282,10 +282,20 @@ export function useERPStore() {
     } else {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { error } = await supabase.from(`erp_${key}`).upsert({ ...newValue, id: newValue.id || 'default', user_id: session.user.id });
-        if (error) {
-          console.error(`Erreur de sauvegarde ${key}:`, error);
-          alert(`Erreur de sauvegarde pour ${key}: ${error.message || JSON.stringify(error)}`);
+        // Fetch existing to get its real ID if any
+        const { data: existingData } = await supabase.from(`erp_${key}`).select('id').eq('user_id', session.user.id).limit(1);
+        
+        const payload = { ...newValue, user_id: session.user.id };
+        if (existingData && existingData.length > 0) {
+           payload.id = existingData[0].id;
+           const { error } = await supabase.from(`erp_${key}`).update(payload).eq('id', payload.id);
+           if (error) console.error(`Erreur d'update ${key}:`, error);
+        } else {
+           if (!payload.id || payload.id === 'default') {
+              payload.id = `${key}_${session.user.id}_${Date.now()}`;
+           }
+           const { error: insertErr } = await supabase.from(`erp_${key}`).insert(payload);
+           if (insertErr) console.error(`Erreur d'insertion ${key}:`, insertErr);
         }
       }
     }
@@ -485,6 +495,18 @@ export function useERPStore() {
     const updated = pumps.filter(p => p.id !== id);
     saveState('pumps', updated, setPumps);
     logAction(author, 'Suppression Pompe', 'Pompes', `Pompe ${original?.number} supprimée`);
+  };
+
+  const reorderPumps = (sourceId: string, targetId: string, author: string) => {
+    const newPumps = [...pumps];
+    const sourceIndex = newPumps.findIndex(p => p.id === sourceId);
+    const targetIndex = newPumps.findIndex(p => p.id === targetId);
+    if (sourceIndex !== -1 && targetIndex !== -1) {
+      const [moved] = newPumps.splice(sourceIndex, 1);
+      newPumps.splice(targetIndex, 0, moved);
+      saveState('pumps', newPumps, setPumps);
+      logAction(author, 'Réorganisation Pompes', 'Pompes', `Ordre des pompes modifié`);
+    }
   };
 
   // MODULE 7: NOZZLES (PISTOLETS)
@@ -887,9 +909,9 @@ export function useERPStore() {
         const endCount = shiftData.endCounters[noz.id];
         if (endCount) {
           const startCount = shiftData.startCounters[noz.id];
-const eElec = parseFloat(endCount.elec) || parseFloat(startCount.elec) || 0;
-          const eMech = parseFloat(endCount.mech) || parseFloat(startCount.mech) || 0;
-          const sElec = parseFloat(startCount.elec) || 0;
+const eElec = Number(endCount.elec) || Number(startCount.elec) || 0;
+          const eMech = Number(endCount.mech) || Number(startCount.mech) || 0;
+          const sElec = Number(startCount.elec) || 0;
           
           const diffLiters = eElec - sElec;
           const roundedDiff = Math.max(0, parseFloat(diffLiters.toFixed(2)));
@@ -1169,6 +1191,7 @@ return {
     users,
     config,
     currentRole,
+    priceChanges,
     suppliers,
     clients,
     purchaseInvoices,
@@ -1203,6 +1226,7 @@ return {
     addPump,
     updatePump,
     deletePump,
+    reorderPumps,
     addNozzle,
     updateNozzle,
     deleteNozzle,

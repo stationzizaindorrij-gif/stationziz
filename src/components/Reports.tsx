@@ -85,7 +85,7 @@ export default function Reports({ store }: ReportsProps) {
       </div>
 
       {/* Grid de KPIs financiers consolidés sur la période */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Volume total débité</p>
           <h3 className="text-2xl font-black font-mono text-slate-900 mt-1">

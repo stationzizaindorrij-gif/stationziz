@@ -314,9 +314,8 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                      product.stockQuantity > 10 ? 'bg-emerald-100 text-emerald-700' :
-                      product.stockQuantity > 0 ? 'bg-orange-100 text-orange-700' :
-                      'bg-rose-100 text-rose-700'
+                      (product.minStockAlert !== undefined && product.stockQuantity <= product.minStockAlert) || (product.minStockAlert === undefined && product.stockQuantity <= 0) ? 'bg-rose-100 text-rose-700' :
+                      'bg-emerald-100 text-emerald-700'
                     }`}>
                       {product.stockQuantity} en stock
                     </span>

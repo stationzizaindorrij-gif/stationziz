@@ -27,6 +27,8 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   const [selectedPumps, setSelectedPumps] = useState<string[]>(editingShift?.pumpIds || []);
   const [draggedPumpId, setDraggedPumpId] = useState<string | null>(null);
 
+  const orderedSelectedPumps = store.pumps.filter(p => selectedPumps.includes(p.id)).map(p => p.id);
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id);
     e.dataTransfer.effectAllowed = 'move';
@@ -41,13 +43,8 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   const handleDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     if (draggedPumpId && draggedPumpId !== targetId) {
-      const newPumps = [...selectedPumps];
-      const sourceIndex = newPumps.indexOf(draggedPumpId);
-      const targetIndex = newPumps.indexOf(targetId);
-      if (sourceIndex !== -1 && targetIndex !== -1) {
-        newPumps.splice(sourceIndex, 1);
-        newPumps.splice(targetIndex, 0, draggedPumpId);
-        setSelectedPumps(newPumps);
+      if ((store as any).reorderPumps) {
+        (store as any).reorderPumps(draggedPumpId, targetId, store.currentRole);
       }
     }
     setDraggedPumpId(null);
@@ -79,7 +76,7 @@ useEffect(() => {
     setStartCounters(prevStart => {
       const newStart = { ...prevStart };
       let hasChanges = false;
-      selectedPumps.forEach(pumpId => {
+      orderedSelectedPumps.forEach(pumpId => {
         const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
         pumpNozzles.forEach(noz => {
           if (!newStart[noz.id] && !editingShift) {
@@ -94,7 +91,7 @@ useEffect(() => {
     setEndCounters(prevEnd => {
       const newEnd = { ...prevEnd };
       let hasChanges = false;
-      selectedPumps.forEach(pumpId => {
+      orderedSelectedPumps.forEach(pumpId => {
         const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
         pumpNozzles.forEach(noz => {
           if (!newEnd[noz.id]) {
@@ -105,7 +102,7 @@ useEffect(() => {
       });
       return hasChanges ? newEnd : prevEnd;
     });
-  }, [selectedPumps, store.nozzles, editingShift]);
+  }, [orderedSelectedPumps, store.nozzles, editingShift]);
 
   const fuelSalesDetails = useMemo(() => {
     const details = [];
@@ -114,7 +111,7 @@ useEffect(() => {
     const litersSold: any = {};
     const amountSold: any = {};
 
-    selectedPumps.forEach(pumpId => {
+    orderedSelectedPumps.forEach(pumpId => {
       const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
       pumpNozzles.forEach(noz => {
         const start = startCounters[noz.id];
@@ -151,7 +148,7 @@ useEffect(() => {
       });
     });
     return { details, totalFuelAmount, totalFuelLiters, litersSold, amountSold };
-  }, [selectedPumps, startCounters, endCounters, store.nozzles, store.products]);
+  }, [orderedSelectedPumps, startCounters, endCounters, store.nozzles, store.products]);
 
 
 // Auto-fill start counters based on previous shifts when pumps are selected
@@ -162,7 +159,7 @@ useEffect(() => {
       const newStart = { ...prevStart };
       let hasChanges = false;
       
-      selectedPumps.forEach(pumpId => {
+      orderedSelectedPumps.forEach(pumpId => {
         const pumpNozzles = store.nozzles.filter(n => n.pumpId === pumpId);
         pumpNozzles.forEach(noz => {
           const previousShifts = [...store.shifts]
@@ -184,7 +181,7 @@ useEffect(() => {
       });
       return hasChanges ? newStart : prevStart;
     });
-  }, [selectedPumps, store.shifts, store.nozzles, editingShift]);
+  }, [orderedSelectedPumps, store.shifts, store.nozzles, editingShift]);
 
   const totalProductSales = productSales.reduce((acc, curr) => acc + curr.total, 0);
   const totalServiceSales = serviceSales.reduce((acc, curr) => acc + curr.total, 0);
@@ -224,7 +221,7 @@ useEffect(() => {
       shiftName,
       attendantId,
       attendantName: `${attendant.firstName} ${attendant.lastName}`,
-      pumpIds: selectedPumps,
+      pumpIds: orderedSelectedPumps,
       startCounters,
       endCounters,
       productsSold: productSales,
@@ -282,7 +279,7 @@ useEffect(() => {
     { id: 1, title: 'Infos', icon: Settings },
     { id: 2, title: 'Index', icon: Fuel },
     { id: 3, title: 'Boutique', icon: Package },
-    { id: 4, title: 'Services', icon: Users },
+    { id: 4, title: 'Lavage et Graissage', icon: Users },
     { id: 5, title: 'Dépenses', icon: Receipt },
     { id: 6, title: 'Encaissements', icon: CreditCard },
     { id: 7, title: 'Validation', icon: CheckCircle2 }
@@ -416,9 +413,11 @@ useEffect(() => {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-4">Pompes gérées (Sélectionnez et glissez pour ordonner)</label>
+                <label className="block text-sm font-bold text-slate-700 mb-4">Pompes gérées (Glissez pour ordonner globalement, Cliquez pour sélectionner)</label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {selectedPumps.map(id => store.pumps.find(p => p.id === id)!).filter(Boolean).map(pump => (
+                  {store.pumps.map(pump => {
+                    const isSelected = selectedPumps.includes(pump.id);
+                    return (
                     <div 
                       key={pump.id}
                       draggable
@@ -427,33 +426,20 @@ useEffect(() => {
                       onDrop={(e) => handleDrop(e, pump.id)}
                       onDragEnd={handleDragEnd}
                       onClick={() => handleTogglePump(pump.id)}
-                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all border-indigo-500 bg-indigo-50 shadow-sm relative ${draggedPumpId === pump.id ? 'opacity-50 border-dashed' : 'opacity-100'} hover:border-indigo-600`}
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 shadow-sm hover:border-indigo-600' : 'border-slate-200 bg-white hover:border-indigo-200'} relative ${draggedPumpId === pump.id ? 'opacity-50 border-dashed' : 'opacity-100'}`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <div className="cursor-move p-1 -ml-1 hover:bg-indigo-100 rounded text-indigo-400 hover:text-indigo-600" onClick={(e) => e.stopPropagation()} title="Glisser pour ordonner">
+                          <div className="cursor-move p-1 -ml-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600" onClick={(e) => e.stopPropagation()} title="Glisser pour ordonner">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
                           </div>
-                          <Fuel className="w-5 h-5 text-indigo-600" />
+                          <Fuel className={`w-5 h-5 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
                         </div>
-                        <CheckCircle className="w-5 h-5 text-indigo-600" />
+                        {isSelected && <CheckCircle className="w-5 h-5 text-indigo-600" />}
                       </div>
-                      <h4 className="font-bold text-indigo-900">{pump.number}</h4>
+                      <h4 className={`font-bold ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{pump.number}</h4>
                     </div>
-                  ))}
-                  
-                  {store.pumps.filter(p => !selectedPumps.includes(p.id)).map(pump => (
-                    <div 
-                      key={pump.id}
-                      onClick={() => handleTogglePump(pump.id)}
-                      className="p-4 rounded-xl border-2 cursor-pointer transition-all border-slate-200 bg-white hover:border-indigo-200"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <Fuel className="w-5 h-5 text-slate-400" />
-                      </div>
-                      <h4 className="font-bold text-slate-700">{pump.number}</h4>
-                    </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             </div>
@@ -672,7 +658,7 @@ useEffect(() => {
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
                 <div className="flex gap-4 items-end">
                   <div className="flex-[2]">
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Nouveau Service</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nouveau Lavage et Graissage</label>
                     <input type="text" id="newServiceName" placeholder="Ex: Nettoyage Intégral" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-cyan-500" />
                   </div>
                   <div className="flex-1">
@@ -698,7 +684,7 @@ useEffect(() => {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
                       <tr>
-                        <th className="p-3">Service (Lavage, etc.)</th>
+                        <th className="p-3">Lavage et Graissage</th>
                         <th className="p-3 text-right">Total (MAD)</th>
                         <th className="p-3 text-center w-20">Action</th>
                       </tr>
@@ -723,7 +709,7 @@ useEffect(() => {
                     </tbody>
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
-                        <td className="p-3 text-right text-slate-500 uppercase text-xs">Total Services</td>
+                        <td className="p-3 text-right text-slate-500 uppercase text-xs">Total Lavage et Graissage</td>
                         <td className="p-3 font-mono text-lg text-cyan-600 text-right">{totalServiceSales.toFixed(2)}</td>
                         <td></td>
                       </tr>
@@ -732,7 +718,7 @@ useEffect(() => {
                 </div>
               ) : (
                 <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  Aucun service enregistré.
+                  Aucun lavage/graisse enregistré.
                 </div>
               )}
             </div>
@@ -1197,7 +1183,7 @@ useEffect(() => {
                         <div>
                           <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                             <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
-                            Détail des Encaissements Non-Espèces
+                            Détail des Encaissements
                           </h4>
                           <div className="rounded-lg border border-slate-200 overflow-hidden">
                             <table className="w-full text-xs text-left">
@@ -1238,31 +1224,78 @@ useEffect(() => {
                         </div>
                       )}
 
-                      {/* FINANCES COMPACTES */}
+                      {/* DETAILS BOUTIQUE */}
+                      {productSales.length > 0 && (
+                        <div>
+                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <Package className="w-3.5 h-3.5 text-indigo-500" />
+                            Détails de Boutique
+                          </h4>
+                          <div className="rounded-lg border border-slate-200 overflow-hidden">
+                            <table className="w-full text-xs text-left">
+                              <tbody className="divide-y divide-slate-100">
+                                {productSales.map((p: any) => (
+                                  <tr key={p.id}>
+                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">{p.name}</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{p.total.toFixed(2)} DH</td>
+                                  </tr>
+                                ))}
+                                <tr>
+                                  <td className="px-3 py-2 font-black text-slate-800 bg-slate-100 uppercase text-[10px]">Total Boutique</td>
+                                  <td className="px-3 py-2 text-right font-mono font-black text-indigo-700 bg-slate-100">{totalProductSales.toFixed(2)} DH</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
 
+                      {/* DETAILS LAVAGE LA GRAISSE */}
+                      {serviceSales.length > 0 && (
+                        <div>
+                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <Settings className="w-3.5 h-3.5 text-indigo-500" />
+                            Détails de Lavage et Graissage
+                          </h4>
+                          <div className="rounded-lg border border-slate-200 overflow-hidden">
+                            <table className="w-full text-xs text-left">
+                              <tbody className="divide-y divide-slate-100">
+                                {serviceSales.map((s: any) => (
+                                  <tr key={s.id}>
+                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">{s.name}</td>
+                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{s.total.toFixed(2)} DH</td>
+                                  </tr>
+                                ))}
+                                <tr>
+                                  <td className="px-3 py-2 font-black text-slate-800 bg-slate-100 uppercase text-[10px]">Total Lavage et Graissage</td>
+                                  <td className="px-3 py-2 text-right font-mono font-black text-indigo-700 bg-slate-100">{totalServiceSales.toFixed(2)} DH</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* FINANCES COMPACTES */}
                       <div>
                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                           <Wallet className="w-3.5 h-3.5 text-slate-500" />
                           Bilan Financier
                         </h4>
                         <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
-                          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
                             <div className="p-4 flex flex-col">
-                              <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Non-Espèces</div>
-                              <div className="font-mono font-bold text-rose-600 text-lg">-{totalNonCashPayments.toFixed(2)} DH</div>
+                              <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Encaissement</div>
+                              <div className="font-mono font-bold text-indigo-600 text-lg">+{totalNonCashPayments.toFixed(2)} DH</div>
                             </div>
                             <div className="p-4 flex flex-col">
                               <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses</div>
                               <div className="font-mono font-bold text-rose-600 text-lg">-{cashExpenses.toFixed(2)} DH</div>
                             </div>
-                            <div className="p-4 bg-emerald-50 flex flex-col justify-center">
-                              <div className="text-[10px] uppercase text-emerald-600 font-bold mb-1">Espèces à remettre</div>
-                              <div className="font-mono font-black text-emerald-700 text-xl">{especeARemettre.toFixed(2)} DH</div>
-                            </div>
                           </div>
                           <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
-                            <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Ventes</div>
-                            <div className="font-mono font-black text-white text-2xl">{grandTotalSales.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
+                            <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Global</div>
+                            <div className="font-mono font-black text-white text-2xl">{(totalNonCashPayments - cashExpenses).toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
                           </div>
                         </div>
                       </div>

@@ -162,6 +162,7 @@ export interface Client {
   ice: string;
   contact: string;
   notes: string;
+  payments?: ClientPayment[];
 }
 
 export interface PurchaseInvoice {
