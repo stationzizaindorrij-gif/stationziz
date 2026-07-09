@@ -108,7 +108,27 @@ export function useERPStore() {
       }
     }
     if (data.tanks) setTanks(data.tanks);
-    if (data.pumps) setPumps(data.pumps);
+    if (data.pumps) {
+      const savedOrder = localStorage.getItem('erp_pump_order');
+      if (savedOrder) {
+        try {
+          const orderIds = JSON.parse(savedOrder);
+          const sortedPumps = [...data.pumps].sort((a, b) => {
+            const indexA = orderIds.indexOf(a.id);
+            const indexB = orderIds.indexOf(b.id);
+            if (indexA === -1 && indexB === -1) return 0;
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+          setPumps(sortedPumps);
+        } catch (e) {
+          setPumps(data.pumps);
+        }
+      } else {
+        setPumps(data.pumps);
+      }
+    }
     if (data.nozzles) setNozzles(data.nozzles);
     if (data.attendants) {
       setAttendants(data.attendants.map(a => {
@@ -504,6 +524,7 @@ export function useERPStore() {
     if (sourceIndex !== -1 && targetIndex !== -1) {
       const [moved] = newPumps.splice(sourceIndex, 1);
       newPumps.splice(targetIndex, 0, moved);
+      localStorage.setItem('erp_pump_order', JSON.stringify(newPumps.map(p => p.id)));
       saveState('pumps', newPumps, setPumps);
       logAction(author, 'Réorganisation Pompes', 'Pompes', `Ordre des pompes modifié`);
     }

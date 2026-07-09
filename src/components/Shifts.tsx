@@ -376,6 +376,7 @@ export default function Shifts({ store }: ShiftsProps) {
                       <th className="p-3.5">Total des ventes</th>
                       <th className="p-3.5">Encaissements</th>
                       <th className="p-3.5">Dépenses</th>
+                      <th className="p-3.5">Total Global</th>
                       <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -394,10 +395,8 @@ export default function Shifts({ store }: ShiftsProps) {
                         </td>
                         <td className="p-3.5 font-mono text-slate-600">
                           {(() => {
-                            const produitsTotal = s.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
-                            const servicesTotal = s.servicesSold?.reduce((sum, item) => sum + item.total, 0) || 0;
                             const carburantsTotal = s.totalAmount || 0;
-                            return (carburantsTotal + produitsTotal + servicesTotal).toFixed(2);
+                            return carburantsTotal.toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono text-slate-600">
@@ -413,6 +412,19 @@ export default function Shifts({ store }: ShiftsProps) {
                           {(() => {
                             const depenses = s.expenses?.filter(e => e.method === 'cash').reduce((sum, e) => sum + e.amount, 0) || 0;
                             return depenses.toFixed(2);
+                          })()} MAD
+                        </td>
+                        <td className="p-3.5 font-mono font-bold text-slate-800">
+                          {(() => {
+                            const carteSntl = s.nonCashPayments?.carteSntl?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const espece = s.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const vignette = s.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const bonClient = s.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const encaissements = carteSntl + espece + (s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0) + vignette + bonClient;
+                            
+                            const depenses = s.expenses?.filter(e => e.method === 'cash').reduce((sum, e) => sum + e.amount, 0) || 0;
+                            
+                            return (encaissements - depenses).toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 text-right">

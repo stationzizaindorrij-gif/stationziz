@@ -1,11 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-dotenv.config();
+import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_KEY';
 
-async function check() {
-  const { data, error } = await supabase.from('erp_cash_registry').select('*').limit(1);
-  console.log("CashRegistry:", data, error);
-}
-check();
+// We can just check the schema if we have the types, or we can use the environment variables

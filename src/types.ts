@@ -29,6 +29,7 @@ export interface Pump {
   manufacturer: string;
   serialNumber: string;
   status: 'active' | 'maintenance' | 'offline';
+  orderIndex?: number;
 }
 
 export interface Nozzle {
