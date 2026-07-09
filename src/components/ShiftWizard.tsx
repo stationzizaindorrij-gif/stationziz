@@ -14,17 +14,20 @@ interface ShiftWizardProps {
 }
 
 export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizardProps) {
-  const [currentStep, setCurrentStep] = useState(1);
+  const draftStr = !editingShift ? localStorage.getItem('erp_shift_draft') : null;
+  const draft = draftStr ? JSON.parse(draftStr) : null;
+
+  const [currentStep, setCurrentStep] = useState(draft?.currentStep || 1);
   const [isCompleted, setIsCompleted] = useState(false);
 
   // Step 1: Info
-  const [date, setDate] = useState(editingShift?.date || new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(editingShift?.endDate || editingShift?.date || new Date().toISOString().split('T')[0]);
-  const [attendantId, setAttendantId] = useState(editingShift?.attendantId || '');
-  const [shiftName, setShiftName] = useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>(editingShift?.shiftName || 'Journée');
-  const [startTime, setStartTime] = useState(editingShift?.startTime || '06:00');
-  const [endTime, setEndTime] = useState(editingShift?.endTime || '14:00');
-  const [selectedPumps, setSelectedPumps] = useState<string[]>(editingShift?.pumpIds || []);
+  const [date, setDate] = useState(editingShift?.date || draft?.date || new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(editingShift?.endDate || draft?.endDate || editingShift?.date || draft?.date || new Date().toISOString().split('T')[0]);
+  const [attendantId, setAttendantId] = useState(editingShift?.attendantId || draft?.attendantId || '');
+  const [shiftName, setShiftName] = useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>(editingShift?.shiftName || draft?.shiftName || 'Journée');
+  const [startTime, setStartTime] = useState(editingShift?.startTime || draft?.startTime || '06:00');
+  const [endTime, setEndTime] = useState(editingShift?.endTime || draft?.endTime || '14:00');
+  const [selectedPumps, setSelectedPumps] = useState<string[]>(editingShift?.pumpIds || draft?.selectedPumps || []);
   const [draggedPumpId, setDraggedPumpId] = useState<string | null>(null);
 
   const orderedSelectedPumps = store.pumps.filter(p => selectedPumps.includes(p.id)).map(p => p.id);
@@ -56,21 +59,30 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
 
 
   // Step 2: Counters
-  const [startCounters, setStartCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>(editingShift?.startCounters || {});
-  const [endCounters, setEndCounters] = useState<{ [nozzleId: string]: { mech: number | ''; elec: number | '' } }>(editingShift?.endCounters || {});
+  const [startCounters, setStartCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>(editingShift?.startCounters || draft?.startCounters || {});
+  const [endCounters, setEndCounters] = useState<{ [nozzleId: string]: { mech: number | ''; elec: number | '' } }>(editingShift?.endCounters || draft?.endCounters || {});
 
   // Step 3-6: Sales, Expenses, Payments
-  const [productSales, setProductSales] = useState<any[]>(editingShift?.productsSold || []);
-  const [serviceSales, setServiceSales] = useState<any[]>(editingShift?.servicesSold || []);
-  const [expenses, setExpenses] = useState<any[]>(editingShift?.expenses || []);
-  const [nonCashPayments, setNonCashPayments] = useState<any>({
+  const [productSales, setProductSales] = useState<any[]>(editingShift?.productsSold || draft?.productSales || []);
+  const [serviceSales, setServiceSales] = useState<any[]>(editingShift?.servicesSold || draft?.serviceSales || []);
+  const [expenses, setExpenses] = useState<any[]>(editingShift?.expenses || draft?.expenses || []);
+  const [nonCashPayments, setNonCashPayments] = useState<any>(draft?.nonCashPayments || {
     carteSntl: editingShift?.nonCashPayments?.carteSntl || [],
     espece: editingShift?.nonCashPayments?.espece || [],
     bonCarburantsVivo: editingShift?.nonCashPayments?.bonCarburantsVivo || [],
     vignette: editingShift?.nonCashPayments?.vignette || [],
     bonClient: editingShift?.nonCashPayments?.bonClient || []
   });
-  const [realCashInput, setRealCashInput] = useState(editingShift?.realCashReceived?.toString() || '');
+  const [realCashInput, setRealCashInput] = useState(editingShift?.realCashReceived?.toString() || draft?.realCashInput || '');
+
+useEffect(() => {
+    if (!editingShift && !isCompleted) {
+        localStorage.setItem('erp_shift_draft', JSON.stringify({
+           currentStep, date, endDate, attendantId, shiftName, startTime, endTime,
+           selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput
+        }));
+    }
+  }, [currentStep, date, endDate, attendantId, shiftName, startTime, endTime, selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, editingShift, isCompleted]);
 
 useEffect(() => {
     setStartCounters(prevStart => {
@@ -271,7 +283,8 @@ useEffect(() => {
     } else {
       store.addCompletedShift(shiftData, store.currentRole);
     }
-
+    
+    localStorage.removeItem('erp_shift_draft');
     setIsCompleted(true);
   };
 

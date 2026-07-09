@@ -17,6 +17,8 @@ export function Billing({ store }: { store: ERPStoreType }) {
   const [showPartnerModal, setShowPartnerModal] = useState<'supplier'|'client'|null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showSalesModal, setShowSalesModal] = useState(false);
+  
+  const { config } = store;
 
   const [selectedInvoice, setSelectedInvoice] = useState<(PurchaseInvoice | SalesInvoice) & { type: 'purchase' | 'sale' } | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<(PurchaseInvoice | SalesInvoice) & { type: 'purchase' | 'sale' } | null>(null);
@@ -780,13 +782,18 @@ export function Billing({ store }: { store: ERPStoreType }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    {/* Placeholder Logo */}
-                    <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center ml-auto mb-2">
-                      <Factory className="w-8 h-8 text-slate-300" />
+                    <div className="flex flex-col items-end gap-2 mb-2">
+                      <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden">
+                        {config.logo && (config.logo.startsWith('data:') || config.logo.startsWith('http') || config.logo.length > 5) ? (
+                          <img src={config.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-2xl">{config.logo || '⛽'}</span>
+                        )}
+                      </div>
+                      <h2 className="font-bold text-slate-800 text-lg">{config.name}</h2>
                     </div>
-                    <h2 className="font-bold text-slate-800 text-lg">STATION ERP</h2>
-                    <p className="text-sm text-slate-500">123 Route Nationale<br/>Casablanca, Maroc</p>
-                    <p className="text-sm text-slate-500 mt-1">ICE: 012345678900011</p>
+                    <p className="text-sm text-slate-500 whitespace-pre-line">{config.address || '123 Route Nationale\nCasablanca, Maroc'}</p>
+                    <p className="text-sm text-slate-500 mt-1">ICE: {config.taxId || '012345678900011'}</p>
                   </div>
                 </div>
 
@@ -804,8 +811,8 @@ export function Billing({ store }: { store: ERPStoreType }) {
                       </div>
                     ) : (
                       <div className="text-slate-800">
-                        <p className="font-bold text-lg">STATION ERP</p>
-                        <p className="text-sm text-slate-600 mt-1">123 Route Nationale<br/>Casablanca, Maroc</p>
+                        <p className="font-bold text-lg">{config.name}</p>
+                        <p className="text-sm text-slate-600 mt-1">{config.address || "123 Route Nationale\nCasablanca, Maroc"}</p>
                       </div>
                     )}
                   </div>
@@ -819,8 +826,8 @@ export function Billing({ store }: { store: ERPStoreType }) {
                       </div>
                     ) : (
                       <div className="text-slate-800">
-                        <p className="font-bold text-lg">STATION ERP</p>
-                        <p className="text-sm text-slate-600 mt-1">123 Route Nationale<br/>Casablanca, Maroc</p>
+                        <p className="font-bold text-lg">{config.name}</p>
+                        <p className="text-sm text-slate-600 mt-1">{config.address || "123 Route Nationale\nCasablanca, Maroc"}</p>
                       </div>
                     )}
                   </div>

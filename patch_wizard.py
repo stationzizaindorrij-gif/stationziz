@@ -3,116 +3,89 @@ import re
 with open('src/components/ShiftWizard.tsx', 'r') as f:
     content = f.read()
 
-search_handleDrop = """  const handleDrop = (e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    if (draggedPumpId && draggedPumpId !== targetId) {
-      const newPumps = [...selectedPumps];
-      const sourceIndex = newPumps.indexOf(draggedPumpId);
-      const targetIndex = newPumps.indexOf(targetId);
-      if (sourceIndex !== -1 && targetIndex !== -1) {
-        newPumps.splice(sourceIndex, 1);
-        newPumps.splice(targetIndex, 0, draggedPumpId);
-        setSelectedPumps(newPumps);
-      }
+# Replacement 1: State Initializers
+search_state = """export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizardProps) {
+  const [currentStep, setCurrentStep] = useState(1);"""
+
+replace_state = """export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizardProps) {
+  const draftStr = !editingShift ? localStorage.getItem('erp_shift_draft') : null;
+  const draft = draftStr ? JSON.parse(draftStr) : null;
+
+  const [currentStep, setCurrentStep] = useState(draft?.currentStep || 1);"""
+content = content.replace(search_state, replace_state)
+
+content = content.replace("useState(editingShift?.date || new Date().toISOString().split('T')[0]);", "useState(editingShift?.date || draft?.date || new Date().toISOString().split('T')[0]);")
+content = content.replace("useState(editingShift?.endDate || editingShift?.date || new Date().toISOString().split('T')[0]);", "useState(editingShift?.endDate || draft?.endDate || editingShift?.date || draft?.date || new Date().toISOString().split('T')[0]);")
+content = content.replace("useState(editingShift?.attendantId || '');", "useState(editingShift?.attendantId || draft?.attendantId || '');")
+content = content.replace("useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>(editingShift?.shiftName || 'Journée');", "useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>(editingShift?.shiftName || draft?.shiftName || 'Journée');")
+content = content.replace("useState(editingShift?.startTime || '06:00');", "useState(editingShift?.startTime || draft?.startTime || '06:00');")
+content = content.replace("useState(editingShift?.endTime || '14:00');", "useState(editingShift?.endTime || draft?.endTime || '14:00');")
+content = content.replace("useState<string[]>(editingShift?.pumpIds || []);", "useState<string[]>(editingShift?.pumpIds || draft?.selectedPumps || []);")
+
+content = content.replace("useState<{ [nozzleId: string]: { mech: number; elec: number } }>(editingShift?.startCounters || {});", "useState<{ [nozzleId: string]: { mech: number; elec: number } }>(editingShift?.startCounters || draft?.startCounters || {});")
+content = content.replace("useState<{ [nozzleId: string]: { mech: number | ''; elec: number | '' } }>(editingShift?.endCounters || {});", "useState<{ [nozzleId: string]: { mech: number | ''; elec: number | '' } }>(editingShift?.endCounters || draft?.endCounters || {});")
+
+content = content.replace("useState<any[]>(editingShift?.productsSold || []);", "useState<any[]>(editingShift?.productsSold || draft?.productSales || []);")
+content = content.replace("useState<any[]>(editingShift?.servicesSold || []);", "useState<any[]>(editingShift?.servicesSold || draft?.serviceSales || []);")
+content = content.replace("useState<any[]>(editingShift?.expenses || []);", "useState<any[]>(editingShift?.expenses || draft?.expenses || []);")
+
+search_non_cash = """  const [nonCashPayments, setNonCashPayments] = useState<any>({
+    carteSntl: editingShift?.nonCashPayments?.carteSntl || [],
+    espece: editingShift?.nonCashPayments?.espece || [],
+    bonCarburantsVivo: editingShift?.nonCashPayments?.bonCarburantsVivo || [],
+    vignette: editingShift?.nonCashPayments?.vignette || [],
+    bonClient: editingShift?.nonCashPayments?.bonClient || []
+  });"""
+
+replace_non_cash = """  const [nonCashPayments, setNonCashPayments] = useState<any>(draft?.nonCashPayments || {
+    carteSntl: editingShift?.nonCashPayments?.carteSntl || [],
+    espece: editingShift?.nonCashPayments?.espece || [],
+    bonCarburantsVivo: editingShift?.nonCashPayments?.bonCarburantsVivo || [],
+    vignette: editingShift?.nonCashPayments?.vignette || [],
+    bonClient: editingShift?.nonCashPayments?.bonClient || []
+  });"""
+content = content.replace(search_non_cash, replace_non_cash)
+
+content = content.replace("useState(editingShift?.realCashReceived?.toString() || '');", "useState(editingShift?.realCashReceived?.toString() || draft?.realCashInput || '');")
+
+
+search_effect = """useEffect(() => {
+    setStartCounters(prevStart => {"""
+
+replace_effect = """useEffect(() => {
+    if (!editingShift && !isCompleted) {
+        localStorage.setItem('erp_shift_draft', JSON.stringify({
+           currentStep, date, endDate, attendantId, shiftName, startTime, endTime,
+           selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput
+        }));
     }
-    setDraggedPumpId(null);
-  };"""
+  }, [currentStep, date, endDate, attendantId, shiftName, startTime, endTime, selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, editingShift, isCompleted]);
 
-replace_handleDrop = """  const handleDrop = (e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    if (draggedPumpId && draggedPumpId !== targetId) {
-      if ((store as any).reorderPumps) {
-        (store as any).reorderPumps(draggedPumpId, targetId, store.currentRole);
-      }
+useEffect(() => {
+    setStartCounters(prevStart => {"""
+content = content.replace(search_effect, replace_effect)
+
+
+search_save = """    if (editingShift) {
+      store.updateShift(editingShift.id, shiftData, store.currentRole);
+    } else {
+      store.addCompletedShift(shiftData, store.currentRole);
     }
-    setDraggedPumpId(null);
-  };"""
 
-if search_handleDrop in content:
-    content = content.replace(search_handleDrop, replace_handleDrop)
-    print("handleDrop replaced")
-else:
-    print("handleDrop not found")
+    setIsCompleted(true);"""
 
-search_render = """              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-4">Pompes gérées (Sélectionnez et glissez pour ordonner)</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {selectedPumps.map(id => store.pumps.find(p => p.id === id)!).filter(Boolean).map(pump => (
-                    <div 
-                      key={pump.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, pump.id)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, pump.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => handleTogglePump(pump.id)}
-                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all border-indigo-500 bg-indigo-50 shadow-sm relative ${draggedPumpId === pump.id ? 'opacity-50 border-dashed' : 'opacity-100'} hover:border-indigo-600`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="cursor-move p-1 -ml-1 hover:bg-indigo-100 rounded text-indigo-400 hover:text-indigo-600" onClick={(e) => e.stopPropagation()} title="Glisser pour ordonner">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-                          </div>
-                          <Fuel className="w-5 h-5 text-indigo-600" />
-                        </div>
-                        <CheckCircle className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <h4 className="font-bold text-indigo-900">{pump.number}</h4>
-                    </div>
-                  ))}
-                  
-                  {store.pumps.filter(p => !selectedPumps.includes(p.id)).map(pump => (
-                    <div 
-                      key={pump.id}
-                      onClick={() => handleTogglePump(pump.id)}
-                      className="p-4 rounded-xl border-2 cursor-pointer transition-all border-slate-200 bg-white hover:border-indigo-200"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <Fuel className="w-5 h-5 text-slate-400" />
-                      </div>
-                      <h4 className="font-bold text-slate-700">{pump.number}</h4>
-                    </div>
-                  ))}
-                </div>
-              </div>"""
+replace_save = """    if (editingShift) {
+      store.updateShift(editingShift.id, shiftData, store.currentRole);
+    } else {
+      store.addCompletedShift(shiftData, store.currentRole);
+    }
+    
+    localStorage.removeItem('erp_shift_draft');
+    setIsCompleted(true);"""
+content = content.replace(search_save, replace_save)
 
-replace_render = """              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-4">Pompes gérées (Glissez pour ordonner globalement, Cliquez pour sélectionner)</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {store.pumps.map(pump => {
-                    const isSelected = selectedPumps.includes(pump.id);
-                    return (
-                    <div 
-                      key={pump.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, pump.id)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, pump.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => handleTogglePump(pump.id)}
-                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 shadow-sm hover:border-indigo-600' : 'border-slate-200 bg-white hover:border-indigo-200'} relative ${draggedPumpId === pump.id ? 'opacity-50 border-dashed' : 'opacity-100'}`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="cursor-move p-1 -ml-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600" onClick={(e) => e.stopPropagation()} title="Glisser pour ordonner">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-                          </div>
-                          <Fuel className={`w-5 h-5 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
-                        </div>
-                        {isSelected && <CheckCircle className="w-5 h-5 text-indigo-600" />}
-                      </div>
-                      <h4 className={`font-bold ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{pump.number}</h4>
-                    </div>
-                  )})}
-                </div>
-              </div>"""
-
-if search_render in content:
-    content = content.replace(search_render, replace_render)
-    print("render replaced")
-else:
-    print("render not found")
 
 with open('src/components/ShiftWizard.tsx', 'w') as f:
     f.write(content)
 
+print("ShiftWizard patched")

@@ -157,7 +157,14 @@ export default function Reports({ store }: ReportsProps) {
           {/* Header Bilan */}
           <div className="flex justify-between items-start border-b border-slate-300 pb-4">
             <div className="space-y-1">
-              <span className="text-lg font-black tracking-tight text-slate-900 font-display">⛽ {config.name}</span>
+              <div className="flex items-center gap-2 mb-2">
+                {config.logo && (config.logo.startsWith('data:') || config.logo.startsWith('http') || config.logo.length > 5) ? (
+                  <img src={config.logo} alt="Logo" className="w-8 h-8 object-cover rounded" referrerPolicy="no-referrer" />
+                ) : (
+                  <span className="text-xl">{config.logo || '⛽'}</span>
+                )}
+                <span className="text-lg font-black tracking-tight text-slate-900 font-display">{config.name}</span>
+              </div>
               <p className="text-[10px] text-slate-400 max-w-xs">{config.address}</p>
               <p className="text-[10px] text-slate-400">Siret/Tax ID: {config.taxId}</p>
             </div>

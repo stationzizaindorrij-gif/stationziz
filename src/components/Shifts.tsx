@@ -374,9 +374,8 @@ export default function Shifts({ store }: ShiftsProps) {
                       <th className="p-3.5">Pompiste</th>
                       <th className="p-3.5">Période</th>
                       <th className="p-3.5">Total des ventes</th>
-                      <th className="p-3.5">Non-Espèces</th>
+                      <th className="p-3.5">Encaissements</th>
                       <th className="p-3.5">Dépenses</th>
-                      <th className="p-3.5">Espèces</th>
                       <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -416,7 +415,6 @@ export default function Shifts({ store }: ShiftsProps) {
                             return depenses.toFixed(2);
                           })()} MAD
                         </td>
-                        <td className="p-3.5 font-mono text-slate-600">{(s.theoreticalCash || 0).toFixed(2)} MAD</td>
                         <td className="p-3.5 text-right">
                           {s.status === 'ready_to_close' ? (
                             <button 
