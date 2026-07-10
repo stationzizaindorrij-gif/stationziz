@@ -4,7 +4,7 @@ import { ERPStoreType } from '../store';
 import { 
   TrendingUp, BarChart2, Zap, Archive, Banknote, FileText, 
   User, Activity, Fuel, Wallet, Gauge, ArrowRight
-} from 'lucide-react';
+, Calendar, MinusCircle, List, ArrowDownRight, TrendingDown } from 'lucide-react';
 import { parseISO } from 'date-fns';
 
 interface AnalyticsProps {
@@ -36,6 +36,9 @@ export default function Analytics({ store }: AnalyticsProps) {
 
     let totalEspece = 0;
     let totalBons = 0;
+    let totalExpenses = 0;
+    const expensesList: Array<any> = [];
+    const profitByDate: Record<string, { mechMargin: number, elecMargin: number, expenses: number }> = {};
 
     const mechStats: Record<string, { liters: number, purchase: number, sale: number }> = {};
     const elecStats: Record<string, { liters: number, purchase: number, sale: number }> = {};
@@ -67,6 +70,25 @@ export default function Analytics({ store }: AnalyticsProps) {
     shifts.forEach(shift => {
       totalEspece += (shift.realCashReceived || 0);
       
+      const dateKey = shift.date;
+      if (!profitByDate[dateKey]) profitByDate[dateKey] = { mechMargin: 0, elecMargin: 0, expenses: 0 };
+      
+      if (shift.expenses) {
+        shift.expenses.forEach(e => {
+          totalExpenses += e.amount;
+          profitByDate[dateKey].expenses += e.amount;
+          expensesList.push({
+            id: e.id || Math.random().toString(),
+            date: shift.date,
+            shiftName: shift.shiftName,
+            type: e.type,
+            description: e.description,
+            amount: e.amount,
+            method: e.method
+          });
+        });
+      }
+      
       const ncp = shift.nonCashPayments;
       if (ncp) {
         totalBons += (ncp.bonClient || []).reduce((sum, b) => sum + (parseFloat(b.amount as any) || 0), 0);
@@ -93,14 +115,20 @@ export default function Analytics({ store }: AnalyticsProps) {
                   const prices = getHistoricalPrice(product.id, shift.date);
                   
                   if (!mechStats[product.id]) mechStats[product.id] = { liters: 0, purchase: 0, sale: 0 };
+                  const mechSale = qtyMech * prices.salePrice;
+                  const mechPurchase = qtyMech * prices.purchasePrice;
                   mechStats[product.id].liters += qtyMech;
-                  mechStats[product.id].purchase += qtyMech * prices.purchasePrice;
-                  mechStats[product.id].sale += qtyMech * prices.salePrice;
+                  mechStats[product.id].purchase += mechPurchase;
+                  mechStats[product.id].sale += mechSale;
+                  profitByDate[dateKey].mechMargin += (mechSale - mechPurchase);
                   
                   if (!elecStats[product.id]) elecStats[product.id] = { liters: 0, purchase: 0, sale: 0 };
+                  const elecSale = qtyElec * prices.salePrice;
+                  const elecPurchase = qtyElec * prices.purchasePrice;
                   elecStats[product.id].liters += qtyElec;
-                  elecStats[product.id].purchase += qtyElec * prices.purchasePrice;
-                  elecStats[product.id].sale += qtyElec * prices.salePrice;
+                  elecStats[product.id].purchase += elecPurchase;
+                  elecStats[product.id].sale += elecSale;
+                  profitByDate[dateKey].elecMargin += (elecSale - elecPurchase);
                 }
               }
             }
@@ -135,7 +163,16 @@ export default function Analytics({ store }: AnalyticsProps) {
 
     const stockReste: Record<string, { liters: number, purchase: number, montant: number }> = {};
     store.products.forEach(p => {
-      stockReste[p.id] = { liters: 0, purchase: 0, montant: 0 };
+      const productSupplies = store.supplies.filter(s => s.productId === p.id);
+      let avgPurchasePrice = p.purchasePrice;
+      if (productSupplies.length > 0) {
+        const totalQty = productSupplies.reduce((sum, s) => sum + s.qtyDelivered, 0);
+        const totalValue = productSupplies.reduce((sum, s) => sum + (s.qtyDelivered * s.purchasePrice), 0);
+        if (totalQty > 0) {
+          avgPurchasePrice = totalValue / totalQty;
+        }
+      }
+      stockReste[p.id] = { liters: 0, purchase: avgPurchasePrice, montant: 0 };
     });
 
     let totalStockLiters = 0;
@@ -144,9 +181,10 @@ export default function Analytics({ store }: AnalyticsProps) {
     store.tanks.forEach(tank => {
       const product = store.products.find(p => p.id === tank.productId);
       if (product) {
-        if (!stockReste[product.id]) stockReste[product.id] = { liters: 0, purchase: 0, montant: 0 };
+        if (!stockReste[product.id]) {
+          stockReste[product.id] = { liters: 0, purchase: product.purchasePrice, montant: 0 };
+        }
         stockReste[product.id].liters += tank.currentLevel;
-        stockReste[product.id].purchase = product.purchasePrice;
         totalStockLiters += tank.currentLevel;
       }
     });
@@ -168,9 +206,16 @@ export default function Analytics({ store }: AnalyticsProps) {
       elecMargin,
       stockReste,
       totalStockLiters,
-      totalStockMontant
+      totalStockMontant,
+      totalExpenses,
+      expensesList: expensesList.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      historicalProfits: Object.entries(profitByDate).map(([date, data]) => ({
+        date,
+        ...data,
+        netProfit: (data.mechMargin + data.elecMargin) - data.expenses
+      })).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     };
-  }, [store.shifts, store.nozzles, store.tanks, store.products, reportStartDate, reportEndDate, reportAttendant]);
+  }, [store.shifts, store.nozzles, store.tanks, store.products, store.supplies, reportStartDate, reportEndDate, reportAttendant]);
 
   const fuelThemes: Record<string, { label: string, bg: string, border: string, text: string, icon: string, light: string }> = {
     'gazoil': { label: 'Gasoil', bg: 'bg-indigo-600', border: 'border-indigo-200', text: 'text-indigo-700', icon: 'text-indigo-600', light: 'bg-indigo-50' },
@@ -322,8 +367,14 @@ export default function Analytics({ store }: AnalyticsProps) {
                
                <div className="space-y-4">
                  <div>
-                   <p className="text-slate-400 text-xs font-bold uppercase mb-1">Bénéfice Net (Marge)</p>
+                   <p className="text-slate-400 text-xs font-bold uppercase mb-1">Marge Brute</p>
                    <div className="text-3xl font-black text-white">{reportData.totalMechBenefice.toFixed(2)} <span className="text-lg font-medium text-slate-500">Dh</span></div>
+                   
+                   <div className="mt-4 pt-4 border-t border-slate-800">
+                     <p className="text-slate-400 text-xs font-bold uppercase mb-1 flex justify-between"><span>Dépenses</span> <span className="text-rose-400">-{reportData.totalExpenses.toFixed(2)} Dh</span></p>
+                     <p className="text-indigo-300 text-xs font-bold uppercase mb-1 mt-2">Bénéfice Net Réel</p>
+                     <div className="text-2xl font-black text-indigo-400">{(reportData.totalMechBenefice - reportData.totalExpenses).toFixed(2)} <span className="text-sm font-medium text-indigo-500">Dh</span></div>
+                   </div>
                  </div>
                  
                  <div className="pt-4 border-t border-slate-800">
@@ -348,8 +399,14 @@ export default function Analytics({ store }: AnalyticsProps) {
                
                <div className="space-y-4">
                  <div>
-                   <p className="text-slate-400 text-xs font-bold uppercase mb-1">Bénéfice Net (Marge)</p>
+                   <p className="text-slate-400 text-xs font-bold uppercase mb-1">Marge Brute</p>
                    <div className="text-3xl font-black text-white">{reportData.totalElecBenefice.toFixed(2)} <span className="text-lg font-medium text-slate-500">Dh</span></div>
+                   
+                   <div className="mt-4 pt-4 border-t border-slate-800">
+                     <p className="text-slate-400 text-xs font-bold uppercase mb-1 flex justify-between"><span>Dépenses</span> <span className="text-rose-400">-{reportData.totalExpenses.toFixed(2)} Dh</span></p>
+                     <p className="text-amber-300 text-xs font-bold uppercase mb-1 mt-2">Bénéfice Net Réel</p>
+                     <div className="text-2xl font-black text-amber-400">{(reportData.totalElecBenefice - reportData.totalExpenses).toFixed(2)} <span className="text-sm font-medium text-amber-500">Dh</span></div>
+                   </div>
                  </div>
                  
                  <div className="pt-4 border-t border-slate-800">
@@ -404,7 +461,7 @@ export default function Analytics({ store }: AnalyticsProps) {
           <div className="md:col-span-1 space-y-4 flex flex-col justify-center">
             <div className="text-center mb-4">
                <div className="text-slate-500 text-xs font-bold uppercase mb-1">Volume Total</div>
-               <div className="text-2xl font-black text-slate-800">{reportData.totalStockLiters.toLocaleString('fr-FR', {maximumFractionDigits: 0})} L</div>
+               <div className="text-2xl font-black text-slate-800">{reportData.totalStockLiters.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} L</div>
             </div>
             
             {store.products.map(product => {
@@ -453,7 +510,7 @@ export default function Analytics({ store }: AnalyticsProps) {
                             <span className="font-bold text-slate-700">{info.name || theme.label}</span>
                           </div>
                         </td>
-                        <td className="py-4 text-right font-mono text-slate-600">{data.liters.toLocaleString('fr-FR', {maximumFractionDigits: 0})} L</td>
+                        <td className="py-4 text-right font-mono text-slate-600">{data.liters.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} L</td>
                         <td className="py-4 text-right font-mono text-slate-500">x {data.purchase.toFixed(2)} MAD</td>
                         <td className="py-4 text-right font-mono font-bold text-slate-800">{data.montant.toLocaleString('fr-FR', {minimumFractionDigits: 2})} MAD</td>
                       </tr>
@@ -476,6 +533,89 @@ export default function Analytics({ store }: AnalyticsProps) {
         </div>
       </div>
       
+
+      {/* Historique et Dépenses */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Historique des Bénéfices */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-indigo-600" />
+            <h3 className="font-bold text-slate-800">Historique des Bénéfices (Journalier)</h3>
+          </div>
+          <div className="p-0 overflow-x-auto flex-1">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/50 border-b border-slate-100 text-xs text-slate-500 uppercase">
+                <tr>
+                  <th className="p-4 font-bold">Date</th>
+                  <th className="p-4 font-bold text-right">Marge (Méc.)</th>
+                  <th className="p-4 font-bold text-right">Marge (Élec.)</th>
+                  <th className="p-4 font-bold text-right">Dépenses</th>
+                  <th className="p-4 font-bold text-right">Bénéfice Net</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {reportData.historicalProfits.length > 0 ? (
+                  reportData.historicalProfits.map((day) => (
+                    <tr key={day.date} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-bold text-slate-700">{new Date(day.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}</td>
+                      <td className="p-4 text-right text-slate-600 font-mono">{day.mechMargin.toFixed(2)}</td>
+                      <td className="p-4 text-right text-slate-600 font-mono">{day.elecMargin.toFixed(2)}</td>
+                      <td className="p-4 text-right text-rose-500 font-mono">-{day.expenses.toFixed(2)}</td>
+                      <td className="p-4 text-right font-bold text-indigo-600 font-mono">{day.netProfit.toFixed(2)} MAD</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-400">Aucun historique disponible sur cette période</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Détail des Dépenses */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
+            <MinusCircle className="w-5 h-5 text-rose-500" />
+            <h3 className="font-bold text-slate-800">Détail des Dépenses</h3>
+          </div>
+          <div className="p-0 overflow-x-auto flex-1">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/50 border-b border-slate-100 text-xs text-slate-500 uppercase">
+                <tr>
+                  <th className="p-4 font-bold">Date / Shift</th>
+                  <th className="p-4 font-bold">Type</th>
+                  <th className="p-4 font-bold">Description</th>
+                  <th className="p-4 font-bold text-right">Montant</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {reportData.expensesList.length > 0 ? (
+                  reportData.expensesList.map((exp) => (
+                    <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4">
+                        <div className="font-bold text-slate-700">{new Date(exp.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</div>
+                        <div className="text-[10px] text-slate-500 uppercase">{exp.shiftName}</div>
+                      </td>
+                      <td className="p-4 text-slate-600 capitalize">
+                        {exp.type}
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold bg-slate-100 text-slate-500">{exp.method}</span>
+                      </td>
+                      <td className="p-4 text-slate-500 text-xs">{exp.description}</td>
+                      <td className="p-4 text-right font-bold text-rose-600 font-mono">-{exp.amount.toFixed(2)} MAD</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-slate-400">Aucune dépense enregistrée sur cette période</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

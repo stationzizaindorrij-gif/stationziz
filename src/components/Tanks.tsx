@@ -89,7 +89,7 @@ export default function Tanks({ store }: TanksProps) {
 
   const { 
     tanks, products, supplies, stockCorrections, addSupply, correctTankLevel, deleteStockCorrection, currentRole,
-    nozzles = [], pumps = [], sales = []
+    nozzles = [], pumps = [], sales = [], shifts = []
   } = store;
 
   const requiredHeight = Math.max(
@@ -243,7 +243,7 @@ export default function Tanks({ store }: TanksProps) {
       setConfirmModalConfig({
         isOpen: true,
         title: 'Risque de débordement',
-        message: `Attention: La quantité livrée (${qty} L) cumulée au niveau actuel (${tank.currentLevel} L) dépasse la capacité totale de la cuve (${tank.capacity} L). Souhaitez-vous quand même forcer la livraison au niveau maximum ?`,
+        message: `Attention: La quantité livrée (${qty} L) cumulée au niveau actuel (${tank.currentLevel.toFixed(2)} L) dépasse la capacité totale de la cuve (${tank.capacity} L). Souhaitez-vous quand même forcer la livraison au niveau maximum ?`,
         onConfirm: executeSupply
       });
       return;
@@ -406,16 +406,22 @@ export default function Tanks({ store }: TanksProps) {
               const lastSupplyDate = lastSupply ? new Date(lastSupply.date).toLocaleDateString('fr-FR') : 'Aucune';
               const lastSupplyQty = lastSupply ? lastSupply.qtyDelivered : 0;
 
-              // Calculate today and this month consumption (sales)
-              const todayStr = new Date().toISOString().split('T')[0];
-              const currentMonthStr = todayStr.substring(0, 7); // "YYYY-MM"
+              // Calculate today and this month consumption (sales via shifts)
               const tankNozzleIds = tankNozzles.map(n => n.id);
+              const todayStr = new Date().toISOString().split('T')[0];
+              const currentMonthStr = todayStr.substring(0, 7);
+              const completedShifts = shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
               
-              const salesToday = sales.filter(s => tankNozzleIds.includes(s.nozzleId) && s.date === todayStr);
-              const salesMonth = sales.filter(s => tankNozzleIds.includes(s.nozzleId) && s.date.startsWith(currentMonthStr));
-              
-              const consumptionToday = salesToday.reduce((sum, s) => sum + s.qty, 0);
-              const consumptionMonth = salesMonth.reduce((sum, s) => sum + s.qty, 0);
+              const consumptionToday = completedShifts.filter(s => s.date === todayStr).reduce((sum, shift) => {
+                let sSum = 0;
+                if (shift.litersSold) tankNozzleIds.forEach(nid => sSum += (shift.litersSold[nid] || 0));
+                return sum + sSum;
+              }, 0);
+              const consumptionMonth = completedShifts.filter(s => s.date.startsWith(currentMonthStr)).reduce((sum, shift) => {
+                let sSum = 0;
+                if (shift.litersSold) tankNozzleIds.forEach(nid => sSum += (shift.litersSold[nid] || 0));
+                return sum + sSum;
+              }, 0);
 
               return (
                 <div key={tank.id} className={`bg-white border rounded-xl overflow-hidden shadow-xs flex flex-col justify-between ${isLow ? 'border-rose-400 ring-2 ring-rose-50' : 'border-slate-200'}`}>
@@ -526,7 +532,7 @@ export default function Tanks({ store }: TanksProps) {
 
                       {/* Display floating values */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-6">
-                        <span className="text-slate-800 text-base font-extrabold font-mono leading-none">{tank.currentLevel}</span>
+                        <span className="text-slate-800 text-base font-extrabold font-mono leading-none">{tank.currentLevel.toFixed(2)}</span>
                         <span className="text-[10px] text-slate-500 font-semibold mt-1">/ {tank.capacity} L</span>
                       </div>
                     </div>
@@ -546,11 +552,11 @@ export default function Tanks({ store }: TanksProps) {
                     <div className="space-y-1.5 border-t border-slate-100 pt-3 text-[11px] text-slate-500 font-mono">
                       <div className="flex justify-between">
                         <span>Disponible :</span>
-                        <strong className="text-slate-700">{(tank.currentLevel)} L</strong>
+                        <strong className="text-slate-700">{(tank.currentLevel.toFixed(2))} L</strong>
                       </div>
                       <div className="flex justify-between">
                         <span>Creux (Volume libre) :</span>
-                        <strong className="text-slate-700">{(tank.capacity - tank.currentLevel)} L</strong>
+                        <strong className="text-slate-700">{(tank.capacity - tank.currentLevel).toFixed(2)} L</strong>
                       </div>
                       <div className="flex justify-between">
                         <span>Seuil d'alerte Min :</span>
@@ -585,11 +591,11 @@ export default function Tanks({ store }: TanksProps) {
                       <div className="border-t border-dashed border-slate-100 pt-2 grid grid-cols-2 gap-2 text-slate-500 leading-tight">
                         <div>
                           <span className="block text-[9px] uppercase font-bold text-slate-400">Consommation jour</span>
-                          <span className="font-extrabold text-emerald-600 font-mono">{consumptionToday} L</span>
+                          <span className="font-extrabold text-emerald-600 font-mono">{consumptionToday.toFixed(2)} L</span>
                         </div>
                         <div>
                           <span className="block text-[9px] uppercase font-bold text-slate-400">Consommation mois</span>
-                          <span className="font-extrabold text-indigo-600 font-mono">{consumptionMonth} L</span>
+                          <span className="font-extrabold text-indigo-600 font-mono">{consumptionMonth.toFixed(2)} L</span>
                         </div>
                       </div>
                     </div>
@@ -789,7 +795,7 @@ export default function Tanks({ store }: TanksProps) {
                             {/* Level Visualizer Bar */}
                             <text x="12" y="42" fill="#64748b" className="text-[9px] font-bold">Vol :</text>
                             <text x="118" y="42" textAnchor="end" fill="#334155" className="text-[9px] font-bold font-mono">
-                              {tank.currentLevel} L
+                              {tank.currentLevel.toFixed(2)} L
                             </text>
                             {/* Miniature Progress Bar */}
                             <rect x="12" y="48" width="106" height="6" rx="3" fill="#e2e8f0" opacity={isHighlighted ? '1' : '0.35'} />
@@ -1033,14 +1039,22 @@ export default function Tanks({ store }: TanksProps) {
                         ? [...tSupplies].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] 
                         : null;
 
-                      // Sales consumption
+                      // Sales consumption via shifts
                       const todayStr = new Date().toISOString().split('T')[0];
                       const currentMonthStr = todayStr.substring(0, 7);
                       const tNozIds = tNozzles.map(n => n.id);
-                      const salesToday = sales.filter(s => tNozIds.includes(s.nozzleId) && s.date === todayStr);
-                      const salesMonth = sales.filter(s => tNozIds.includes(s.nozzleId) && s.date.startsWith(currentMonthStr));
-                      const consToday = salesToday.reduce((sum, s) => sum + s.qty, 0);
-                      const consMonth = salesMonth.reduce((sum, s) => sum + s.qty, 0);
+                      const completedShifts = shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
+                      
+                      const consToday = completedShifts.filter(s => s.date === todayStr).reduce((sum, shift) => {
+                        let sSum = 0;
+                        if (shift.litersSold) tNozIds.forEach(nid => sSum += (shift.litersSold[nid] || 0));
+                        return sum + sSum;
+                      }, 0);
+                      const consMonth = completedShifts.filter(s => s.date.startsWith(currentMonthStr)).reduce((sum, shift) => {
+                        let sSum = 0;
+                        if (shift.litersSold) tNozIds.forEach(nid => sSum += (shift.litersSold[nid] || 0));
+                        return sum + sSum;
+                      }, 0);
 
                       return (
                         <div className="space-y-4 text-xs">
@@ -1069,7 +1083,7 @@ export default function Tanks({ store }: TanksProps) {
                             <div className="border-t border-[#e2e8f099] pt-2 grid grid-cols-2 gap-3">
                               <div className="space-y-0.5">
                                 <span className="text-slate-400 text-[10px] uppercase font-bold">Niveau actuel</span>
-                                <span className="text-slate-900 font-extrabold font-mono text-sm block">{tank.currentLevel} L</span>
+                                <span className="text-slate-900 font-extrabold font-mono text-sm block">{tank.currentLevel.toFixed(2)} L</span>
                               </div>
                               <div className="space-y-0.5">
                                 <span className="text-slate-400 text-[10px] uppercase font-bold">Capacité Totale</span>
@@ -1135,11 +1149,11 @@ export default function Tanks({ store }: TanksProps) {
                             <div className="grid grid-cols-2 gap-2 text-slate-600">
                               <div className="bg-[#ecfdf580] p-2 rounded-lg border border-emerald-100">
                                 <span className="text-[9px] uppercase font-bold text-emerald-700 block">Aujourd'hui</span>
-                                <span className="text-xs font-extrabold text-emerald-800 font-mono block mt-0.5">{consToday} L</span>
+                                <span className="text-xs font-extrabold text-emerald-800 font-mono block mt-0.5">{consToday.toFixed(2)} L</span>
                               </div>
                               <div className="bg-[#eff6ff80] p-2 rounded-lg border border-blue-100">
                                 <span className="text-[9px] uppercase font-bold text-blue-700 block">Ce Mois (Juillet)</span>
-                                <span className="text-xs font-extrabold text-blue-800 font-mono block mt-0.5">{consMonth} L</span>
+                                <span className="text-xs font-extrabold text-blue-800 font-mono block mt-0.5">{consMonth.toFixed(2)} L</span>
                               </div>
                             </div>
                           </div>
@@ -2001,15 +2015,22 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
   
   const tankCorrections = store.stockCorrections.filter(c => c.tankId === tank.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Consommation (Sales)
+  // Consommation (Sales via shifts)
   const todayStr = new Date().toISOString().split('T')[0];
-  const tankSales = store.sales.filter(s => tankNozzles.some(n => n.id === s.nozzleId));
-  const todaySales = tankSales.filter(s => s.date === todayStr);
   const monthStr = todayStr.substring(0, 7);
-  const monthSales = tankSales.filter(s => s.date.startsWith(monthStr));
+  const tankNozzleIds = tankNozzles.map(n => n.id);
+  const completedShifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
   
-  const consumedToday = todaySales.reduce((acc, s) => acc + s.qty, 0);
-  const consumedMonth = monthSales.reduce((acc, s) => acc + s.qty, 0);
+  const consumedToday = completedShifts.filter(s => s.date === todayStr).reduce((sum, shift) => {
+    let sSum = 0;
+    if (shift.litersSold) tankNozzleIds.forEach(nid => sSum += (shift.litersSold[nid] || 0));
+    return sum + sSum;
+  }, 0);
+  const consumedMonth = completedShifts.filter(s => s.date.startsWith(monthStr)).reduce((sum, shift) => {
+    let sSum = 0;
+    if (shift.litersSold) tankNozzleIds.forEach(nid => sSum += (shift.litersSold[nid] || 0));
+    return sum + sSum;
+  }, 0);
 
   return (
     <div className="fixed inset-0 bg-[#0f172a80] backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -2060,7 +2081,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                 <div className="mt-4 grid grid-cols-2 gap-2 text-left">
                   <div className="bg-slate-50 p-2 rounded-lg">
                     <span className="block text-[10px] text-slate-500 uppercase font-bold">Volume Actuel</span>
-                    <span className="font-mono text-sm font-bold text-slate-800">{tank.currentLevel} L</span>
+                    <span className="font-mono text-sm font-bold text-slate-800">{tank.currentLevel.toFixed(2)} L</span>
                   </div>
                   <div className="bg-slate-50 p-2 rounded-lg">
                     <span className="block text-[10px] text-slate-500 uppercase font-bold">Seuil Alerte</span>
@@ -2137,7 +2158,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                   </div>
                   <div>
                     <span className="block text-xs text-slate-500 font-medium">Consommation Aujourd'hui</span>
-                    <span className="text-lg font-black text-slate-800">{consumedToday} L</span>
+                    <span className="text-lg font-black text-slate-800">{consumedToday.toFixed(2)} L</span>
                   </div>
                 </div>
                 <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
@@ -2146,7 +2167,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                   </div>
                   <div>
                     <span className="block text-xs text-slate-500 font-medium">Consommation Mois ({new Date().toLocaleString('fr-FR', {month:'short'})})</span>
-                    <span className="text-lg font-black text-slate-800">{consumedMonth} L</span>
+                    <span className="text-lg font-black text-slate-800">{consumedMonth.toFixed(2)} L</span>
                   </div>
                 </div>
               </div>

@@ -1,6 +1,7 @@
+import SharedShiftReport from "./SharedShiftReport";
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  ArrowLeft, CheckCircle2, DollarSign, Fuel, Package, Settings, Users, Droplet,
+  ArrowLeft, CheckCircle2, DollarSign, Fuel, Package, Settings, Users, Banknote, Droplet,
   CreditCard, Receipt, FileText, ChevronRight, ChevronLeft, Calendar,
   Clock, Lock, CheckCircle, AlertTriangle, Plus, Trash2, Printer, Check, User, Wallet, Wrench, ChevronDown
 , Database } from 'lucide-react';
@@ -134,8 +135,8 @@ useEffect(() => {
           const sMech = parseFloat(start.mech) || 0;
           const eMech = parseFloat(end.mech) || 0;
 
-          const qtyElec = Math.max(0, eElec - sElec);
-          const qtyMech = Math.max(0, eMech - sMech);
+          const qtyElec = (end.elec !== '' && end.elec !== undefined) ? (eElec - sElec) : 0;
+          const qtyMech = (end.mech !== '' && end.mech !== undefined) ? (eMech - sMech) : 0;
           const product = store.products.find(p => p.id === noz.productId);
           const price = product ? product.salePrice : 0;
           const total = qtyElec * price; // Defaulting to Elec for totals
@@ -294,8 +295,9 @@ useEffect(() => {
     { id: 3, title: 'Boutique', icon: Package },
     { id: 4, title: 'Lavage et Graissage', icon: Users },
     { id: 5, title: 'Dépenses', icon: Receipt },
-    { id: 6, title: 'Encaissements', icon: CreditCard },
-    { id: 7, title: 'Validation', icon: CheckCircle2 }
+    { id: 6, title: 'Encaissements Non Espèce', icon: CreditCard },
+    { id: 7, title: 'Encaissements Espèce', icon: Banknote },
+    { id: 8, title: 'Validation', icon: CheckCircle2 }
   ];
 
   if (isCompleted) {
@@ -838,19 +840,13 @@ useEffect(() => {
                   <h2 className="text-xl font-black text-slate-800 font-display">Encaissement non espèce</h2>
                   <p className="text-sm text-slate-500">Saisissez les montants encaissés via des moyens autres que l'espèce.</p>
                 </div>
-                <div className="text-right">
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">Total Ventes</span>
-                  <span className="text-xl font-black text-slate-800 font-mono">{grandTotalSales.toFixed(2)} MAD</span>
-                </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
     { key: 'carteSntl', label: 'CARTE SNTL' },
-    { key: 'espece', label: 'ESPECE' },
     { key: 'bonCarburantsVivo', label: 'BON CARBURANTS VIVO' },
-    { key: 'vignette', label: 'VIGNETTE' },
-    { key: 'bonClient', label: 'BON CLIENT' }
+    { key: 'vignette', label: 'VIGNETTE' }
   ].map(method => (
                   <div key={method.key} className={`p-4 bg-slate-50 rounded-xl border border-slate-200 ${method.key === 'bonClient' ? 'md:col-span-2' : ''}`}>
                     <div className="flex items-center justify-between mb-3">
@@ -969,12 +965,6 @@ useEffect(() => {
                     <span className="font-bold text-slate-900 font-mono">{totalCarteSntl.toFixed(2)} MAD</span>
                   </div>
                 )}
-                {totalEspeceClient > 0 && (
-                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <span className="text-sm font-medium text-slate-600">Total Espèce (Client)</span>
-                    <span className="font-bold text-slate-900 font-mono">{totalEspeceClient.toFixed(2)} MAD</span>
-                  </div>
-                )}
                 {totalBonVivo > 0 && (
                   <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <span className="text-sm font-medium text-slate-600">Total Bon Carburants Vivo</span>
@@ -987,6 +977,149 @@ useEffect(() => {
                     <span className="font-bold text-slate-900 font-mono">{totalVignette.toFixed(2)} MAD</span>
                   </div>
                 )}
+              </div>
+              
+              <div className="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
+                <span className="font-bold text-indigo-800">Total Encaissement non espèce :</span>
+                <span className="font-black text-xl text-indigo-900 font-mono">
+                  {(totalCarteSntl + totalBonVivo + totalVignette).toFixed(2)} MAD
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 7 */}
+          {currentStep === 7 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-slate-800 font-display">Encaissements Espèce</h2>
+                  <p className="text-sm text-slate-500">Saisissez les montants encaissés via l'espèce et les bons clients.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+    { key: 'espece', label: 'ESPECE' },
+    { key: 'bonClient', label: 'BON CLIENT' }
+  ].map(method => (
+                  <div key={method.key} className={`p-4 bg-slate-50 rounded-xl border border-slate-200 ${method.key === 'bonClient' ? 'md:col-span-2' : ''}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-bold text-slate-700">{method.label}</label>
+                      <button
+                        onClick={() => {
+                          setNonCashPayments({
+                            ...nonCashPayments,
+                            [method.key]: [...nonCashPayments[method.key as keyof typeof nonCashPayments], method.key === 'bonClient' ? { amount: 0, clientName: '', date: new Date().toISOString().split('T')[0] } : { amount: 0, clientId: '', date: new Date().toISOString().split('T')[0] }]
+                          });
+                        }}
+                        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded"
+                      >
+                        <Plus className="w-3 h-3" /> Ajouter
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {nonCashPayments[method.key as keyof typeof nonCashPayments].length === 0 && (
+                        <div className="text-sm text-slate-400 italic text-center py-4 bg-white rounded-lg border border-dashed border-slate-200">Aucun encaissement {method.label}</div>
+                      )}
+                      {nonCashPayments[method.key as keyof typeof nonCashPayments].map((entry, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row gap-2 relative p-2 bg-white rounded-lg border border-slate-200 shadow-sm items-center">
+                          <div className="flex-1 w-full">
+                            <div className="relative">
+                              <input
+                                type="number"
+                                value={entry.amount || ''}
+                                onChange={e => {
+                                  const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]];
+                                  newArr[idx].amount = parseFloat(e.target.value) || 0;
+                                  setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                                }}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold font-mono rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 pr-10"
+                                placeholder="0.00"
+                              />
+                              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400 font-bold text-xs">MAD</div>
+                            </div>
+                          </div>
+                          {method.key === 'carteSntl' && (
+                          <div className="w-24 shrink-0">
+                              <input
+                                type="text"
+                                placeholder="STAN"
+                                value={(entry as any).stan || ''}
+                                onChange={e => {
+                                  const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
+                                  newArr[idx].stan = e.target.value;
+                                  setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                                }}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px] font-mono"
+                              />
+                          </div>
+                        )}
+                        {method.key === 'bonClient' && (
+                          <div className="flex-[2] w-full flex flex-col lg:flex-row gap-2">
+                              <select 
+                                className="w-full lg:w-1/2 bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                                value={store.clients?.some(c => c.name === (entry as any).clientName) ? (entry as any).clientName : ''}
+                                onChange={e => {
+                                  const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
+                                  newArr[idx].clientName = e.target.value;
+                                  setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                                }}
+                              >
+                                <option value="">-- Sélectionner un client existant --</option>
+                                {store.clients?.map(c => (
+                                  <option key={c.id} value={c.name}>{c.name}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="text"
+                                placeholder="Ou saisir un nouveau client"
+                                value={store.clients?.some(c => c.name === (entry as any).clientName) ? '' : ((entry as any).clientName || '')}
+                                onChange={e => {
+                                  const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
+                                  newArr[idx].clientName = e.target.value;
+                                  setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                                }}
+                                className="w-full lg:w-1/2 bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                              />
+                          </div>
+                        )}
+                          <div className="flex-1 w-full">
+                            <input
+                              type="date"
+                              value={(entry as any).date || ''}
+                              onChange={e => {
+                                const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
+                                newArr[idx].date = e.target.value;
+                                setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                              }}
+                              className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                            />
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]];
+                              newArr.splice(idx, 1);
+                              setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
+                            }}
+                            className="p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg shrink-0 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 space-y-2">
+                {totalEspeceClient > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="text-sm font-medium text-slate-600">Total Espèce (Client)</span>
+                    <span className="font-bold text-slate-900 font-mono">{totalEspeceClient.toFixed(2)} MAD</span>
+                  </div>
+                )}
                 {totalBonClient > 0 && (
                   <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <span className="text-sm font-medium text-slate-600">Total Bon Client</span>
@@ -996,16 +1129,16 @@ useEffect(() => {
               </div>
               
               <div className="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
-                <span className="font-bold text-indigo-800">Total Encaissement non espèce :</span>
+                <span className="font-bold text-indigo-800">Total Encaissements Espèce :</span>
                 <span className="font-black text-xl text-indigo-900 font-mono">
-                  {totalNonCashPayments.toFixed(2)} MAD
+                  {(totalEspeceClient + totalBonClient).toFixed(2)} MAD
                 </span>
               </div>
             </div>
           )}
 
-          {/* STEP 7: Validation */}
-          {currentStep === 7 && (
+          {/* STEP 8: Validation */}
+          {currentStep === 8 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-6">
                 <div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-2">
@@ -1020,302 +1153,35 @@ useEffect(() => {
 
                 {(() => {
                   const attendant = store.attendants.find(a => a.id === attendantId);
-                  const attendantName = attendant ? `${attendant.firstName} ${attendant.lastName}` : '';
-                  const especeARemettre = theoreticalCash;
+                  const attendantName = attendant ? `${attendant.firstName} ${attendant.lastName}` : "";
+                  
+                  const previewShift = {
+                    date,
+                    endDate,
+                    startTime,
+                    endTime,
+                    shiftName,
+                    attendantId,
+                    attendantName,
+                    pumpIds: orderedSelectedPumps,
+                    startCounters,
+                    endCounters,
+                    productsSold: productSales,
+                    servicesSold: serviceSales,
+                    expenses,
+                    nonCashPayments,
+                    realCashReceived: realCash,
+                    theoreticalCash,
+                    discrepancy: ecart,
+                    litersSold: fuelSalesDetails.litersSold,
+                    amountSold: fuelSalesDetails.amountSold,
+                    totalLiters: fuelSalesDetails.totalFuelLiters,
+                    totalAmount: fuelSalesDetails.totalFuelAmount
+                  };
 
-
-                  const nozzleRows = fuelSalesDetails.details.map(d => ({
-                    nozzleName: d.nozzle.name,
-                    productName: d.nozzle.productName,
-                    startElec: d.startElec,
-                    startMech: d.startMech,
-                    endElec: d.endElec,
-                    endMech: d.endMech,
-                    liters: d.qtyElec,
-                    amount: d.total
-                  }));
-
-                  const productAggregates: Record<string, { name: string, liters: number, amount: number }> = {};
-                  const usedTanks = new Set<string>();
-
-                  fuelSalesDetails.details.forEach(d => {
-                    if (d.qtyElec > 0) {
-                      usedTanks.add(d.nozzle.tankId);
-                      const prodName = d.nozzle.productName || 'Carburant Inconnu';
-                      if (!productAggregates[prodName]) {
-                        productAggregates[prodName] = { name: prodName, liters: 0, amount: 0 };
-                      }
-                      productAggregates[prodName].liters += d.qtyElec;
-                      productAggregates[prodName].amount += d.total;
-                    }
-                  });
-
-                  return (
-                    <div className="space-y-6">
-                      {/* EN TÊTE COMPACT */}
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <div>
-                          <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase mb-1">Pompiste</div>
-                          <div className="font-bold text-slate-800 text-lg uppercase">{attendantName}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase mb-1">Période</div>
-                          <div className="font-bold text-slate-800">
-                            {new Date(date).toLocaleDateString('fr-FR')} {startTime} &rarr; {endDate ? new Date(endDate).toLocaleDateString('fr-FR') : ''} {endTime || 'En cours'}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* RELEVÉ DES INDEX */}
-                      <div>
-                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                          <Fuel className="w-3.5 h-3.5 text-indigo-500" />
-                          Relevé des Index
-                        </h4>
-                        <div className="rounded-lg border border-slate-200 overflow-hidden">
-                          <table className="w-full text-xs text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
-                              <tr>
-                                <th className="px-3 py-2 font-medium">Pistolet</th>
-                                <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Début (Elec/Méc)</th>
-                                <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Fin (Elec/Méc)</th>
-                                <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Volume (Elec/Méc)</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {nozzleRows.map((row, idx) => (
-                                <tr key={idx}>
-                                  <td className="px-3 py-2 font-bold text-slate-800">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-md bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
-                                        <Fuel className="w-3.5 h-3.5 text-indigo-500" />
-                                      </div>
-                                      {row.nozzleName}
-                                    </div>
-                                  </td>
-                                  
-                                  <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
-                                    {row.startElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.startMech.toFixed(0)}</span>
-                                  </td>
-                                  <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
-                                    {row.endElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.endMech.toFixed(0)}</span>
-                                  </td>
-                                  <td className="px-3 py-2 text-right font-mono font-bold text-slate-900 bg-slate-50/50 whitespace-nowrap">
-                                    <span className="text-blue-700">{row.liters.toFixed(2)}</span> <span className="text-slate-400 font-normal mx-1">/</span> <span className="text-orange-600">{(row.endMech - row.startMech).toFixed(2)}</span>
-                                  </td>
-                                </tr>
-                              ))}
-                              {nozzleRows.length === 0 && (
-                                <tr>
-                                  <td colSpan={4} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
-                                </tr>
-                              )}
-                            </tbody>
-                            <thead className="bg-slate-100 border-y border-slate-200 text-slate-600">
-                              <tr>
-                                <th colSpan={2} className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500"><div className="flex items-center gap-1.5"><Droplet className="w-3.5 h-3.5 text-blue-500" /> Volumes par Carburant</div></th>
-                                <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Volume (L)</th>
-                                <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Montant (DH)</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 bg-slate-50/50">
-                              {Object.values(productAggregates).map((prod, idx) => (
-                                <tr key={idx}>
-                                  <td colSpan={2} className="px-3 py-2 font-medium text-slate-800">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
-                                        <Droplet className="w-3.5 h-3.5 text-blue-500" />
-                                      </div>
-                                      {prod.name}
-                                    </div>
-                                  </td>
-                                  <td className="px-3 py-2 text-right font-mono font-bold text-slate-700">{prod.liters.toFixed(2)}</td>
-                                  <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{prod.amount.toFixed(2)}</td>
-                                </tr>
-                              ))}
-                              {Object.keys(productAggregates).length === 0 && (
-                                <tr>
-                                  <td colSpan={4} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-6">
-
-                        {usedTanks.size > 0 && (
-                          <div>
-                            <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                              <Database className="w-3.5 h-3.5 text-slate-500" />
-                              Cuves (Consommées)
-                            </h4>
-                            <div className="rounded-lg border border-slate-200 overflow-hidden">
-                              <table className="w-full text-xs text-left">
-                                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
-                                  <tr>
-                                    <th className="px-3 py-2 font-medium">Cuve</th>
-                                    <th className="px-3 py-2 font-medium">Produit</th>
-                                    <th className="px-3 py-2 font-medium text-right">Niveau Actuel (L)</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                  {Array.from(usedTanks).map(tankId => {
-                                    const tank = store.tanks.find(t => t.id === tankId);
-                                    if (!tank) return null;
-                                    return (
-                                      <tr key={tank.id}>
-                                        <td className="px-3 py-2 font-bold text-slate-800">
-                                          <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
-                                              <Database className="w-3 h-3 text-slate-500" />
-                                            </div>
-                                            {tank.number}
-                                          </div>
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-500">
-                                          <div className="flex items-center gap-1.5">
-                                            <Droplet className="w-3 h-3 text-slate-400" />
-                                            {tank.productName}
-                                          </div>
-                                        </td>
-                                        <td className="px-3 py-2 text-right font-mono font-bold">{tank.currentLevel.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-{/* NON-CASH BREAKDOWN IN CLOSING REPORT */}
-                      {totalNonCashPayments > 0 && (
-                        <div>
-                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
-                            Détail des Encaissements
-                          </h4>
-                          <div className="rounded-lg border border-slate-200 overflow-hidden">
-                            <table className="w-full text-xs text-left">
-                              <tbody className="divide-y divide-slate-100">
-                                {totalCarteSntl > 0 && (
-                                  <tr>
-                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Carte SNTL</td>
-                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalCarteSntl.toFixed(2)} DH</td>
-                                  </tr>
-                                )}
-                                {totalEspeceClient > 0 && (
-                                  <tr>
-                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Espèce (Déclaration)</td>
-                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalEspeceClient.toFixed(2)} DH</td>
-                                  </tr>
-                                )}
-                                {totalBonVivo > 0 && (
-                                  <tr>
-                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Bon Carburants Vivo</td>
-                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalBonVivo.toFixed(2)} DH</td>
-                                  </tr>
-                                )}
-                                {totalVignette > 0 && (
-                                  <tr>
-                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Vignette</td>
-                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalVignette.toFixed(2)} DH</td>
-                                  </tr>
-                                )}
-                                {totalBonClient > 0 && (
-                                  <tr>
-                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Bon Client</td>
-                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{totalBonClient.toFixed(2)} DH</td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* DETAILS BOUTIQUE */}
-                      {productSales.length > 0 && (
-                        <div>
-                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <Package className="w-3.5 h-3.5 text-indigo-500" />
-                            Détails de Boutique
-                          </h4>
-                          <div className="rounded-lg border border-slate-200 overflow-hidden">
-                            <table className="w-full text-xs text-left">
-                              <tbody className="divide-y divide-slate-100">
-                                {productSales.map((p: any) => (
-                                  <tr key={p.id}>
-                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">{p.name}</td>
-                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{p.total.toFixed(2)} DH</td>
-                                  </tr>
-                                ))}
-                                <tr>
-                                  <td className="px-3 py-2 font-black text-slate-800 bg-slate-100 uppercase text-[10px]">Total Boutique</td>
-                                  <td className="px-3 py-2 text-right font-mono font-black text-indigo-700 bg-slate-100">{totalProductSales.toFixed(2)} DH</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* DETAILS LAVAGE LA GRAISSE */}
-                      {serviceSales.length > 0 && (
-                        <div>
-                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <Settings className="w-3.5 h-3.5 text-indigo-500" />
-                            Détails de Lavage et Graissage
-                          </h4>
-                          <div className="rounded-lg border border-slate-200 overflow-hidden">
-                            <table className="w-full text-xs text-left">
-                              <tbody className="divide-y divide-slate-100">
-                                {serviceSales.map((s: any) => (
-                                  <tr key={s.id}>
-                                    <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">{s.name}</td>
-                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{s.total.toFixed(2)} DH</td>
-                                  </tr>
-                                ))}
-                                <tr>
-                                  <td className="px-3 py-2 font-black text-slate-800 bg-slate-100 uppercase text-[10px]">Total Lavage et Graissage</td>
-                                  <td className="px-3 py-2 text-right font-mono font-black text-indigo-700 bg-slate-100">{totalServiceSales.toFixed(2)} DH</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* FINANCES COMPACTES */}
-                      <div>
-                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                          <Wallet className="w-3.5 h-3.5 text-slate-500" />
-                          Bilan Financier
-                        </h4>
-                        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
-                            <div className="p-4 flex flex-col">
-                              <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Encaissement</div>
-                              <div className="font-mono font-bold text-indigo-600 text-lg">+{totalNonCashPayments.toFixed(2)} DH</div>
-                            </div>
-                            <div className="p-4 flex flex-col">
-                              <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses</div>
-                              <div className="font-mono font-bold text-rose-600 text-lg">-{cashExpenses.toFixed(2)} DH</div>
-                            </div>
-                          </div>
-                          <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
-                            <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Global</div>
-                            <div className="font-mono font-black text-white text-2xl">{(totalNonCashPayments - cashExpenses).toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-
+                  return <SharedShiftReport shift={previewShift as any} store={store} />;
                 })()}
+
               </div>
 
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6">
@@ -1345,16 +1211,16 @@ useEffect(() => {
           </button>
           
           <div className="flex gap-2">
-            {[1,2,3,4,5,6,7].map(step => (
+            {[1,2,3,4,5,6,7,8].map(step => (
               <div key={step} className={`w-2 h-2 rounded-full ${currentStep === step ? 'bg-indigo-600' : currentStep > step ? 'bg-emerald-500' : 'bg-slate-300'}`} />
             ))}
           </div>
 
           <button 
-            onClick={() => setCurrentStep(Math.min(7, currentStep + 1))}
-            disabled={currentStep === 7}
+            onClick={() => setCurrentStep(Math.min(8, currentStep + 1))}
+            disabled={currentStep === 8}
             className={`px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all ${
-              currentStep === 7 
+              currentStep === 8 
                 ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400' 
                 : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
             }`}

@@ -30,6 +30,14 @@ export default function Clients({ store }: ClientsProps) {
   });
 
 
+  
+  const handleDeletePayment = (paymentId: string) => {
+    if (!selectedClient) return;
+    const updatedPayments = (selectedClient.payments || []).filter((p: any) => p.id !== paymentId);
+    store.updateClient(selectedClient.id, { payments: updatedPayments }, "Utilisateur");
+    setSelectedClient({ ...selectedClient, payments: updatedPayments });
+  };
+
   const handleAddPayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient) return;
@@ -312,6 +320,7 @@ export default function Clients({ store }: ClientsProps) {
                               <tr>
                                 <th className="p-2 font-bold text-slate-600">Date Shift</th>
                                 <th className="p-2 font-bold text-slate-600 text-right">Montant</th>
+                                <th className="p-2 font-bold text-slate-600 w-10"></th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -387,6 +396,7 @@ export default function Clients({ store }: ClientsProps) {
                               <tr>
                                 <th className="p-2 font-bold text-slate-600">Date</th>
                                 <th className="p-2 font-bold text-slate-600 text-right">Montant</th>
+                                <th className="p-2 font-bold text-slate-600 w-10"></th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -399,9 +409,18 @@ export default function Clients({ store }: ClientsProps) {
                                   <td className="p-2 font-mono font-bold text-emerald-600 text-right">
                                     {parseFloat(pay.amount).toFixed(2)}
                                   </td>
+                                  <td className="p-2 text-right">
+                                    <button
+                                      onClick={() => handleDeletePayment(pay.id)}
+                                      className="text-slate-400 hover:text-rose-500 transition-colors p-1"
+                                      title="Supprimer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </td>
                                 </tr>
                               )) : (
-                                <tr><td colSpan={2} className="p-4 text-center text-slate-400 italic">Aucun règlement</td></tr>
+                                <tr><td colSpan={3} className="p-4 text-center text-slate-400 italic">Aucun règlement</td></tr>
                               )}
                             </tbody>
                           </table>
