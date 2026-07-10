@@ -364,13 +364,13 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                             <div className="font-mono font-bold text-indigo-600 text-lg">+{nonCashTotal.toFixed(2)} DH</div>
                           </div>
                           <div className="p-4 flex flex-col">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses</div>
-                            <div className="font-mono font-bold text-rose-600 text-lg">-{depensesTotal.toFixed(2)} DH</div>
+                            <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses / Manquant</div>
+                            <div className="font-mono font-bold text-rose-600 text-lg">{carburantsTotal - nonCashTotal > 0 ? "-" : "+"}{Math.abs(carburantsTotal - nonCashTotal).toFixed(2)} DH</div>
                           </div>
                         </div>
                         <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
                           <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Global</div>
-                          <div className="font-mono font-black text-white text-2xl">{(nonCashTotal - depensesTotal).toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
+                          <div className="font-mono font-black text-white text-2xl">{carburantsTotal.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
                         </div>
                       </div>
                     </div>
