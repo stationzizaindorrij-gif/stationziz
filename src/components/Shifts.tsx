@@ -409,7 +409,7 @@ export default function Shifts({ store }: ShiftsProps) {
                             return (carteSntl + espece + (s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0) + vignette + bonClient).toFixed(2);
                           })()} MAD
                         </td>
-                        <td className="p-3.5 font-mono text-slate-600">
+                        <td className="p-3.5 font-mono text-rose-600 font-semibold">
                           {(() => {
                             const depenses = s.expenses?.filter(e => e.method === 'cash').reduce((sum, e) => sum + e.amount, 0) || 0;
                             return depenses.toFixed(2);

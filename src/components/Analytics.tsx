@@ -17,6 +17,40 @@ export default function Analytics({ store }: AnalyticsProps) {
   const [reportEndDate, setReportEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportAttendant, setReportAttendant] = useState<string>('all');
 
+
+  const getHistoricalPrice = React.useCallback((productId: string, date: string) => {
+    // Sort price changes descending
+    const sortedChanges = [...(store.priceChanges || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const changesBeforeDate = sortedChanges.filter(c => c.productId === productId && c.date.split('T')[0] <= date.split('T')[0]);
+    
+    if (changesBeforeDate.length > 0) {
+      return {
+        purchasePrice: changesBeforeDate[0].purchasePrice,
+        salePrice: changesBeforeDate[0].salePrice
+      };
+    }
+    
+    // Fallback if no history exists BEFORE this date
+    // Look for the OLDEST price change for this product to get the original prices
+    const allChangesForProduct = sortedChanges.filter(c => c.productId === productId);
+    if (allChangesForProduct.length > 0) {
+      // The last element in the descending sorted array is the oldest change
+      const oldestChange = allChangesForProduct[allChangesForProduct.length - 1];
+      if (oldestChange.oldPurchasePrice !== undefined && oldestChange.oldSalePrice !== undefined) {
+        return {
+          purchasePrice: oldestChange.oldPurchasePrice,
+          salePrice: oldestChange.oldSalePrice
+        };
+      }
+    }
+    
+    const currentProd = store.products.find(p => p.id === productId);
+    return {
+      purchasePrice: currentProd?.purchasePrice || 0,
+      salePrice: currentProd?.salePrice || 0
+    };
+  }, [store.priceChanges, store.products]);
+
   // --- REPORT CALCULATIONS ---
   const reportData = useMemo(() => {
     let shifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
@@ -47,25 +81,7 @@ export default function Analytics({ store }: AnalyticsProps) {
       elecStats[p.id] = { liters: 0, purchase: 0, sale: 0 };
     });
     
-    const getHistoricalPrice = (productId: string, date: string) => {
-      // Sort price changes descending
-      const sortedChanges = [...(store.priceChanges || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      const changesBeforeDate = sortedChanges.filter(c => c.productId === productId && c.date.split('T')[0] <= date.split('T')[0]);
-      
-      if (changesBeforeDate.length > 0) {
-        return {
-          purchasePrice: changesBeforeDate[0].purchasePrice,
-          salePrice: changesBeforeDate[0].salePrice
-        };
-      }
-      
-      // Fallback to current price if no history exists for this date
-      const currentProd = store.products.find(p => p.id === productId);
-      return {
-        purchasePrice: currentProd?.purchasePrice || 0,
-        salePrice: currentProd?.salePrice || 0
-      };
-    };
+
 
     shifts.forEach(shift => {
       totalEspece += (shift.realCashReceived || 0);
@@ -139,7 +155,7 @@ export default function Analytics({ store }: AnalyticsProps) {
 
     const getProductInfo = (type: string) => {
       const prod = store.products.find(p => p.type === type);
-      return { pAchat: prod?.purchasePrice || 0, pVente: prod?.salePrice || 0 };
+      return { pAchat: prod ? getHistoricalPrice(prod.id, reportEndDate || new Date().toISOString().split('T')[0]).purchasePrice : 0, pVente: prod ? getHistoricalPrice(prod.id, reportEndDate || new Date().toISOString().split('T')[0]).salePrice : 0 };
     };
 
     let totalMechBenefice = 0;
@@ -163,8 +179,8 @@ export default function Analytics({ store }: AnalyticsProps) {
 
     const stockReste: Record<string, { liters: number, purchase: number, montant: number }> = {};
     store.products.forEach(p => {
-      const productSupplies = store.supplies.filter(s => s.productId === p.id);
-      let avgPurchasePrice = p.purchasePrice;
+      const productSupplies = store.supplies.filter(s => s.productId === p.id && (!reportEndDate || s.date <= reportEndDate));
+      let avgPurchasePrice = getHistoricalPrice(p.id, reportEndDate || new Date().toISOString().split('T')[0]).purchasePrice;
       if (productSupplies.length > 0) {
         const totalQty = productSupplies.reduce((sum, s) => sum + s.qtyDelivered, 0);
         const totalValue = productSupplies.reduce((sum, s) => sum + (s.qtyDelivered * s.purchasePrice), 0);
@@ -182,7 +198,7 @@ export default function Analytics({ store }: AnalyticsProps) {
       const product = store.products.find(p => p.id === tank.productId);
       if (product) {
         if (!stockReste[product.id]) {
-          stockReste[product.id] = { liters: 0, purchase: product.purchasePrice, montant: 0 };
+          stockReste[product.id] = { liters: 0, purchase: getHistoricalPrice(product.id, reportEndDate || new Date().toISOString().split('T')[0]).purchasePrice, montant: 0 };
         }
         stockReste[product.id].liters += tank.currentLevel;
         totalStockLiters += tank.currentLevel;
@@ -256,8 +272,8 @@ export default function Analytics({ store }: AnalyticsProps) {
         </div>
         
         <div className="bg-slate-50 px-4 py-2 border-t border-slate-100 flex justify-between text-[10px] text-slate-500">
-          <span>Achat: {info.purchasePrice.toFixed(2)} Dh/L</span>
-          <span>Vente: {info.salePrice.toFixed(2)} Dh/L</span>
+          <span>Achat: {getHistoricalPrice(info.id, reportEndDate || new Date().toISOString().split('T')[0]).purchasePrice.toFixed(2)} Dh/L</span>
+          <span>Vente: {getHistoricalPrice(info.id, reportEndDate || new Date().toISOString().split('T')[0]).salePrice.toFixed(2)} Dh/L</span>
         </div>
       </div>
     );

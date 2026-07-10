@@ -293,9 +293,11 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                       <tr>
                         <th className="px-3 py-2 font-medium">Pistolet</th>
-                        <th className="px-3 py-2 font-medium text-right">Début (Elec/Méc)</th>
-                        <th className="px-3 py-2 font-medium text-right">Fin (Elec/Méc)</th>
-                        <th className="px-3 py-2 font-medium text-right text-slate-900">Volume (Elec/Méc)</th>
+                        <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Prix Unitaire</th>
+                        <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Début (Elec/Méc)</th>
+                        <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Fin (Elec/Méc)</th>
+                        <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Volume (Elec/Méc)</th>
+                        <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Montant (DH)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -303,6 +305,9 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                         <tr key={idx}>
                           <td className="px-3 py-2 font-bold text-slate-800">
                             {row.nozzle.name}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono text-slate-600 whitespace-nowrap">
+                            {row.price.toFixed(2)}
                           </td>
                           <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
                             {row.startElec.toFixed(2)} / <span className="text-orange-500">{row.startMech.toFixed(0)}</span>
@@ -318,8 +323,8 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     </tbody>
                     <thead className="bg-slate-100 border-y border-slate-200 text-slate-600">
                       <tr>
-                        <th colSpan={2} className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500">
-                          Volumes par Carburant
+                        <th colSpan={4} className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500">
+                          <div className="flex items-center gap-1.5"><Droplet className="w-3.5 h-3.5 text-blue-500" /> Volumes par Carburant</div>
                         </th>
                         <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Volume (L)</th>
                         <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Montant (DH)</th>
@@ -338,8 +343,8 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                         });
                         return Object.values(productAggregates).map((prod: any, idx) => (
                           <tr key={idx}>
-                            <td colSpan={2} className="px-3 py-2 font-medium text-slate-800">
-                              {prod.name}
+                            <td colSpan={4} className="px-3 py-2 font-medium text-slate-800">
+                              <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100"><Droplet className="w-3.5 h-3.5 text-blue-500" /></div>{prod.name}</div>
                             </td>
                             <td className="px-3 py-2 text-right font-mono font-bold text-slate-700">{prod.liters.toFixed(2)}</td>
                             <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{prod.amount.toFixed(2)}</td>

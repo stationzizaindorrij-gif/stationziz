@@ -312,4 +312,6 @@ export interface PriceChange {
   productType: string;
   purchasePrice: number;
   salePrice: number;
+  oldPurchasePrice?: number;
+  oldSalePrice?: number;
 }

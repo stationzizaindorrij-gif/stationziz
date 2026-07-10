@@ -131,7 +131,7 @@ export default function Alerts({ store }: AlertsProps) {
                   </span>
                   <span>{log.time}</span>
                 </div>
-                <p className="text-slate-700 font-sans leading-relaxed font-medium">{log.details}</p>
+                <p className="text-slate-700 font-sans leading-relaxed font-medium">{log.details.split('|__PRICE_CHANGE:')[0]}</p>
                 <div className="flex justify-between items-center text-[10px] text-slate-400 font-sans pt-1">
                   <span>Opérateur: <strong>{log.user}</strong></span>
                   <span>{new Date(log.date).toLocaleDateString('fr-FR')}</span>

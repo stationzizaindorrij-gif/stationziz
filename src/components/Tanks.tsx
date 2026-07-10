@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { 
   Fuel, Plus, History, RotateCcw, AlertTriangle, CheckCircle, ArrowUpRight, 
   Settings, ClipboardList, Info, ArrowDown, Calendar, Search, Trash2, Sliders, X, Droplet, MoreVertical, Edit, FileText, BarChart2, CheckCircle2, XCircle, Power, Activity 
@@ -134,6 +134,8 @@ export default function Tanks({ store }: TanksProps) {
   const [editingTank, setEditingTank] = useState<Tank | null>(null);
   const [isTankDetailOpen, setIsTankDetailOpen] = useState(false);
   const [selectedTankDetail, setSelectedTankDetail] = useState<Tank | null>(null);
+  const [isTankHistoryOpen, setIsTankHistoryOpen] = useState(false);
+  const [selectedTankHistory, setSelectedTankHistory] = useState<Tank | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [tankToDelete, setTankToDelete] = useState<string | null>(null);
   const [tankToDeactivate, setTankToDeactivate] = useState<string | null>(null);
@@ -451,6 +453,9 @@ export default function Tanks({ store }: TanksProps) {
                             <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-10 py-1 overflow-hidden">
                               <button onClick={() => { setSelectedTankDetail(tank); setIsTankDetailOpen(true); setActiveDropdown(null); }} className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 flex items-center gap-2">
                                 <FileText className="w-3.5 h-3.5 text-slate-400" /> Voir les détails
+                              </button>
+                              <button onClick={() => { setSelectedTankHistory(tank); setIsTankHistoryOpen(true); setActiveDropdown(null); }} className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 flex items-center gap-2">
+                                <BarChart2 className="w-3.5 h-3.5 text-slate-400" /> Historique du niveau
                               </button>
                               {hasWriteAccess && (
                                 <>
@@ -1674,6 +1679,14 @@ export default function Tanks({ store }: TanksProps) {
       )}
 
       {/* Tank Detail Modal */}
+      {isTankHistoryOpen && selectedTankHistory && (
+        <TankHistoryModal 
+          store={store}
+          tank={selectedTankHistory} 
+          onClose={() => setIsTankHistoryOpen(false)} 
+        />
+      )}
+
       {isTankDetailOpen && selectedTankDetail && (
         <TankDetailModal 
           store={store} 
@@ -2245,6 +2258,153 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
 
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+interface TankHistoryModalProps {
+  store: ERPStoreType;
+  tank: Tank;
+  onClose: () => void;
+}
+
+function TankHistoryModal({ store, tank, onClose }: TankHistoryModalProps) {
+  const fuelColorInfo = getFuelColor(tank.productId, tank.color);
+
+  // Generate 15 days of mock history based on the current level
+    const data = React.useMemo(() => {
+    const getLocalYMD = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    const tankNozzleIds = store.nozzles.filter(n => n.tankId === tank.id).map(n => n.id);
+    
+    const salesPerDay: Record<string, number> = {};
+    store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close').forEach(shift => {
+      const d = shift.date.split('T')[0];
+      let shiftSales = 0;
+      if (shift.litersSold) {
+        tankNozzleIds.forEach(nid => {
+          if (shift.litersSold![nid]) {
+            shiftSales += shift.litersSold![nid];
+          }
+        });
+      }
+      salesPerDay[d] = (salesPerDay[d] || 0) + shiftSales;
+    });
+
+    const deliveriesPerDay: Record<string, number> = {};
+    store.supplies.forEach(s => {
+      if (s.tankId === tank.id) {
+        const d = s.date.split('T')[0];
+        deliveriesPerDay[d] = (deliveriesPerDay[d] || 0) + s.qtyDelivered;
+      }
+    });
+
+    const correctionsPerDay: Record<string, number> = {};
+    store.stockCorrections.forEach(c => {
+      if (c.tankId === tank.id) {
+        const d = c.date.split('T')[0];
+        const diff = c.qtyAfter - c.qtyBefore;
+        correctionsPerDay[d] = (correctionsPerDay[d] || 0) + diff;
+      }
+    });
+
+    let currentLvl = tank.currentLevel;
+    const levels = [];
+
+    const today = new Date();
+
+    for (let i = 0; i <= 14; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dStr = getLocalYMD(date);
+      
+      levels.unshift({
+        dateStr: dStr,
+        displayDate: date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        level: Math.max(0, Math.min(tank.capacity, currentLvl)),
+      });
+
+      // Go backwards to the previous day's end level
+      const sales = salesPerDay[dStr] || 0;
+      const deliveries = deliveriesPerDay[dStr] || 0;
+      const corrections = correctionsPerDay[dStr] || 0;
+      
+      currentLvl = currentLvl - deliveries - corrections + sales;
+    }
+
+    return levels.map(l => ({ date: l.displayDate, level: Math.round(l.level) }));
+  }, [tank, store]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h2 className="text-xl font-display font-bold text-slate-800">
+            Historique du niveau de carburant dans la citerne : {tank.number}
+          </h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 flex-1 overflow-y-auto bg-slate-50">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#94a3b8" 
+                  fontSize={11} 
+                  tickLine={false}
+                  angle={-45}
+                  textAnchor="end"
+                  dy={10}
+                />
+                <YAxis 
+                  stroke="#94a3b8" 
+                  fontSize={11} 
+                  tickLine={false} 
+                  domain={[0, tank.capacity]}
+                  tickFormatter={(value) => value.toLocaleString()}
+                />
+                <RechartsTooltip 
+                  cursor={{fill: '#f8fafc'}}
+                  contentStyle={{borderRadius: '0.75rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'}}
+                  formatter={(value: any) => [`${Number(value).toLocaleString()} L`, 'Niveau']} 
+                  labelStyle={{color: '#64748b', marginBottom: '0.25rem'}}
+                />
+                <Bar 
+                  dataKey="level" 
+                  name="Niveau" 
+                  fill="#1e3a8a" 
+                  radius={[4, 4, 0, 0]} 
+                  maxBarSize={40}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-100 bg-white flex justify-end">
+          <button 
+            onClick={onClose}
+            className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl transition-colors"
+          >
+            Fermer
+          </button>
         </div>
       </div>
     </div>

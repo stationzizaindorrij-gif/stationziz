@@ -15,16 +15,19 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ store, setView }: DashboardProps) {
+  const [chartPeriod, setChartPeriod] = React.useState<'day' | 'month' | 'year'>('day');
   const { 
     sales, attendants, tanks, pumps, nozzles, supplies, cashRegistry, alerts, products 
   } = store;
 
   // Calculs financiers pour aujourd'hui
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todaySales = sales.filter(s => s.date === todayStr);
-  const totalRevenueToday = todaySales.reduce((acc, s) => acc + s.total, 0);
-  const totalLitersToday = todaySales.reduce((acc, s) => acc + s.qty, 0);
-  const totalVentesCountToday = todaySales.length;
+  const completedShifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
+  const targetDate = new Date().toISOString().split('T')[0];
+  const todayShifts = completedShifts.filter(s => s.date === targetDate);
+  
+  const totalRevenueToday = todayShifts.reduce((acc, s) => acc + (s.totalAmount || 0), 0);
+  const totalLitersToday = todayShifts.reduce((acc, s) => acc + (s.totalLiters || 0), 0);
+  const totalVentesCountToday = todayShifts.length; // Ou le nombre de ventes si tu as un tableau de ventes par shift
 
   const getHistoricalPrice = (productId: string, date: string) => {
     const sortedChanges = [...(store.priceChanges || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -34,12 +37,38 @@ export default function Dashboard({ store, setView }: DashboardProps) {
     return currentProd ? currentProd.purchasePrice : 1.45;
   };
 
-  // Calcul des bénéfices d'aujourd'hui (Prix de vente - Prix d'achat)
-  const totalProfitToday = todaySales.reduce((acc, s) => {
-    const purchaseCost = getHistoricalPrice(s.productId, s.date);
-    const margin = s.price - purchaseCost;
-    return acc + (s.qty * margin);
-  }, 0);
+  // Calcul des bénéfices d'aujourd'hui
+  let totalProfitToday = 0;
+  todayShifts.forEach(shift => {
+    if (shift.litersSold) {
+      Object.entries(shift.litersSold).forEach(([nozzleId, litersVal]) => {
+        const liters = Number(litersVal);
+        if (liters > 0) {
+          const nozzle = store.nozzles.find(n => n.id === nozzleId);
+          if (nozzle) {
+            const pump = store.pumps.find(p => p.id === nozzle.pumpId);
+            if (pump) {
+              const tank = store.tanks.find(t => t.id === pump.tankId);
+              if (tank) {
+                const product = store.products.find(p => p.id === tank.productId);
+                if (product) {
+                  const purchaseCost = getHistoricalPrice(product.id, shift.date);
+                  // Pour trouver le prix de vente, on peut utiliser amountSold / litersSold
+                  // ou le currentProd.price. amountSold / litersSold est plus précis pour ce shift
+                  let unitPrice = product.price;
+                  if (shift.amountSold && shift.amountSold[nozzleId]) {
+                      unitPrice = shift.amountSold[nozzleId] / liters;
+                  }
+                  const margin = unitPrice - purchaseCost;
+                  totalProfitToday += (liters * margin);
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  });
 
   // Stock total restant
   const totalCurrentStock = tanks.reduce((acc, t) => acc + t.currentLevel, 0);
@@ -95,35 +124,44 @@ export default function Dashboard({ store, setView }: DashboardProps) {
     }
   });
 
-  // Graphique des ventes journalières (heures)
-  // On regroupe les ventes par tranches d'heures pour aujourd'hui et hier
-  const hourlyData = [
-    { hour: '06h-08h', ventes: 0, litres: 0 },
-    { hour: '08h-10h', ventes: 0, litres: 0 },
-    { hour: '10h-12h', ventes: 0, litres: 0 },
-    { hour: '12h-14h', ventes: 0, litres: 0 },
-    { hour: '14h-16h', ventes: 0, litres: 0 },
-    { hour: '16h-18h', ventes: 0, litres: 0 },
-    { hour: '18h-20h', ventes: 0, litres: 0 },
-    { hour: '20h-22h', ventes: 0, litres: 0 },
-  ];
 
-  sales.forEach(s => {
-    const hourInt = parseInt(s.time.split(':')[0]);
-    let index = 0;
-    if (hourInt >= 6 && hourInt < 8) index = 0;
-    else if (hourInt >= 8 && hourInt < 10) index = 1;
-    else if (hourInt >= 10 && hourInt < 12) index = 2;
-    else if (hourInt >= 12 && hourInt < 14) index = 3;
-    else if (hourInt >= 14 && hourInt < 16) index = 4;
-    else if (hourInt >= 16 && hourInt < 18) index = 5;
-    else if (hourInt >= 18 && hourInt < 20) index = 6;
-    else if (hourInt >= 20 && hourInt <= 22) index = 7;
-    else return;
-
-    hourlyData[index].ventes += s.total;
-    hourlyData[index].litres += s.qty;
-  });
+  // Graphique d'activité lié aux shifts
+  const chartData = React.useMemo(() => {
+    const completedShifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
+    
+    // Trier par date
+    completedShifts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const aggregated: Record<string, { label: string, ventes: number, litres: number }> = {};
+    
+    completedShifts.forEach(shift => {
+      let key = shift.date;
+      let label = shift.date;
+      
+      const dateObj = new Date(shift.date);
+      
+      if (chartPeriod === 'month') {
+        key = shift.date.substring(0, 7); // YYYY-MM
+        const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+        label = `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+      } else if (chartPeriod === 'year') {
+        key = shift.date.substring(0, 4); // YYYY
+        label = key;
+      } else {
+        // day
+        label = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+      }
+      
+      if (!aggregated[key]) {
+        aggregated[key] = { label, ventes: 0, litres: 0 };
+      }
+      
+      aggregated[key].ventes += (shift.totalAmount || 0);
+      aggregated[key].litres += (shift.totalLiters || 0);
+    });
+    
+    return Object.values(aggregated);
+  }, [store.shifts, chartPeriod]);
 
   // Graphique de distribution par produit
   const productPieData = Object.values(productSalesMap).map(p => ({
@@ -177,7 +215,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Carburant vendu (Jour)</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalLitersToday} L</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalLitersToday.toFixed(2)} L</h3>
             </div>
             <div className="p-2.5 bg-sky-50 text-sky-600 rounded-lg">
               <Droplets className="w-5 h-5" />
@@ -204,7 +242,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           </div>
           <div className="flex items-center gap-1.5 mt-3 text-xs">
             <span className="text-slate-500 font-medium">Marge brute moyenne:</span>
-            <span className="text-slate-700 font-semibold">{( (totalProfitToday / (totalRevenueToday || 1)) * 100 ).toFixed(1)}%</span>
+            <span className="text-slate-700 font-semibold">{( (totalProfitToday / (totalRevenueToday || 1)) * 100 ).toFixed(2)}%</span>
           </div>
         </div>
 
@@ -215,7 +253,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Stock Global Cuves</p>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="text-2xl font-bold text-slate-900 font-mono">{stockPercentage}%</span>
-                <span className="text-xs text-slate-500">({Math.round(totalCurrentStock / 1000)}k / {Math.round(totalStockCapacity / 1000)}k L)</span>
+                <span className="text-xs text-slate-500">({(totalCurrentStock / 1000).toFixed(2)}k / {(totalStockCapacity / 1000).toFixed(2)}k L)</span>
               </div>
             </div>
             <div className="p-2.5 bg-amber-50 text-amber-600 rounded-lg">
@@ -233,122 +271,58 @@ export default function Dashboard({ store, setView }: DashboardProps) {
         </div>
       </div>
 
-      {/* Grid intermédiaires : Pompes, Alertes, etc. */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Ventes du jour</p>
-          <p className="text-xl font-bold text-slate-800 mt-1 font-mono">{totalVentesCountToday}</p>
-        </div>
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Pompistes Actifs</p>
-          <p className="text-xl font-bold text-slate-800 mt-1 font-mono">{activeAttendantsCount}</p>
-        </div>
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Pompes Distribuantes</p>
-          <p className="text-xl font-bold text-slate-800 mt-1 font-mono">{activePumpsCount} / {pumps.length}</p>
-        </div>
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center cursor-pointer hover:bg-rose-50" onClick={() => setView('alerts')}>
-          <p className="text-xs font-semibold text-slate-400 uppercase">Alertes Actives</p>
-          <p className={`text-xl font-bold mt-1 font-mono ${activeAlertsCount > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-800'}`}>
-            {activeAlertsCount}
-          </p>
-        </div>
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Produit Vedette</p>
-          <p className="text-sm font-bold text-slate-800 mt-1.5 truncate" title={topProduct}>{topProduct.split(' ')[0]}</p>
-        </div>
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center">
-          <p className="text-xs font-semibold text-slate-400 uppercase">Top Pompiste</p>
-          <p className="text-sm font-bold text-slate-800 mt-1.5 truncate" title={topAttendant}>{topAttendant.split(' ')[0]}</p>
-        </div>
-      </div>
+
 
       {/* Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Ventes par tranche horaire */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 lg:col-span-2 shadow-sm">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-bold text-slate-900 font-display">Courbe d'activité aujourd'hui</h3>
-              <p className="text-xs text-slate-400">Volume (Litres) et chiffre d'affaires cumulés par tranche horaire</p>
+              <h3 className="font-bold text-slate-900 font-display">Courbe d'activité</h3>
+              <p className="text-xs text-slate-400">Volume (Litres) et chiffre d'affaires cumulés</p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-semibold">
-              <span className="flex items-center gap-1 text-sky-500"><span className="w-2.5 h-2.5 bg-sky-500 rounded-sm"></span> Ventes (MAD)</span>
-              <span className="flex items-center gap-1 text-blue-500"><span className="w-2.5 h-2.5 bg-blue-500 rounded-sm"></span> Volume (L)</span>
+            <div className="flex items-center gap-4">
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button 
+                  onClick={() => setChartPeriod('day')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${chartPeriod === 'day' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Jour
+                </button>
+                <button 
+                  onClick={() => setChartPeriod('month')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${chartPeriod === 'month' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Mois
+                </button>
+                <button 
+                  onClick={() => setChartPeriod('year')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${chartPeriod === 'year' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Année
+                </button>
+              </div>
+              <div className="flex items-center gap-4 text-xs font-semibold hidden sm:flex">
+                <span className="flex items-center gap-1 text-sky-500"><span className="w-2.5 h-2.5 bg-sky-500 rounded-sm"></span> Ventes (MAD)</span>
+                <span className="flex items-center gap-1 text-blue-500"><span className="w-2.5 h-2.5 bg-blue-500 rounded-sm"></span> Volume (L)</span>
+              </div>
             </div>
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorVentes" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorLiters" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="hour" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                <Tooltip />
-                <Area type="monotone" dataKey="ventes" name="Recettes (MAD)" stroke="#0ea5e9" strokeWidth={2} fillOpacity={1} fill="url(#colorVentes)" />
-                <Area type="monotone" dataKey="litres" name="Volume (L)" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorLiters)" />
-              </AreaChart>
+                <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(value) => Number(value).toFixed(2)} />
+                <Tooltip formatter={(value: any, name: any) => [`${Number(value).toFixed(2)} ${name.includes("Volume") ? "L" : "MAD"}`, name]} />
+                <Bar dataKey="ventes" name="Recettes (MAD)" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                <Bar dataKey="litres" name="Volume (L)" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Répartition par Carburant */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="font-bold text-slate-900 font-display">Répartition par carburant</h3>
-            <p className="text-xs text-slate-400 mb-4">Volume total distribué par type de produit</p>
-          </div>
-          <div className="h-44 relative flex items-center justify-center">
-            {productPieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={productPieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={75}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {productPieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value, name) => [`${value} L`, name]} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-xs text-slate-400">Aucune vente enregistrée.</p>
-            )}
-            <div className="absolute text-center">
-              <span className="block text-xl font-bold font-mono text-slate-700">{totalLitersToday}</span>
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider">Litres Totaux</span>
-            </div>
-          </div>
-          <div className="space-y-1.5 mt-2">
-            {productPieData.map((entry, index) => (
-              <div key={`product-${index}`}  className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 font-medium text-slate-600">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
-                  {entry.name}
-                </span>
-                <span className="font-mono text-slate-500 font-medium">
-                  {entry.value} L ({entry.revenue} MAD)
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Raccourcis tactiques & alertes critiques */}

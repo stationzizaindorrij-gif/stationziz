@@ -29,11 +29,20 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
           salePrice: changesForProduct[0].salePrice
         };
       } else {
-        // If no changes exist before the date, use current price as fallback (though ideally we'd track original price)
-        prices[p.id] = {
-          purchasePrice: p.purchasePrice,
-          salePrice: p.salePrice
-        };
+        // Fallback if no history exists BEFORE this date
+        const allChangesForProduct = sortedChanges.filter(c => c.productId === p.id);
+        if (allChangesForProduct.length > 0) {
+          const oldestChange = allChangesForProduct[allChangesForProduct.length - 1];
+          prices[p.id] = {
+            purchasePrice: oldestChange.oldPurchasePrice !== undefined ? oldestChange.oldPurchasePrice : p.purchasePrice,
+            salePrice: oldestChange.oldSalePrice !== undefined ? oldestChange.oldSalePrice : p.salePrice
+          };
+        } else {
+          prices[p.id] = {
+            purchasePrice: p.purchasePrice,
+            salePrice: p.salePrice
+          };
+        }
       }
     });
     
@@ -133,8 +142,8 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
                   const previousChangeForProduct = sortedChanges.slice(idx + 1).find(c => c.productId === change.productId);
                   
                   // For UI display
-                  const oldPurchase = previousChangeForProduct ? previousChangeForProduct.purchasePrice : change.purchasePrice;
-                  const oldSale = previousChangeForProduct ? previousChangeForProduct.salePrice : change.salePrice;
+                  const oldPurchase = change.oldPurchasePrice !== undefined ? change.oldPurchasePrice : (previousChangeForProduct ? previousChangeForProduct.purchasePrice : change.purchasePrice);
+                  const oldSale = change.oldSalePrice !== undefined ? change.oldSalePrice : (previousChangeForProduct ? previousChangeForProduct.salePrice : change.salePrice);
                   
                   return (
                     <div key={change.id}>

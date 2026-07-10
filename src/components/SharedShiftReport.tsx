@@ -50,7 +50,8 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                           endElec: parseFloat(selectedDetailShift.endCounters?.[nozzleId]?.elec as any) || 0,
                           endMech: parseFloat(selectedDetailShift.endCounters?.[nozzleId]?.mech as any) || 0,
                           liters,
-                          amount
+                          amount,
+                          price: (liters as number) > 0 ? (amount / (liters as number)) : 0
                         });
 
                         if (!productAggregates[prodName]) {
@@ -91,9 +92,11 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                             <tr>
                               <th className="px-3 py-2 font-medium">Pistolet</th>
                               
+                              <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Prix Unitaire</th>
                               <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Début (Elec/Méc)</th>
                               <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Fin (Elec/Méc)</th>
                               <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Volume (Elec/Méc)</th>
+                              <th className="px-3 py-2 font-medium text-right text-slate-900 whitespace-nowrap">Montant (DH)</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
@@ -108,6 +111,9 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                   </div>
                                 </td>
                                 
+                                <td className="px-3 py-2 text-right font-mono text-slate-600 whitespace-nowrap">
+                                  {row.price.toFixed(2)}
+                                </td>
                                 <td className="px-3 py-2 text-right font-mono text-blue-600 whitespace-nowrap">
                                   {row.startElec.toFixed(2)} <span className="text-slate-400 mx-1">/</span> <span className="text-orange-500">{row.startMech.toFixed(0)}</span>
                                 </td>
@@ -117,17 +123,20 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                 <td className="px-3 py-2 text-right font-mono font-bold text-slate-900 bg-slate-50/50 whitespace-nowrap">
                                   <span className="text-blue-700">{row.liters.toFixed(2)}</span> <span className="text-slate-400 font-normal mx-1">/</span> <span className="text-orange-600">{(row.endMech - row.startMech).toFixed(2)}</span>
                                 </td>
+                                <td className="px-3 py-2 text-right font-mono font-bold text-slate-900 bg-slate-50/50 whitespace-nowrap">
+                                  <span className="text-blue-700">{row.amount.toFixed(2)}</span>
+                                </td>
                               </tr>
                             ))}
                             {nozzleRows.length === 0 && (
                               <tr>
-                                <td colSpan={4} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
+                                <td colSpan={6} className="px-3 py-4 text-center text-slate-500 italic">Aucune vente de carburant enregistrée</td>
                               </tr>
                             )}
                           </tbody>
                           <thead className="bg-slate-100 border-y border-slate-200 text-slate-600">
                             <tr>
-                              <th colSpan={2} className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500"><div className="flex items-center gap-1.5"><Droplet className="w-3.5 h-3.5 text-blue-500" /> Volumes par Carburant</div></th>
+                              <th colSpan={4} className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500"><div className="flex items-center gap-1.5"><Droplet className="w-3.5 h-3.5 text-blue-500" /> Volumes par Carburant</div></th>
                               <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Volume (L)</th>
                               <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px] text-slate-500 text-right">Montant (DH)</th>
                             </tr>
@@ -135,7 +144,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                           <tbody className="divide-y divide-slate-100 bg-slate-50/50">
                             {Object.values(productAggregates).map((prod, idx) => (
                               <tr key={idx}>
-                                <td colSpan={2} className="px-3 py-2 font-medium text-slate-800">
+                                <td colSpan={4} className="px-3 py-2 font-medium text-slate-800">
                                   <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
                                       <Droplet className="w-3.5 h-3.5 text-blue-500" />
@@ -149,7 +158,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                             ))}
                             {Object.keys(productAggregates).length === 0 && (
                               <tr>
-                                <td colSpan={4} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
+                                <td colSpan={6} className="px-3 py-4 text-center text-slate-500 italic">Aucun carburant vendu</td>
                               </tr>
                             )}
                           </tbody>

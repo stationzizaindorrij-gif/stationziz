@@ -12,7 +12,13 @@ export function useERPStore() {
 
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [priceChanges, setPriceChanges] = useState<PriceChange[]>([]);
+  const [priceChanges, setPriceChanges] = useState<PriceChange[]>(() => {
+    const saved = localStorage.getItem('erp_price_changes');
+    if (saved) {
+      try { return JSON.parse(saved); } catch(e) {}
+    }
+    return [];
+  });
   const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
   const [tanks, setTanks] = useState<Tank[]>([]);
   const [pumps, setPumps] = useState<Pump[]>([]);
@@ -158,7 +164,27 @@ export function useERPStore() {
     if (data.supplies) setSupplies(data.supplies);
     if (data.cash_registry) setCashRegistry(data.cash_registry);
     if (data.stock_corrections) setStockCorrections(data.stock_corrections);
-    if (data.audit_logs) setAuditLogs(data.audit_logs);
+    if (data.audit_logs) {
+      setAuditLogs(data.audit_logs);
+      const reconstructed: PriceChange[] = [];
+      data.audit_logs.forEach((log: any) => {
+        if (log.details && log.details.includes('|__PRICE_CHANGE:')) {
+          try {
+            const parts = log.details.split('|__PRICE_CHANGE:');
+            const jsonStr = parts[1].replace('__|', '');
+            reconstructed.push(JSON.parse(jsonStr));
+          } catch(e) {}
+        }
+      });
+      if (reconstructed.length > 0) {
+        setPriceChanges(prev => {
+          // Merge avoiding duplicates by ID
+          const map = new Map(prev.map(p => [p.id, p]));
+          reconstructed.forEach(r => map.set(r.id, r));
+          return Array.from(map.values());
+        });
+      }
+    }
     if (data.alerts) setAlerts(data.alerts);
     if (data.users) setUsers(data.users);
     if (data.config) setConfig(data.config);
@@ -285,6 +311,9 @@ export function useERPStore() {
         const mappedShopProducts = newValue.map(mapShopToProduct);
         const mappedOldValue = (oldValue || []).map(mapShopToProduct);
         await syncArrayToSupabase('erp_products', mappedOldValue, mappedShopProducts);
+      } else if (key === 'price_changes') {
+        localStorage.setItem('erp_price_changes', JSON.stringify(newValue));
+        return;
       } else if (key === 'clients') {
         const mapClient = (c: any) => {
            const { payments, ...rest } = c;
@@ -423,10 +452,34 @@ export function useERPStore() {
   };
 
   const updateProduct = (id: string, updatedFields: Partial<Product>, author: string) => {
+    const original = products.find(p => p.id === id);
+    if (!original) return;
+    
+    // Check if price changed
+    const priceChanged = (updatedFields.salePrice !== undefined && updatedFields.salePrice !== original.salePrice) ||
+                         (updatedFields.purchasePrice !== undefined && updatedFields.purchasePrice !== original.purchasePrice);
+                         
+    if (priceChanged) {
+      const newPriceChange: PriceChange = {
+        id: `pc_${Date.now()}`,
+        date: new Date().toISOString(), // store exact date and time
+        productId: id,
+        productType: original.type,
+        purchasePrice: updatedFields.purchasePrice !== undefined ? updatedFields.purchasePrice : original.purchasePrice,
+        salePrice: updatedFields.salePrice !== undefined ? updatedFields.salePrice : original.salePrice,
+        oldPurchasePrice: original.purchasePrice,
+        oldSalePrice: original.salePrice
+      };
+      saveState('price_changes', [...priceChanges, newPriceChange], setPriceChanges);
+      const logDetails = `Prix de ${original?.name} mis à jour : Achat (${(original.purchasePrice || 0).toFixed(2)} -> ${(newPriceChange.purchasePrice || 0).toFixed(2)}) | Vente (${(original.salePrice || 0).toFixed(2)} -> ${(newPriceChange.salePrice || 0).toFixed(2)})|__PRICE_CHANGE:${JSON.stringify(newPriceChange)}__|`;
+      logAction(author, 'Modification Prix', 'ChangementPrix', logDetails);
+    } else {
+      logAction(author, 'Modification Produit', 'Produits', `Produit ${original?.name} mis à jour`);
+    }
+    
     const updated = products.map(p => p.id === id ? { ...p, ...updatedFields } : p);
     saveState('products', updated, setProducts);
-    const original = products.find(p => p.id === id);
-    logAction(author, 'Modification Produit', 'Produits', `Prix de ${original?.name} mis à jour`);
+
   };
 
   // MODULE 5: TANKS (CUVES)
