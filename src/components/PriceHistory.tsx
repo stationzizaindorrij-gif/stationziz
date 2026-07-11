@@ -16,6 +16,8 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
 
   // Determine the prices of each product on the selected date
   const pricesAtDate = useMemo(() => {
+    console.log("selectedDate", selectedDate);
+    console.log("sortedChanges", sortedChanges);
     const prices: Record<string, { purchasePrice: number, salePrice: number }> = {};
     
     store.products.forEach(p => {
@@ -50,15 +52,19 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
   }, [store.products, sortedChanges, selectedDate]);
 
   
-  const getPriceDifference = (oldPrice: number, newPrice: number) => {
+  const getPriceDifference = (oldPrice: number, newPrice: number, type: 'purchase' | 'sale') => {
     const diff = newPrice - oldPrice;
     if (diff === 0) return null;
     
     const isIncrease = diff > 0;
+    const colorClass = type === 'purchase' 
+      ? (isIncrease ? 'text-rose-500' : 'text-emerald-500') 
+      : (isIncrease ? 'text-emerald-500' : 'text-rose-500');
+
     return (
-      <span className={`flex items-center text-xs font-bold ${isIncrease ? 'text-rose-500' : 'text-emerald-500'}`}>
+      <span className={`flex items-center text-xs font-bold ${colorClass}`}>
         {isIncrease ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-        {Math.abs(diff).toFixed(2)} Dh
+        {isIncrease ? '+' : '-'}{Math.abs(diff).toFixed(2)} Dh
       </span>
     );
   };
@@ -169,7 +175,7 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
                               <span className="font-mono font-bold text-slate-700">{change.purchasePrice.toFixed(2)} Dh</span>
                             </div>
                             <div className="mt-1">
-                              {getPriceDifference(oldPurchase, change.purchasePrice)}
+                              {getPriceDifference(oldPurchase, change.purchasePrice, 'purchase')}
                             </div>
                           </div>
                           
@@ -183,7 +189,7 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
                               <span className="font-mono font-bold text-indigo-600">{change.salePrice.toFixed(2)} Dh</span>
                             </div>
                             <div className="mt-1">
-                              {getPriceDifference(oldSale, change.salePrice)}
+                              {getPriceDifference(oldSale, change.salePrice, 'sale')}
                             </div>
                           </div>
                         </div>

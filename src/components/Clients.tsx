@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ERPStoreType } from '../store';
 import { Plus, Search, Users, Mail, Phone, Building, Edit2, Trash2, X, Save, User, Check, Wallet, Calendar, PlusCircle, History } from 'lucide-react';
 import { Client } from '../types';
@@ -90,11 +90,55 @@ export default function Clients({ store }: ClientsProps) {
     });
   };
 
-  const filteredClients = store.clients.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.ice || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.email || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [clientFilter, setClientFilter] = useState<'all' | 'debt' | 'advance' | 'settled'>('all');
+
+  const clientsWithBalances = useMemo(() => {
+    return store.clients.map(client => {
+      const clientBonsList = store.shifts
+        .filter(s => (s.status === 'completed' || s.status === 'ready_to_close') && s.nonCashPayments && s.nonCashPayments.bonClient)
+        .flatMap(shift => shift.nonCashPayments!.bonClient.filter(b => b.clientName?.toLowerCase().trim() === client.name.toLowerCase().trim()));
+      const totalBons = clientBonsList.reduce((sum, b) => sum + (parseFloat(b.amount as any) || 0), 0);
+      const totalPayments = (client.payments || []).reduce((sum, p) => sum + p.amount, 0);
+      return {
+        ...client,
+        totalBons,
+        totalPayments,
+        balance: totalBons - totalPayments
+      };
+    });
+  }, [store.clients, store.shifts]);
+
+  const stats = useMemo(() => {
+    let totalDette = 0;
+    let totalAvance = 0;
+    let totalBonsGlob = 0;
+    let totalPaymentsGlob = 0;
+
+    clientsWithBalances.forEach(c => {
+      totalBonsGlob += c.totalBons;
+      totalPaymentsGlob += c.totalPayments;
+      if (c.balance > 0) {
+        totalDette += c.balance;
+      } else if (c.balance < 0) {
+        totalAvance += Math.abs(c.balance);
+      }
+    });
+
+    return { totalDette, totalAvance, totalBonsGlob, totalPaymentsGlob, count: clientsWithBalances.length };
+  }, [clientsWithBalances]);
+
+  const filteredClients = clientsWithBalances.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.ice || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.email || '').toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    if (clientFilter === 'debt') return c.balance > 0;
+    if (clientFilter === 'advance') return c.balance < 0;
+    if (clientFilter === 'settled') return c.balance === 0;
+    return true;
+  });
 
   const ITEMS_PER_PAGE = 7;
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ITEMS_PER_PAGE));
@@ -138,9 +182,32 @@ export default function Clients({ store }: ClientsProps) {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+          <div className="text-slate-500 text-xs font-bold uppercase mb-1">Total Clients</div>
+          <div className="text-xl font-black text-slate-800">{stats.count}</div>
+        </div>
+        <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm flex flex-col justify-center">
+          <div className="text-rose-600/80 text-xs font-bold uppercase mb-1">Dettes Clients</div>
+          <div className="text-xl font-black text-rose-700">{stats.totalDette.toFixed(2)} <span className="text-xs">MAD</span></div>
+        </div>
+        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-center">
+          <div className="text-emerald-600/80 text-xs font-bold uppercase mb-1">Avances Clients</div>
+          <div className="text-xl font-black text-emerald-700">{stats.totalAvance.toFixed(2)} <span className="text-xs">MAD</span></div>
+        </div>
+        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200 shadow-sm flex flex-col justify-center">
+          <div className="text-indigo-600/80 text-xs font-bold uppercase mb-1">Total Bons (Crédit)</div>
+          <div className="text-xl font-black text-indigo-700">{stats.totalBonsGlob.toFixed(2)} <span className="text-xs">MAD</span></div>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm flex flex-col justify-center">
+          <div className="text-blue-600/80 text-xs font-bold uppercase mb-1">Total Réglé</div>
+          <div className="text-xl font-black text-blue-700">{stats.totalPaymentsGlob.toFixed(2)} <span className="text-xs">MAD</span></div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-        <div className="p-4 border-b border-slate-200">
-          <div className="relative max-w-md">
+        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full max-w-md">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="w-5 h-5 text-slate-400" />
             </div>
@@ -152,17 +219,24 @@ export default function Clients({ store }: ClientsProps) {
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select
+              value={clientFilter}
+              onChange={e => { setClientFilter(e.target.value as any); setCurrentPage(1); }}
+              className="w-full sm:w-auto px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 appearance-none font-medium text-slate-700 text-sm"
+            >
+              <option value="all">Tous les clients</option>
+              <option value="debt">Clients débiteurs</option>
+              <option value="advance">Clients créditeurs (avec avance)</option>
+              <option value="settled">Clients soldés</option>
+            </select>
+          </div>
         </div>
 
                 <div className="p-6 bg-slate-50/50">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {paginatedClients.map(client => {
-              const clientBonsList = store.shifts
-                .filter(s => s.status === 'completed' && s.nonCashPayments && s.nonCashPayments.bonClient)
-                .flatMap(shift => shift.nonCashPayments!.bonClient.filter(b => b.clientName?.toLowerCase().trim() === client.name.toLowerCase().trim()));
-              const totalBons = clientBonsList.reduce((sum, b) => sum + (parseFloat(b.amount as any) || 0), 0);
-              const totalPayments = (client.payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
-              const balance = totalBons - totalPayments;
+            {paginatedClients.map((client: any) => {
+              const balance = client.balance;
               
               return (
               <div key={client.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all group flex flex-col h-full">
@@ -176,10 +250,12 @@ export default function Clients({ store }: ClientsProps) {
                       {client.address && <p className="text-sm text-slate-500 mt-1 line-clamp-1" title={client.address}>{client.address}</p>}
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                    <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-0.5">Solde (Bons)</div>
-                    <div className={`font-black font-mono text-sm ${balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {balance.toFixed(2)} MAD
+                  <div className={`text-right flex-shrink-0 px-3 py-1.5 rounded-lg border ${balance > 0 ? 'bg-rose-50 border-rose-100' : balance < 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className={`text-[10px] uppercase tracking-wider font-bold mb-0.5 ${balance > 0 ? 'text-rose-600/80' : balance < 0 ? 'text-emerald-600/80' : 'text-slate-500'}`}>
+                      {balance > 0 ? '🔴 Dette' : balance < 0 ? '🟢 Avance' : 'Soldé'}
+                    </div>
+                    <div className={`font-black font-mono text-sm ${balance > 0 ? 'text-rose-700' : balance < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
+                      {Math.abs(balance).toFixed(2)} MAD
                     </div>
                   </div>
                 </div>
@@ -294,18 +370,25 @@ export default function Clients({ store }: ClientsProps) {
                 return (
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                        <div className="text-slate-500 text-xs font-bold uppercase mb-1">Total Bons (Crédit)</div>
-                        <div className="text-2xl font-black text-slate-800">{totalBons.toFixed(2)} <span className="text-sm">MAD</span></div>
+                      <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
+                        <div className="text-indigo-600/80 text-xs font-bold uppercase mb-1">Total Bons (Crédit)</div>
+                        <div className="text-2xl font-black text-indigo-700">{totalBons.toFixed(2)} <span className="text-sm">MAD</span></div>
                       </div>
-                      <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-                        <div className="text-emerald-600/80 text-xs font-bold uppercase mb-1">Total Réglé</div>
-                        <div className="text-2xl font-black text-emerald-700">{totalPayments.toFixed(2)} <span className="text-sm">MAD</span></div>
+                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                        <div className="text-blue-600/80 text-xs font-bold uppercase mb-1">Total Réglé</div>
+                        <div className="text-2xl font-black text-blue-700">{totalPayments.toFixed(2)} <span className="text-sm">MAD</span></div>
                       </div>
-                      <div className={`rounded-xl p-4 border ${balance > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
-                        <div className={`text-xs font-bold uppercase mb-1 ${balance > 0 ? 'text-rose-600/80' : 'text-slate-500'}`}>Reste à payer</div>
-                        <div className={`text-2xl font-black ${balance > 0 ? 'text-rose-700' : 'text-slate-800'}`}>{Math.max(0, balance).toFixed(2)} <span className="text-sm">MAD</span></div>
-                      </div>
+                      {balance > 0 ? (
+                        <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
+                          <div className="text-rose-600/80 text-xs font-bold uppercase mb-1">Reste à payer</div>
+                          <div className="text-2xl font-black text-rose-700">{balance.toFixed(2)} <span className="text-sm">MAD</span></div>
+                        </div>
+                      ) : (
+                        <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                          <div className="text-emerald-600/80 text-xs font-bold uppercase mb-1">Avance Client</div>
+                          <div className="text-2xl font-black text-emerald-700">{Math.abs(balance).toFixed(2)} <span className="text-sm">MAD</span></div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

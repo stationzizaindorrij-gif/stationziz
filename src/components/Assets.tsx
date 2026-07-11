@@ -220,6 +220,12 @@ export default function Assets({ store }: AssetsProps) {
             Carburants & Prix
           </button>
           <button 
+            onClick={() => setActiveTab('history')}
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'history' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            Historique des Prix
+          </button>
+          <button 
             onClick={() => setActiveTab('pumps')}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'pumps' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
           >
@@ -230,12 +236,6 @@ export default function Assets({ store }: AssetsProps) {
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'nozzles' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Pistolets & Compteurs
-          </button>
-          <button 
-            onClick={() => setActiveTab('history')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'history' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            Historique des Prix
           </button>
         </div>
       </div>

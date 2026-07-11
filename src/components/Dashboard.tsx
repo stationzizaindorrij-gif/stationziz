@@ -16,18 +16,27 @@ interface DashboardProps {
 
 export default function Dashboard({ store, setView }: DashboardProps) {
   const [chartPeriod, setChartPeriod] = React.useState<'day' | 'month' | 'year'>('day');
+  const [statsPeriod, setStatsPeriod] = React.useState<'day' | 'month' | 'year'>('day');
   const { 
     sales, attendants, tanks, pumps, nozzles, supplies, cashRegistry, alerts, products 
   } = store;
 
-  // Calculs financiers pour aujourd'hui
+  // Calculs financiers pour la période sélectionnée
   const completedShifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
-  const targetDate = new Date().toISOString().split('T')[0];
-  const todayShifts = completedShifts.filter(s => s.date === targetDate);
+  const targetDateStr = new Date().toISOString().split('T')[0];
+  const currentYear = targetDateStr.substring(0, 4);
+  const currentMonth = targetDateStr.substring(0, 7);
   
-  const totalRevenueToday = todayShifts.reduce((acc, s) => acc + (s.totalAmount || 0), 0);
-  const totalLitersToday = todayShifts.reduce((acc, s) => acc + (s.totalLiters || 0), 0);
-  const totalVentesCountToday = todayShifts.length; // Ou le nombre de ventes si tu as un tableau de ventes par shift
+  const statsShifts = completedShifts.filter(s => {
+    if (statsPeriod === 'day') return s.date === targetDateStr;
+    if (statsPeriod === 'month') return s.date.startsWith(currentMonth);
+    if (statsPeriod === 'year') return s.date.startsWith(currentYear);
+    return false;
+  });
+  
+  const totalRevenueStats = statsShifts.reduce((acc, s) => acc + (s.totalAmount || 0), 0);
+  const totalLitersStats = statsShifts.reduce((acc, s) => acc + (s.totalLiters || 0), 0);
+  const totalVentesCountStats = statsShifts.length;
 
   const getHistoricalPrice = (productId: string, date: string) => {
     const sortedChanges = [...(store.priceChanges || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -37,9 +46,9 @@ export default function Dashboard({ store, setView }: DashboardProps) {
     return currentProd ? currentProd.purchasePrice : 1.45;
   };
 
-  // Calcul des bénéfices d'aujourd'hui
-  let totalProfitToday = 0;
-  todayShifts.forEach(shift => {
+  // Calcul des bénéfices
+  let totalProfitStats = 0;
+  statsShifts.forEach(shift => {
     if (shift.litersSold) {
       Object.entries(shift.litersSold).forEach(([nozzleId, litersVal]) => {
         const liters = Number(litersVal);
@@ -60,7 +69,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
                       unitPrice = shift.amountSold[nozzleId] / liters;
                   }
                   const margin = unitPrice - purchaseCost;
-                  totalProfitToday += (liters * margin);
+                  totalProfitStats += (liters * margin);
                 }
               }
             }
@@ -148,8 +157,22 @@ export default function Dashboard({ store, setView }: DashboardProps) {
         key = shift.date.substring(0, 4); // YYYY
         label = key;
       } else {
-        // day
-        label = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+        // day (par shift)
+        key = shift.id; // Ne pas agréger par jour, afficher chaque shift
+        const startDateStr = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+        let dateLabel = '';
+        if (shift.endDate) {
+          const endDateObj = new Date(shift.endDate);
+          const endDateStr = endDateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+          if (shift.date !== shift.endDate) {
+            dateLabel = `Du ${startDateStr} au ${endDateStr}`;
+          } else {
+            dateLabel = `Le ${startDateStr}`;
+          }
+        } else {
+          dateLabel = `Le ${startDateStr}`;
+        }
+        label = `${dateLabel} (${shift.shiftName || 'Shift'})`;
       }
       
       if (!aggregated[key]) {
@@ -189,14 +212,38 @@ export default function Dashboard({ store, setView }: DashboardProps) {
         </div>
       </div>
 
+      {/* Options de période pour les statistiques */}
+      <div className="flex justify-end mt-4 mb-2">
+        <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100">
+          <button 
+            onClick={() => setStatsPeriod('day')}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${statsPeriod === 'day' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Aujourd'hui
+          </button>
+          <button 
+            onClick={() => setStatsPeriod('month')}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${statsPeriod === 'month' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Ce mois
+          </button>
+          <button 
+            onClick={() => setStatsPeriod('year')}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${statsPeriod === 'year' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Cette année
+          </button>
+        </div>
+      </div>
+
       {/* Grid des statistiques clés */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Chiffre d'affaires du jour */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chiffre d'affaires (Jour)</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalRevenueToday.toFixed(2)}</h3>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chiffre d'affaires</p>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalRevenueStats.toFixed(2)}</h3>
             </div>
             <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
               <DollarSign className="w-5 h-5" />
@@ -214,8 +261,8 @@ export default function Dashboard({ store, setView }: DashboardProps) {
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Carburant vendu (Jour)</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalLitersToday.toFixed(2)} L</h3>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Carburant vendu</p>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1 font-mono">{totalLitersStats.toFixed(2)} L</h3>
             </div>
             <div className="p-2.5 bg-sky-50 text-sky-600 rounded-lg">
               <Droplets className="w-5 h-5" />
@@ -234,7 +281,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bénéfices Estimés (Jour)</p>
-              <h3 className="text-2xl font-bold text-emerald-600 mt-1 font-mono">+{totalProfitToday.toFixed(2)}</h3>
+              <h3 className="text-2xl font-bold text-emerald-600 mt-1 font-mono">+{totalProfitStats.toFixed(2)}</h3>
             </div>
             <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">
               <TrendingUp className="w-5 h-5" />
@@ -242,7 +289,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           </div>
           <div className="flex items-center gap-1.5 mt-3 text-xs">
             <span className="text-slate-500 font-medium">Marge brute moyenne:</span>
-            <span className="text-slate-700 font-semibold">{( (totalProfitToday / (totalRevenueToday || 1)) * 100 ).toFixed(2)}%</span>
+            <span className="text-slate-700 font-semibold">{( (totalProfitStats / (totalRevenueStats || 1)) * 100 ).toFixed(2)}%</span>
           </div>
         </div>
 
@@ -378,12 +425,12 @@ export default function Dashboard({ store, setView }: DashboardProps) {
               <ArrowUpRight className="w-4 h-4 text-slate-400" />
             </button>
             <button 
-              onClick={() => setView('registry')} 
+              onClick={() => setView('clients')} 
               className="p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-left transition-colors flex items-center justify-between"
             >
               <div className="space-y-0.5">
-                <span className="block text-xs font-bold text-slate-700">Gestion Caisse</span>
-                <span className="block text-[10px] text-slate-400 font-medium">Saisir un flux</span>
+                <span className="block text-xs font-bold text-slate-700">Gestion Clients</span>
+                <span className="block text-[10px] text-slate-400 font-medium">Gérer les clients</span>
               </div>
               <ArrowUpRight className="w-4 h-4 text-slate-400" />
             </button>
@@ -398,12 +445,12 @@ export default function Dashboard({ store, setView }: DashboardProps) {
               <ArrowUpRight className="w-4 h-4 text-slate-400" />
             </button>
             <button 
-              onClick={() => setView('reports')} 
+              onClick={() => setView('assets')} 
               className="p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-left transition-colors flex items-center justify-between"
             >
               <div className="space-y-0.5">
-                <span className="block text-xs font-bold text-slate-700">Générer Rapports</span>
-                <span className="block text-[10px] text-slate-400 font-medium">Bilan comptable & PDF</span>
+                <span className="block text-xs font-bold text-slate-700">Modifier Prix</span>
+                <span className="block text-[10px] text-slate-400 font-medium">Mettre à jour les tarifs</span>
               </div>
               <ArrowUpRight className="w-4 h-4 text-slate-400" />
             </button>

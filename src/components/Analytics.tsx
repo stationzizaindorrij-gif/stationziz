@@ -13,9 +13,13 @@ interface AnalyticsProps {
 
 export default function Analytics({ store }: AnalyticsProps) {
   // Report state
-  const [reportStartDate, setReportStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [reportEndDate, setReportEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [reportAttendant, setReportAttendant] = useState<string>('all');
+  const [selectedShiftId, setSelectedShiftId] = useState<string>('all');
+    const [reportAttendant, setReportAttendant] = useState<string>('all');
+
+  const availableShifts = useMemo(() => {
+    const shifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
+    return shifts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [store.shifts]);
 
 
   const getHistoricalPrice = React.useCallback((productId: string, date: string) => {
@@ -52,15 +56,25 @@ export default function Analytics({ store }: AnalyticsProps) {
   }, [store.priceChanges, store.products]);
 
   // --- REPORT CALCULATIONS ---
+  const selectedEndDateObj = useMemo(() => {
+    let selectedEndDate = new Date().toISOString().split('T')[0];
+    if (selectedShiftId !== 'all') {
+      const selectedShift = store.shifts.find(s => s.id === selectedShiftId);
+      if (selectedShift) {
+        selectedEndDate = selectedShift.endDate || selectedShift.date;
+      }
+    }
+    return selectedEndDate;
+  }, [store.shifts, selectedShiftId]);
+
   const reportData = useMemo(() => {
     let shifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
     
-    // Filter by date
-    if (reportStartDate) {
-      shifts = shifts.filter(s => s.date >= reportStartDate);
-    }
-    if (reportEndDate) {
-      shifts = shifts.filter(s => s.date <= reportEndDate);
+    let selectedEndDate = selectedEndDateObj;
+    
+    // Filter by selected shift
+    if (selectedShiftId !== 'all') {
+      shifts = shifts.filter(s => s.id === selectedShiftId);
     }
     
     // Filter by attendant
@@ -155,7 +169,7 @@ export default function Analytics({ store }: AnalyticsProps) {
 
     const getProductInfo = (type: string) => {
       const prod = store.products.find(p => p.type === type);
-      return { pAchat: prod ? getHistoricalPrice(prod.id, reportEndDate || new Date().toISOString().split('T')[0]).purchasePrice : 0, pVente: prod ? getHistoricalPrice(prod.id, reportEndDate || new Date().toISOString().split('T')[0]).salePrice : 0 };
+      return { pAchat: prod ? getHistoricalPrice(prod.id, selectedEndDateObj).purchasePrice : 0, pVente: prod ? getHistoricalPrice(prod.id, selectedEndDateObj).salePrice : 0 };
     };
 
     let totalMechBenefice = 0;
@@ -179,8 +193,8 @@ export default function Analytics({ store }: AnalyticsProps) {
 
     const stockReste: Record<string, { liters: number, purchase: number, montant: number }> = {};
     store.products.forEach(p => {
-      const productSupplies = store.supplies.filter(s => s.productId === p.id && (!reportEndDate || s.date <= reportEndDate));
-      let avgPurchasePrice = getHistoricalPrice(p.id, reportEndDate || new Date().toISOString().split('T')[0]).purchasePrice;
+      const productSupplies = store.supplies.filter(s => s.productId === p.id && (s.date <= selectedEndDateObj));
+      let avgPurchasePrice = getHistoricalPrice(p.id, selectedEndDateObj).purchasePrice;
       if (productSupplies.length > 0) {
         const totalQty = productSupplies.reduce((sum, s) => sum + s.qtyDelivered, 0);
         const totalValue = productSupplies.reduce((sum, s) => sum + (s.qtyDelivered * s.purchasePrice), 0);
@@ -198,7 +212,7 @@ export default function Analytics({ store }: AnalyticsProps) {
       const product = store.products.find(p => p.id === tank.productId);
       if (product) {
         if (!stockReste[product.id]) {
-          stockReste[product.id] = { liters: 0, purchase: getHistoricalPrice(product.id, reportEndDate || new Date().toISOString().split('T')[0]).purchasePrice, montant: 0 };
+          stockReste[product.id] = { liters: 0, purchase: getHistoricalPrice(product.id, selectedEndDateObj).purchasePrice, montant: 0 };
         }
         stockReste[product.id].liters += tank.currentLevel;
         totalStockLiters += tank.currentLevel;
@@ -231,7 +245,7 @@ export default function Analytics({ store }: AnalyticsProps) {
         netProfit: (data.mechMargin + data.elecMargin) - data.expenses
       })).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     };
-  }, [store.shifts, store.nozzles, store.tanks, store.products, store.supplies, reportStartDate, reportEndDate, reportAttendant]);
+  }, [store.shifts, store.nozzles, store.tanks, store.products, store.supplies, selectedShiftId, reportAttendant]);
 
   const fuelThemes: Record<string, { label: string, bg: string, border: string, text: string, icon: string, light: string }> = {
     'gazoil': { label: 'Gasoil', bg: 'bg-indigo-600', border: 'border-indigo-200', text: 'text-indigo-700', icon: 'text-indigo-600', light: 'bg-indigo-50' },
@@ -272,8 +286,8 @@ export default function Analytics({ store }: AnalyticsProps) {
         </div>
         
         <div className="bg-slate-50 px-4 py-2 border-t border-slate-100 flex justify-between text-[10px] text-slate-500">
-          <span>Achat: {getHistoricalPrice(info.id, reportEndDate || new Date().toISOString().split('T')[0]).purchasePrice.toFixed(2)} Dh/L</span>
-          <span>Vente: {getHistoricalPrice(info.id, reportEndDate || new Date().toISOString().split('T')[0]).salePrice.toFixed(2)} Dh/L</span>
+          <span>Achat: {getHistoricalPrice(info.id, selectedEndDateObj).purchasePrice.toFixed(2)} Dh/L</span>
+          <span>Vente: {getHistoricalPrice(info.id, selectedEndDateObj).salePrice.toFixed(2)} Dh/L</span>
         </div>
       </div>
     );
@@ -311,24 +325,28 @@ export default function Analytics({ store }: AnalyticsProps) {
           </div>
         </div>
         
-        <div className="flex-1 min-w-[150px]">
-          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Période du</label>
-          <input 
-            type="date"
-            value={reportStartDate}
-            onChange={e => setReportStartDate(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
-          />
-        </div>
-        
-        <div className="flex-1 min-w-[150px]">
-          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Au</label>
-          <input 
-            type="date"
-            value={reportEndDate}
-            onChange={e => setReportEndDate(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
-          />
+        <div className="flex-1 min-w-[300px] lg:col-span-2">
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Période (Shift)</label>
+          <select 
+            value={selectedShiftId}
+            onChange={e => setSelectedShiftId(e.target.value)}
+            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow appearance-none"
+          >
+            <option value="all">Toutes les périodes</option>
+            {availableShifts.map(shift => {
+              const startDateStr = new Date(shift.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+              let label = '';
+              if (shift.endDate && shift.date !== shift.endDate) {
+                const endDateStr = new Date(shift.endDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+                label = `Du ${startDateStr} au ${endDateStr} (${shift.shiftName || 'Shift'})`;
+              } else {
+                label = `Le ${startDateStr} (${shift.shiftName || 'Shift'})`;
+              }
+              return (
+                <option key={shift.id} value={shift.id}>{label}</option>
+              );
+            })}
+          </select>
         </div>
       </div>
 
@@ -566,7 +584,6 @@ export default function Analytics({ store }: AnalyticsProps) {
                   <th className="p-4 font-bold text-right">Marge (Méc.)</th>
                   <th className="p-4 font-bold text-right">Marge (Élec.)</th>
                   <th className="p-4 font-bold text-right">Dépenses</th>
-                  <th className="p-4 font-bold text-right">Bénéfice Net</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -577,12 +594,11 @@ export default function Analytics({ store }: AnalyticsProps) {
                       <td className="p-4 text-right text-slate-600 font-mono">{day.mechMargin.toFixed(2)}</td>
                       <td className="p-4 text-right text-slate-600 font-mono">{day.elecMargin.toFixed(2)}</td>
                       <td className="p-4 text-right text-rose-500 font-mono">-{day.expenses.toFixed(2)}</td>
-                      <td className="p-4 text-right font-bold text-indigo-600 font-mono">{day.netProfit.toFixed(2)} MAD</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-400">Aucun historique disponible sur cette période</td>
+                    <td colSpan={4} className="p-8 text-center text-slate-400">Aucun historique disponible sur cette période</td>
                   </tr>
                 )}
               </tbody>
