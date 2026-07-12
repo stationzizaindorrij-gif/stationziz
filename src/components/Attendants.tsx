@@ -190,131 +190,136 @@ export default function Attendants({ store }: AttendantsProps) {
         </div>
       </div>
 
-      {/* Liste des pompistes sous forme de Grid de cartes haut de gamme */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredAttendants.map((att) => {
-          const stats = getAttendantStats(att.id);
-          return (
-            <div 
-              key={att.id} 
-              className={`bg-white rounded-xl border transition-all hover:shadow-md relative ${att.status === 'inactive' ? 'border-slate-200 bg-[#f8fafc80]' : 'border-slate-200 shadow-sm'}`}
-            >
-              {/* Badge Statut */}
-              <div className="absolute top-4 right-4">
-                <button
-                  disabled={!hasWriteAccess}
-                  onClick={() => handleToggleStatus(att)}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
-                    att.status === 'active' 
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
-                      : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200'
-                  }`}
-                  title={hasWriteAccess ? "Cliquer pour changer le statut" : ""}
-                >
-                  {att.status === 'active' ? (
-                    <>
-                      <UserCheck className="w-3 h-3 text-emerald-600" />
-                      Actif
-                    </>
-                  ) : (
-                    <>
-                      <UserX className="w-3 h-3 text-slate-400" />
-                      Inactif
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Contenu principal */}
-              <div className="p-5 space-y-4">
-                <div className="flex items-center gap-3">
-                  
-                  {att.photo ? (
-                    <img src={att.photo} alt={att.firstName} className="w-12 h-12 rounded-full object-cover shadow-sm border border-slate-200" />
-                  ) : (
-                    <div className={`w-12 h-12 flex items-center justify-center rounded-full font-bold font-display text-base ${att.status === 'active' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
-                      {att.firstName[0]}{att.lastName[0]}
+{/* Liste des pompistes sous forme de tableau */}
+      <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
+              <tr>
+                <th className="px-6 py-4 font-medium">Pompiste</th>
+                <th className="px-6 py-4 font-medium">Contact</th>
+                <th className="px-6 py-4 font-medium">Statistiques</th>
+                <th className="px-6 py-4 font-medium">Statut</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredAttendants.map((att) => {
+                const stats = getAttendantStats(att.id);
+                return (
+                  <tr key={att.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        {att.photo ? (
+                          <img src={att.photo} alt={att.firstName} className="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200" />
+                        ) : (
+                          <div className={`w-10 h-10 flex items-center justify-center rounded-full font-bold font-display text-sm ${att.status === 'active' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+                            {att.firstName[0]}{att.lastName[0]}
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-bold text-slate-900 font-display text-sm">{att.firstName} {att.lastName}</h3>
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 font-mono text-[10px] text-slate-500 font-bold mt-0.5">
+                            ID: {att.matricule}
+                          </span>
+                        </div>
+                      </div>
+                      {att.notes && (
+                        <div className="mt-2 text-[10px] text-slate-500 italic">
+                          "{att.notes}"
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-500 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="text-slate-700">{att.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="text-slate-700">{new Date(att.hireDate).toLocaleDateString('fr-FR')}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4 text-xs">
+                        <div>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Shifts</span>
+                          <span className="block font-bold text-slate-800 font-mono">{stats.shiftsCount}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Vol. Vendu</span>
+                          <span className="block font-bold text-slate-800 font-mono">{stats.litersSold} L</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Écart Cumulé</span>
+                          <span className={`block font-bold font-mono ${stats.discrepancy < 0 ? 'text-rose-600' : stats.discrepancy > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                            {stats.discrepancy === 0 ? '0' : `${stats.discrepancy > 0 ? '+' : ''}${stats.discrepancy}`} DH
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        disabled={!hasWriteAccess}
+                        onClick={() => handleToggleStatus(att)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${
+                          att.status === 'active' 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                            : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200'
+                        }`}
+                        title={hasWriteAccess ? "Cliquer pour changer le statut" : ""}
+                      >
+                        {att.status === 'active' ? (
+                          <>
+                            <UserCheck className="w-3 h-3" />
+                            Actif
+                          </>
+                        ) : (
+                          <>
+                            <UserX className="w-3 h-3" />
+                            Inactif
+                          </>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {hasWriteAccess && (
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleOpenEditForm(att)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Modifier les informations"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleConfirmDelete(att)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Supprimer le pompiste"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredAttendants.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <ClipboardList className="w-12 h-12 text-slate-300 mb-3" />
+                      <h3 className="font-bold text-slate-800">Aucun pompiste trouvé</h3>
+                      <p className="text-xs text-slate-400 mt-1">Essayez de modifier vos filtres ou effectuez une nouvelle recherche.</p>
                     </div>
-                  )}
-
-                  <div>
-                    <h3 className="font-bold text-slate-900 font-display text-base">{att.firstName} {att.lastName}</h3>
-                    <span className="inline-block px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 font-mono text-[10px] text-slate-500 font-bold mt-0.5">
-                      ID: {att.matricule}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Coordonnées */}
-                <div className="space-y-1.5 text-xs text-slate-500 border-y border-slate-100 py-3">
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Téléphone: <strong className="text-slate-700">{att.phone}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Embauche: <strong className="text-slate-700">{new Date(att.hireDate).toLocaleDateString('fr-FR')}</strong></span>
-                  </div>
-                </div>
-
-                {/* Statistiques Shifts réels */}
-                <div className="grid grid-cols-3 gap-2 py-1 text-center bg-slate-50 rounded-lg p-2 border border-slate-100">
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Shifts</span>
-                    <span className="block font-bold text-slate-800 text-sm font-mono mt-0.5">{stats.shiftsCount}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Volume Vendu</span>
-                    <span className="block font-bold text-slate-800 text-sm font-mono mt-0.5">{stats.litersSold} L</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Écart Cumulé</span>
-                    <span className={`block font-bold text-sm font-mono mt-0.5 ${stats.discrepancy < 0 ? 'text-rose-600' : stats.discrepancy > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
-                      {stats.discrepancy === 0 ? '0' : `${stats.discrepancy > 0 ? '+' : ''}${stats.discrepancy}`} MAD
-                    </span>
-                  </div>
-                </div>
-
-                {/* Notes de dossier */}
-                {att.notes && (
-                  <div className="bg-slate-50 p-2.5 rounded-lg text-[11px] text-slate-500 italic border-l-2 border-indigo-500 leading-relaxed">
-                    "{att.notes}"
-                  </div>
-                )}
-
-                {/* Actions */}
-                {hasWriteAccess && (
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                    <button 
-                      onClick={() => handleOpenEditForm(att)}
-                      className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition-colors"
-                      title="Modifier les informations"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => setDeleteConfirmId(att.id)}
-                      className="p-1.5 hover:bg-rose-50 rounded-md text-slate-400 hover:text-rose-600 transition-colors"
-                      title="Supprimer le pompiste"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {filteredAttendants.length === 0 && (
-          <div className="col-span-full bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-500 shadow-sm">
-            <ClipboardList className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="font-bold text-slate-800">Aucun pompiste trouvé</h3>
-            <p className="text-xs text-slate-400 mt-1">Essayez de modifier vos filtres ou effectuez une nouvelle recherche.</p>
-          </div>
-        )}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-
       {/* FORMULAIRE MODAL AJOUT / MODIFICATION */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">

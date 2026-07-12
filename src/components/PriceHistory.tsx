@@ -7,7 +7,7 @@ interface PriceHistoryProps {
 }
 
 export default function PriceHistory({ store }: PriceHistoryProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState('');
   
   // Sort changes by date descending
   const sortedChanges = useMemo(() => {
@@ -93,6 +93,7 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
               />
             </div>
             
+            {selectedDate ? (
             <div className="space-y-4">
               {store.products.map(p => {
                 const prices = pricesAtDate[p.id];
@@ -103,11 +104,7 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-slate-800">{p.name}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-sm flex flex-col items-center">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">Prix Achat</span>
-                        <span className="font-mono font-bold text-slate-700">{prices.purchasePrice.toFixed(2)} Dh</span>
-                      </div>
+                    <div className="grid grid-cols-1 gap-4">
                       <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-sm flex flex-col items-center">
                         <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">Prix Vente</span>
                         <span className="font-mono font-bold text-indigo-700">{prices.salePrice.toFixed(2)} Dh</span>
@@ -117,6 +114,12 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
                 );
               })}
             </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-slate-200 rounded-xl">
+                <Calendar className="w-8 h-8 text-slate-300 mb-2" />
+                <p className="text-sm font-medium text-slate-500">Sélectionnez une date pour voir les prix</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -125,10 +128,23 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-full min-h-[500px]">
             <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-indigo-500" />
-              Journal des modifications ({new Date(selectedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })})
+              Journal des modifications {selectedDate && `(${new Date(selectedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })})`}
             </h3>
 
             {(() => {
+              if (!selectedDate) {
+                return (
+                  <div className="flex flex-col items-center justify-center h-64 text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                      <Calendar className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <h4 className="font-bold text-slate-700 mb-1">En attente</h4>
+                    <p className="text-sm text-slate-500 max-w-sm">
+                      Sélectionnez une date pour afficher l'historique des modifications.
+                    </p>
+                  </div>
+                );
+              }
               const filteredChanges = sortedChanges.filter(c => c.date.split('T')[0] === selectedDate);
               
               if (filteredChanges.length === 0) {
@@ -151,7 +167,6 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
                     const product = store.products.find(p => p.id === change.productId);
                     const previousChangeForProduct = sortedChanges.find(c => c.productId === change.productId && c.date < change.date);
                     
-                    const oldPurchase = change.oldPurchasePrice !== undefined ? change.oldPurchasePrice : (previousChangeForProduct ? previousChangeForProduct.purchasePrice : change.purchasePrice);
                     const oldSale = change.oldSalePrice !== undefined ? change.oldSalePrice : (previousChangeForProduct ? previousChangeForProduct.salePrice : change.salePrice);
                     
                     return (
@@ -167,20 +182,6 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
                         </div>
                         
                         <div className="flex items-center gap-6 bg-slate-50 px-4 py-3 rounded-lg border border-slate-100">
-                          <div className="flex flex-col min-w-[120px]">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1">Prix d'Achat</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs line-through text-slate-400">{oldPurchase.toFixed(2)}</span>
-                              <ArrowRight className="w-3 h-3 text-slate-300" />
-                              <span className="font-mono font-bold text-slate-700">{change.purchasePrice.toFixed(2)} Dh</span>
-                            </div>
-                            <div className="mt-1">
-                              {getPriceDifference(oldPurchase, change.purchasePrice, 'purchase')}
-                            </div>
-                          </div>
-                          
-                          <div className="w-px h-10 bg-slate-200"></div>
-                          
                           <div className="flex flex-col min-w-[120px]">
                             <span className="text-[10px] uppercase font-bold text-slate-400 mb-1">Prix de Vente</span>
                             <div className="flex items-center gap-2">
