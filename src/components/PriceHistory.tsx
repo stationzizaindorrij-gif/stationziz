@@ -73,9 +73,9 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
     <div className="space-y-6">
 
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="max-w-2xl mx-auto space-y-6">
         
-        {/* Date selector and Prices at date */}
+        {/* Left Column: Date selector and Prices at date */}
         <div className="space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -126,6 +126,8 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
             )}
           </div>
         </div>
+
+
       </div>
     </div>
   );

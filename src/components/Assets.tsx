@@ -221,12 +221,6 @@ export default function Assets({ store }: AssetsProps) {
             Carburants & Prix
           </button>
           <button 
-            onClick={() => setActiveTab('history')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'history' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            Historique des Prix
-          </button>
-          <button 
             onClick={() => setActiveTab('pumps')}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'pumps' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
           >
@@ -762,11 +756,6 @@ export default function Assets({ store }: AssetsProps) {
         </div>
       )}
 
-      {activeTab === 'history' && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6 p-6">
-          <PriceHistory store={store} />
-        </div>
-      )}
 
       {/* Modal de Confirmation Générique */}
       {confirmModalConfig && confirmModalConfig.isOpen && (

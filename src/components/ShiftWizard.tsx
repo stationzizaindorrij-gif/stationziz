@@ -283,7 +283,7 @@ useEffect(() => {
     }
 
     if (editingShift) {
-      if (editingShift.status === 'active') {
+      if (editingShift.status === 'open') {
         store.addCompletedShift({ ...shiftData, id: editingShift.id } as any, store.currentRole);
       } else {
         store.updateShift(editingShift.id, shiftData, store.currentRole);
