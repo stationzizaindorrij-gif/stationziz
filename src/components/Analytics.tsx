@@ -15,7 +15,6 @@ export default function Analytics({ store }: AnalyticsProps) {
   // Report state
   const [selectedShiftId, setSelectedShiftId] = useState<string>('all');
     const [reportAttendant, setReportAttendant] = useState<string>('all');
-  const [expandedPumpProduct, setExpandedPumpProduct] = useState<string | null>(null);
 
   const availableShifts = useMemo(() => {
     const shifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
@@ -146,7 +145,7 @@ export default function Analytics({ store }: AnalyticsProps) {
                   const prices = getHistoricalPrice(product.id, shift.date);
                   
                   if (!mechStats[product.id]) mechStats[product.id] = { liters: 0, purchase: 0, sale: 0 };
-                  const mechSale = shift.amountSold?.[nozId] || (qtyMech * prices.salePrice);
+                  const mechSale = qtyMech * prices.salePrice;
                   const mechPurchase = qtyMech * prices.purchasePrice;
                   mechStats[product.id].liters += qtyMech;
                   mechStats[product.id].purchase += mechPurchase;
@@ -192,71 +191,9 @@ export default function Analytics({ store }: AnalyticsProps) {
     const mechMargin = totalMechAchat > 0 ? (totalMechBenefice / totalMechAchat) * 100 : 0;
     const elecMargin = totalElecAchat > 0 ? (totalElecBenefice / totalElecAchat) * 100 : 0;
 
-    const stockReste: Record<string, { liters: number, purchase: number, montant: number, historyPump: any[] }> = {};
-    
-    // We will calculate the PUMP (Prix Unitaire Moyen Pondéré) for each product chronologically
+    const stockReste: Record<string, { liters: number, purchase: number, montant: number }> = {};
     store.products.forEach(p => {
-      // Find all events for this product up to the selected date
-      const pSales = store.sales.filter(s => s.productId === p.id && s.date <= selectedEndDateObj).map(s => ({ type: 'sale', date: s.date, time: s.time || '00:00:00', qty: s.qty, price: s.price }));
-      const pSupplies = store.supplies.filter(s => s.productId === p.id && s.date.split('T')[0] <= selectedEndDateObj).map(s => ({ type: 'supply', date: s.date.split('T')[0], time: s.time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), qty: s.qtyDelivered, price: s.purchasePrice }));
-      const pCorrections = (store.stockCorrections || []).filter(c => {
-         const tank = store.tanks.find(t => t.id === c.tankId);
-         return tank && tank.productId === p.id && c.date.split('T')[0] <= selectedEndDateObj;
-      }).map(c => ({ type: 'correction', date: c.date.split('T')[0], time: c.time || (c.date.includes('T') ? c.date.split('T')[1].substring(0,8) : '00:00:00'), qty: c.qtyAfter - c.qtyBefore }));
-      
-      const allEvents = [...pSales, ...pSupplies, ...pCorrections].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
-      
-      // Determine the very first purchase price in the system for this product
-      // We will look at priceChanges for the oldest entry
-      const priceChangesForP = (store.priceChanges || []).filter(pc => pc.productId === p.id).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-      // The user specified that the system starts on the 3rd with an initial price
-      const initialPrice = priceChangesForP.length > 0 ? priceChangesForP[0].oldPurchasePrice ?? priceChangesForP[0].purchasePrice : p.purchasePrice;
-      
-      // To find the initial stock at the beginning of time, we do:
-      // Initial Stock = Current Stock (now) - Net Change (from all time)
-      let actualCurrentStock = 0;
-      store.tanks.filter(t => t.productId === p.id).forEach(t => actualCurrentStock += t.currentLevel);
-      
-      // We need ALL events from all time to find the true initial stock
-      const allTimeSales = store.sales.filter(s => s.productId === p.id).reduce((sum, s) => sum + s.qty, 0);
-      const allTimeSupplies = store.supplies.filter(s => s.productId === p.id).reduce((sum, s) => sum + s.qtyDelivered, 0);
-      const allTimeCorrections = (store.stockCorrections || []).filter(c => {
-         const tank = store.tanks.find(t => t.id === c.tankId);
-         return tank && tank.productId === p.id;
-      }).reduce((sum, c) => sum + (c.qtyAfter - c.qtyBefore), 0);
-      
-      const netChangeAllTime = allTimeSupplies + allTimeCorrections - allTimeSales;
-      const initialStock = actualCurrentStock - netChangeAllTime;
-      
-      let runningStock = Math.max(0, initialStock);
-      let currentPump = initialPrice;
-      const historyPump = [];
-      
-      if (runningStock > 0) {
-          historyPump.push({ date: 'Initial', type: 'initial', stockBefore: 0, qty: runningStock, price: initialPrice, stockAfter: runningStock, newPump: currentPump });
-      }
-
-      allEvents.forEach(e => {
-         const stockBefore = runningStock;
-         if (e.type === 'supply') {
-            const newStock = runningStock + e.qty;
-            if (newStock > 0) {
-               currentPump = ((runningStock * currentPump) + (e.qty * e.price)) / newStock;
-            } else {
-               currentPump = e.price;
-            }
-            runningStock = newStock;
-            historyPump.push({ date: e.date, type: 'supply', stockBefore, qty: e.qty, price: e.price, stockAfter: runningStock, newPump: currentPump });
-         } else if (e.type === 'sale') {
-            runningStock -= e.qty;
-         } else if (e.type === 'correction') {
-            runningStock += e.qty;
-         }
-      });
-      
-      // Store the final calculated PUMP
-      stockReste[p.id] = { liters: 0, purchase: currentPump, montant: 0, historyPump };
+      stockReste[p.id] = { liters: 0, purchase: 0, montant: 0 };
     });
 
     let totalStockLiters = 0;
@@ -308,7 +245,8 @@ export default function Analytics({ store }: AnalyticsProps) {
 
     // 2. Subtract supplies that occurred strictly AFTER the target date
     const suppliesAfter = store.supplies.filter(s => {
-        return s.date.split('T')[0] > targetDateStr;
+        // Since supply doesn't have time, we rely on the date string
+        return s.date > targetDateStr;
     });
     suppliesAfter.forEach(s => {
       if (stockReste[s.productId]) {
@@ -318,7 +256,7 @@ export default function Analytics({ store }: AnalyticsProps) {
     });
 
     // 3. Revert stock corrections that occurred strictly AFTER the target date
-    const correctionsAfter = (store.stockCorrections || []).filter(c => c.date.split('T')[0] > targetDateStr);
+    const correctionsAfter = (store.stockCorrections || []).filter(c => c.date > targetDateStr);
     correctionsAfter.forEach(c => {
        const tank = store.tanks.find(t => t.id === c.tankId);
        if (tank && stockReste[tank.productId]) {
@@ -329,9 +267,39 @@ export default function Analytics({ store }: AnalyticsProps) {
     });
 
 
-    Object.keys(stockReste).forEach(type => {
-      stockReste[type].montant = stockReste[type].liters * stockReste[type].purchase;
-      totalStockMontant += stockReste[type].montant;
+    // Calculate final purchase price (CUMP) based on FIFO logic
+    Object.keys(stockReste).forEach(productId => {
+      let remainingQty = stockReste[productId].liters;
+      
+      // Get all supplies for this product up to targetDateStr, sorted descending by date
+      const pastSupplies = store.supplies
+        .filter(s => s.productId === productId && s.date <= targetDateStr)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+      let totalValue = 0;
+      let qtyToValue = remainingQty;
+      
+      if (qtyToValue > 0) {
+        for (const supply of pastSupplies) {
+          if (qtyToValue <= 0) break;
+          const qtyFromSupply = Math.min(qtyToValue, supply.qtyDelivered);
+          totalValue += qtyFromSupply * supply.purchasePrice;
+          qtyToValue -= qtyFromSupply;
+        }
+        
+        // If there is still some quantity that wasn't covered by the supplies (e.g., initial stock)
+        if (qtyToValue > 0) {
+           const fallbackPrice = getHistoricalPrice(productId, targetDateStr).purchasePrice;
+           totalValue += qtyToValue * fallbackPrice;
+        }
+        
+        stockReste[productId].purchase = totalValue / remainingQty;
+      } else {
+        stockReste[productId].purchase = getHistoricalPrice(productId, targetDateStr).purchasePrice;
+      }
+      
+      stockReste[productId].montant = stockReste[productId].liters * stockReste[productId].purchase;
+      totalStockMontant += stockReste[productId].montant;
     });
 
     return {
@@ -647,64 +615,17 @@ export default function Analytics({ store }: AnalyticsProps) {
               const data = reportData.stockReste[product.id];
               if (!data) return null;
                     return (
-                      <React.Fragment key={product.id}>
-                        <tr className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setExpandedPumpProduct(expandedPumpProduct === product.id ? null : product.id)}>
-                          <td className="py-4">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${theme.bg}`}></div>
-                              <span className="font-bold text-slate-700">{info.name || theme.label}</span>
-                              <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full ml-2">Détails PUMP</span>
-                            </div>
-                          </td>
-                          <td className="py-4 text-right font-mono text-slate-600">{data.liters.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} L</td>
-                          <td className="py-4 text-right font-mono text-slate-500">x {data.purchase.toFixed(2)} MAD</td>
-                          <td className="py-4 text-right font-mono font-bold text-slate-800">{data.montant.toLocaleString('fr-FR', {minimumFractionDigits: 2})} MAD</td>
-                        </tr>
-                        {expandedPumpProduct === product.id && data.historyPump && (
-                          <tr className="bg-slate-50/50">
-                            <td colSpan={4} className="p-0 border-b border-slate-100">
-                              <div className="p-4 pl-8 border-l-2 border-indigo-500 m-2 rounded-r-lg bg-white shadow-sm overflow-x-auto">
-                                <h4 className="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Historique PUMP (Prix Unitaire Moyen Pondéré)</h4>
-                                <table className="w-full text-xs text-left">
-                                  <thead>
-                                    <tr className="border-b border-slate-200 text-slate-400">
-                                      <th className="pb-2 font-medium">Date</th>
-                                      <th className="pb-2 font-medium">Événement</th>
-                                      <th className="pb-2 text-right font-medium">Stock Avant (L)</th>
-                                      <th className="pb-2 text-right font-medium">Qté Livrée (L)</th>
-                                      <th className="pb-2 text-right font-medium">Prix Achat (MAD)</th>
-                                      <th className="pb-2 text-right font-medium">Nouveau Stock (L)</th>
-                                      <th className="pb-2 text-right font-medium text-indigo-600">Nouveau PUMP (MAD)</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100">
-                                    {data.historyPump.map((h, idx) => (
-                                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="py-2 text-slate-600">{h.date === 'Initial' ? 'Stock Initial (03/07)' : new Date(h.date).toLocaleDateString('fr-FR')}</td>
-                                        <td className="py-2">
-                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${h.type === 'initial' ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                            {h.type === 'initial' ? 'Initialisation' : 'Livraison'}
-                                          </span>
-                                        </td>
-                                        <td className="py-2 text-right font-mono text-slate-500">{h.stockBefore.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                                        <td className="py-2 text-right font-mono text-slate-700">+{h.qty.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                                        <td className="py-2 text-right font-mono text-slate-700">{h.price.toFixed(2)}</td>
-                                        <td className="py-2 text-right font-mono text-slate-800 font-medium">{h.stockAfter.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                                        <td className="py-2 text-right font-mono font-bold text-indigo-600">{h.newPump.toFixed(2)}</td>
-                                      </tr>
-                                    ))}
-                                    {data.historyPump.length === 0 && (
-                                      <tr>
-                                        <td colSpan={7} className="py-4 text-center text-slate-400 italic">Aucune donnée historique de livraison pour calculer le PUMP.</td>
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
+                      <tr key={product.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${theme.bg}`}></div>
+                            <span className="font-bold text-slate-700">{info.name || theme.label}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 text-right font-mono text-slate-600">{data.liters.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} L</td>
+                        <td className="py-4 text-right font-mono text-slate-500">x {data.purchase.toFixed(2)} MAD</td>
+                        <td className="py-4 text-right font-mono font-bold text-slate-800">{data.montant.toLocaleString('fr-FR', {minimumFractionDigits: 2})} MAD</td>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -727,6 +648,42 @@ export default function Analytics({ store }: AnalyticsProps) {
 
       {/* Historique et Dépenses */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Historique des Bénéfices */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-indigo-600" />
+            <h3 className="font-bold text-slate-800">Historique des Bénéfices (Journalier)</h3>
+          </div>
+          <div className="p-0 overflow-x-auto flex-1">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/50 border-b border-slate-100 text-xs text-slate-500 uppercase">
+                <tr>
+                  <th className="p-4 font-bold">Date</th>
+                  <th className="p-4 font-bold text-right">Marge (Méc.)</th>
+                  <th className="p-4 font-bold text-right">Marge (Élec.)</th>
+                  <th className="p-4 font-bold text-right">Dépenses</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {reportData.historicalProfits.length > 0 ? (
+                  reportData.historicalProfits.map((day) => (
+                    <tr key={day.date} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-bold text-slate-700">{new Date(day.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}</td>
+                      <td className="p-4 text-right text-slate-600 font-mono">{day.mechMargin.toFixed(2)}</td>
+                      <td className="p-4 text-right text-slate-600 font-mono">{day.elecMargin.toFixed(2)}</td>
+                      <td className="p-4 text-right text-rose-500 font-mono">-{day.expenses.toFixed(2)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-slate-400">Aucun historique disponible sur cette période</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Détail des Dépenses */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">

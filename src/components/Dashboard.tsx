@@ -38,47 +38,6 @@ export default function Dashboard({ store, setView }: DashboardProps) {
   const totalLitersStats = statsShifts.reduce((acc, s) => acc + (s.totalLiters || 0), 0);
   const totalVentesCountStats = statsShifts.length;
 
-  const getHistoricalPrice = (productId: string, date: string) => {
-    const sortedChanges = [...(store.priceChanges || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const changesBeforeDate = sortedChanges.filter(c => c.productId === productId && c.date.split('T')[0] <= date.split('T')[0]);
-    if (changesBeforeDate.length > 0) return changesBeforeDate[0].purchasePrice;
-    const currentProd = products.find(p => p.id === productId);
-    return currentProd ? currentProd.purchasePrice : 1.45;
-  };
-
-  // Calcul des bénéfices
-  let totalProfitStats = 0;
-  statsShifts.forEach(shift => {
-    if (shift.litersSold) {
-      Object.entries(shift.litersSold).forEach(([nozzleId, litersVal]) => {
-        const liters = Number(litersVal);
-        if (liters > 0) {
-          const nozzle = store.nozzles.find(n => n.id === nozzleId);
-          if (nozzle) {
-            const pump = store.pumps.find(p => p.id === nozzle.pumpId);
-            if (pump) {
-              const tank = store.tanks.find(t => t.id === nozzle.tankId);
-              if (tank) {
-                const product = store.products.find(p => p.id === tank.productId);
-                if (product) {
-                  const purchaseCost = getHistoricalPrice(product.id, shift.date);
-                  // Pour trouver le prix de vente, on peut utiliser amountSold / litersSold
-                  // ou le currentProd.price. amountSold / litersSold est plus précis pour ce shift
-                  let unitPrice = product.salePrice;
-                  if (shift.amountSold && shift.amountSold[nozzleId]) {
-                      unitPrice = shift.amountSold[nozzleId] / liters;
-                  }
-                  const margin = unitPrice - purchaseCost;
-                  totalProfitStats += (liters * margin);
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-  });
-
   // Stock total restant
   const totalCurrentStock = tanks.reduce((acc, t) => acc + t.currentLevel, 0);
   const totalStockCapacity = tanks.reduce((acc, t) => acc + t.capacity, 0);
@@ -279,8 +238,6 @@ export default function Dashboard({ store, setView }: DashboardProps) {
             <span className="text-slate-400">volumes distribués</span>
           </div>
         </div>
-
-
 
         {/* État des Stocks de Carburant */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
