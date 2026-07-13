@@ -22,8 +22,8 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   const [isCompleted, setIsCompleted] = useState(false);
 
   // Step 1: Info
-  const [date, setDate] = useState(editingShift?.date || draft?.date || new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(editingShift?.endDate || draft?.endDate || editingShift?.date || draft?.date || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(editingShift?.date || draft?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
+  const [endDate, setEndDate] = useState(editingShift?.endDate || draft?.endDate || editingShift?.date || draft?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
   const [attendantId, setAttendantId] = useState(editingShift?.attendantId || draft?.attendantId || '');
   const [shiftName, setShiftName] = useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>(editingShift?.shiftName || draft?.shiftName || 'Journée');
   const [startTime, setStartTime] = useState(editingShift?.startTime || draft?.startTime || '06:00');
@@ -905,7 +905,7 @@ useEffect(() => {
                         onClick={() => {
                           setNonCashPayments({
                             ...nonCashPayments,
-                            [method.key]: [...nonCashPayments[method.key as keyof typeof nonCashPayments], method.key === 'bonClient' ? { amount: 0, clientName: '', date: new Date().toISOString().split('T')[0] } : { amount: 0, clientId: '', date: new Date().toISOString().split('T')[0] }]
+                            [method.key]: [...nonCashPayments[method.key as keyof typeof nonCashPayments], method.key === 'bonClient' ? { amount: 0, clientName: '', date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]) } : { amount: 0, clientId: '', date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]) }]
                           });
                         }}
                         className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded"
@@ -1060,7 +1060,7 @@ useEffect(() => {
                         onClick={() => {
                           setNonCashPayments({
                             ...nonCashPayments,
-                            [method.key]: [...nonCashPayments[method.key as keyof typeof nonCashPayments], method.key === 'bonClient' ? { amount: 0, clientName: '', date: new Date().toISOString().split('T')[0] } : { amount: 0, clientId: '', date: new Date().toISOString().split('T')[0] }]
+                            [method.key]: [...nonCashPayments[method.key as keyof typeof nonCashPayments], method.key === 'bonClient' ? { amount: 0, clientName: '', date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]) } : { amount: 0, clientId: '', date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]) }]
                           });
                         }}
                         className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded"

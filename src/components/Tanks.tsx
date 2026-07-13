@@ -156,13 +156,13 @@ export default function Tanks({ store }: TanksProps) {
   const [qtyDelivered, setQtyDelivered] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [supplyDate, setSupplyDate] = useState(new Date().toISOString().split('T')[0]);
+  const [supplyDate, setSupplyDate] = useState((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
 
   // Correction Form state
   const [corrTankId, setCorrTankId] = useState('');
   const [newLevel, setNewLevel] = useState('');
   const [corrReason, setCorrReason] = useState('');
-  const [corrDate, setCorrDate] = useState(new Date().toISOString().split('T')[0]);
+  const [corrDate, setCorrDate] = useState((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
   const [correctionFilterDate, setCorrectionFilterDate] = useState('');
 
   const hasWriteAccess = currentRole === 'admin' || currentRole === 'manager';
@@ -173,7 +173,7 @@ export default function Tanks({ store }: TanksProps) {
     setQtyDelivered('5000');
     setPurchasePrice('');
     setInvoiceNumber(`INV-2026-${Math.floor(1000 + Math.random() * 9000)}`);
-    setSupplyDate(new Date().toISOString().split('T')[0]);
+    setSupplyDate((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
     
     // Autofill purchase price from products price
     const initialTank = tanks.find(t => t.id === (tankId || tanks[0]?.id));
@@ -261,7 +261,7 @@ export default function Tanks({ store }: TanksProps) {
     const initialTank = tanks.find(t => t.id === (tankId || tanks[0]?.id));
     setNewLevel(initialTank ? initialTank.currentLevel.toString() : '0');
     setCorrReason('Vérification par jaugeage manuel (Règle graduée)');
-    setCorrDate(new Date().toISOString().split('T')[0]);
+    setCorrDate((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
     setIsCorrectionFormOpen(true);
   };
 
@@ -411,7 +411,7 @@ export default function Tanks({ store }: TanksProps) {
 
               // Calculate today and this month consumption (sales via shifts)
               const tankNozzleIds = tankNozzles.map(n => n.id);
-              const todayStr = new Date().toISOString().split('T')[0];
+              const todayStr = (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
               const currentMonthStr = todayStr.substring(0, 7);
               const completedShifts = shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
               
@@ -1046,7 +1046,7 @@ export default function Tanks({ store }: TanksProps) {
                         : null;
 
                       // Sales consumption via shifts
-                      const todayStr = new Date().toISOString().split('T')[0];
+                      const todayStr = (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
                       const currentMonthStr = todayStr.substring(0, 7);
                       const tNozIds = tNozzles.map(n => n.id);
                       const completedShifts = shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
@@ -2113,7 +2113,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
   const tankCorrections = store.stockCorrections.filter(c => c.tankId === tank.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Consommation (Sales via shifts)
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
   const monthStr = todayStr.substring(0, 7);
   const tankNozzleIds = tankNozzles.map(n => n.id);
   const completedShifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');

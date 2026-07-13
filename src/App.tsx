@@ -59,8 +59,27 @@ function AppContent({ session }: { session: any }) {
         };
 
         await runInChunks(arrayKeys, async (k) => {
-          const { data } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id);
-          if (data && data.length > 0) fetchedData[k] = data;
+          let allData = [];
+          let from = 0;
+          const step = 1000;
+          let hasMore = true;
+          
+          while (hasMore) {
+            const { data, error } = await supabase
+              .from(`erp_${k}`)
+              .select('*')
+              .eq('user_id', session.user.id)
+              .range(from, from + step - 1);
+              
+            if (error || !data || data.length === 0) {
+              hasMore = false;
+            } else {
+              allData = [...allData, ...data];
+              if (data.length < step) hasMore = false;
+              from += step;
+            }
+          }
+          if (allData.length > 0) fetchedData[k] = allData;
         }, 4);
         
         const objectKeys = ['cash_registry', 'config'];

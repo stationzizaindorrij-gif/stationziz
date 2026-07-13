@@ -16,7 +16,7 @@ export default function Clients({ store }: ClientsProps) {
   const [clientToDelete, setClientToDelete] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentDate, setPaymentDate] = useState((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
   const [paymentNotes, setPaymentNotes] = useState('');
 
   const [formData, setFormData] = useState<Partial<Client>>({

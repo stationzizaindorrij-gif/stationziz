@@ -44,7 +44,7 @@ export default function Reports({ store }: ReportsProps) {
     // Auto-timeout to clear
     setTimeout(() => {
       setExporting(null);
-      alert(`[SIMULATION EXPORT] Le document a été généré avec succès en version ${type.toUpperCase()}.\nToutes les données réelles du rapport ont été intégrées conformes aux normes fiscales de la station.\n\nFichier: rapport_${selectedPeriod}_${new Date().toISOString().split('T')[0]}.${type === 'excel' ? 'xlsx' : 'pdf'}`);
+      alert(`[SIMULATION EXPORT] Le document a été généré avec succès en version ${type.toUpperCase()}.\nToutes les données réelles du rapport ont été intégrées conformes aux normes fiscales de la station.\n\nFichier: rapport_${selectedPeriod}_${(new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0])}.${type === 'excel' ? 'xlsx' : 'pdf'}`);
     }, 1500);
   };
 

@@ -58,7 +58,7 @@ export default function Analytics({ store }: AnalyticsProps) {
 
   // --- REPORT CALCULATIONS ---
   const selectedEndDateObj = useMemo(() => {
-    let selectedEndDate = new Date().toISOString().split('T')[0];
+    let selectedEndDate = (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
     if (selectedShiftId !== 'all') {
       const selectedShift = store.shifts.find(s => s.id === selectedShiftId);
       if (selectedShift) {

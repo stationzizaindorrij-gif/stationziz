@@ -23,7 +23,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
 
   // Calculs financiers pour la période sélectionnée
   const completedShifts = store.shifts.filter(s => s.status === 'completed' || s.status === 'ready_to_close');
-  const targetDateStr = new Date().toISOString().split('T')[0];
+  const targetDateStr = (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
   const currentYear = targetDateStr.substring(0, 4);
   const currentMonth = targetDateStr.substring(0, 7);
   

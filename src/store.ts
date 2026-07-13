@@ -114,7 +114,7 @@ export function useERPStore(): ERPStoreType {
   
   // Migration for dummy data dates
   React.useEffect(() => {
-    const localToday = new Date().toISOString().split('T')[0];
+    const localToday = (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
     if (shifts.length > 0 && shifts.some(s => s.id === 'shift_past_1' && s.date !== localToday)) {
       const updatedShifts = shifts.map(s => {
         if (s.id.startsWith('shift_past')) {
@@ -357,7 +357,20 @@ export function useERPStore(): ERPStoreType {
                  const items = data.map(item => ({ ...item, user_id }));
                  
                  // Smart sync: Upsert existing/new, delete removed
-                 const { data: currentItems } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id);
+                 let currentItems = [];
+                 let from = 0;
+                 const step = 1000;
+                 let hasMore = true;
+                 while(hasMore) {
+                   const { data } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id).range(from, from + step - 1);
+                   if (!data || data.length === 0) {
+                     hasMore = false;
+                   } else {
+                     currentItems = [...currentItems, ...data];
+                     if (data.length < step) hasMore = false;
+                     from += step;
+                   }
+                 }
                  if (currentItems) {
                      const currentIds = currentItems.map(i => i.id);
                      const newIds = items.map(i => i.id);
@@ -393,7 +406,7 @@ export function useERPStore(): ERPStoreType {
   const logAction = (user: string, action: string, module: string, details: string) => {
     const newLog: AuditLog = {
       id: `log_${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]),
       time: new Date().toTimeString().split(' ')[0],
       user,
       action,
@@ -406,7 +419,7 @@ export function useERPStore(): ERPStoreType {
   const triggerAlert = (severity: 'info' | 'warning' | 'danger', message: string, type: Alert['type']) => {
     const newAlert: Alert = {
       id: `alert_${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]),
       severity,
       message,
       isRead: false,
@@ -505,7 +518,7 @@ export function useERPStore(): ERPStoreType {
     saveState('tanks', tanks.map(t => t.id === tankId ? { ...t, currentLevel: newLevel } : t), setTanks);
     const corr: StockCorrection = {
       id: `corr_${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]),
       tankId, tankNumber: tank.number, productId: tank.productId, qtyBefore, qtyAfter: newLevel, reason, user: author
     };
     saveState('stock_corrections', [corr, ...stockCorrections], setStockCorrections);

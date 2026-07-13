@@ -92,7 +92,7 @@ export default function Attendants({ store }: AttendantsProps) {
       lastName,
       phone,
       matricule,
-      hireDate: new Date().toISOString().split('T')[0], // default value
+      hireDate: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]), // default value
       photo,
       status,
       notes

@@ -969,7 +969,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Date</label>
-                    <input name="date" type="date" required defaultValue={editingInvoice?.date || new Date().toISOString().split('T')[0]} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                    <input name="date" type="date" required defaultValue={editingInvoice?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0])} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
                   </div>
                 </div>
 
@@ -1081,7 +1081,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Date</label>
-                    <input name="date" type="date" required defaultValue={editingInvoice?.date || new Date().toISOString().split('T')[0]} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                    <input name="date" type="date" required defaultValue={editingInvoice?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0])} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
                   </div>
                 </div>
 
