@@ -73,10 +73,10 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
     <div className="space-y-6">
 
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Date selector and Prices at date */}
-        <div className="space-y-6">
+        {/* Left Column: Date selector and Prices at date */}
+        <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-500" />
@@ -124,6 +124,86 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
                 <p className="text-sm font-medium text-slate-500">Sélectionnez une date pour voir les prix</p>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Right Column: History Timeline */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 h-full min-h-[500px]">
+            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-indigo-500" />
+              Journal des modifications {selectedDate && `(${new Date(selectedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })})`}
+            </h3>
+
+            {(() => {
+              if (!selectedDate) {
+                return (
+                  <div className="flex flex-col items-center justify-center h-64 text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                      <Calendar className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <h4 className="font-bold text-slate-700 mb-1">En attente</h4>
+                    <p className="text-sm text-slate-500 max-w-sm">
+                      Sélectionnez une date pour afficher l'historique des modifications.
+                    </p>
+                  </div>
+                );
+              }
+              const filteredChanges = sortedChanges.filter(c => c.date.split('T')[0] === selectedDate);
+              
+              if (filteredChanges.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center h-64 text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                      <History className="w-8 h-8 text-slate-400" />
+                    </div>
+                    <h4 className="font-bold text-slate-700 mb-1">Aucune modification</h4>
+                    <p className="text-sm text-slate-500 max-w-sm">
+                      Aucun changement de prix n'a été enregistré à cette date.
+                    </p>
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="space-y-4">
+                  {filteredChanges.map((change) => {
+                    const product = store.products.find(p => p.id === change.productId);
+                    const previousChangeForProduct = sortedChanges.find(c => c.productId === change.productId && c.date < change.date);
+                    
+                    const oldSale = change.oldSalePrice !== undefined ? change.oldSalePrice : (previousChangeForProduct ? previousChangeForProduct.salePrice : change.salePrice);
+                    
+                    return (
+                      <div key={change.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-indigo-300 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                            <Tag className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-base">{product ? product.name : 'Produit inconnu'}</h4>
+                            <span className="text-xs text-slate-500 font-mono font-medium">{new Date(change.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-6 bg-slate-50 px-4 py-3 rounded-lg border border-slate-100">
+                          <div className="flex flex-col min-w-[120px]">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1">Prix de Vente</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs line-through text-slate-400">{oldSale.toFixed(2)}</span>
+                              <ArrowRight className="w-3 h-3 text-slate-300" />
+                              <span className="font-mono font-bold text-indigo-600">{change.salePrice.toFixed(2)} Dh</span>
+                            </div>
+                            <div className="mt-1">
+                              {getPriceDifference(oldSale, change.salePrice, 'sale')}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

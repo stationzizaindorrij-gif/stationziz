@@ -738,15 +738,15 @@ export function useERPStore(): ERPStoreType {
       const startCount = shift.startCounters[noz.id];
 
       if (endCount && startCount) {
-        const endElecNum = Number(endCount.elec) || Number(startCount.elec) || 0;
-        const startElecNum = Number(startCount.elec) || 0;
+        const endElecNum = parseFloat(endCount.elec) || parseFloat(startCount.elec) || 0;
+        const startElecNum = parseFloat(startCount.elec) || 0;
         const diffLiters = endElecNum - startElecNum;
         let roundedDiff = Math.max(0, parseFloat(diffLiters.toFixed(2)));
         
         // Fallback to mechanical if electronic is 0
         if (roundedDiff === 0 && endCount.mech && startCount.mech) {
-           const endMechNum = Number(endCount.mech) || Number(startCount.mech) || 0;
-           const startMechNum = Number(startCount.mech) || 0;
+           const endMechNum = parseFloat(endCount.mech) || parseFloat(startCount.mech) || 0;
+           const startMechNum = parseFloat(startCount.mech) || 0;
            roundedDiff = Math.max(0, parseFloat((endMechNum - startMechNum).toFixed(2)));
         }
         
@@ -910,7 +910,6 @@ export function useERPStore(): ERPStoreType {
   
   const addCompletedShift = (
     shiftData: Omit<Shift, 'id' | 'status' | 'discrepancy' | 'totalLiters' | 'totalAmount' | 'litersSold' | 'amountSold' | 'theoreticalCash' | 'realCashReceived' | 'notes'> & {
-      id?: string;
       realCashReceived: number;
       theoreticalCash: number;
       discrepancy: number;
