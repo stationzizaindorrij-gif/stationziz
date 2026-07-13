@@ -116,7 +116,7 @@ function AppContent({ session }: { session: any }) {
     { id: 'assets', label: 'Installations & Prix', icon: Sliders, badge: 0 },
     { id: 'shop', label: 'Boutique', icon: Package, badge: 0 },
     { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
-    { id: 'billing', label: 'Facturation & Achats', icon: Landmark, badge: 0 },
+    { id: 'billing', label: 'Facturation & Documents', icon: Landmark, badge: 0 },
     { id: 'analytics', label: 'Analyse & Rentabilité', icon: BarChart2, badge: 0 },
     { id: 'alerts', label: 'Supervision & IoT', icon: Bell, badge: unreadAlertsCount },
     { id: 'settings', label: 'Paramètres', icon: SettingsIcon, badge: 0 }
@@ -133,13 +133,13 @@ function AppContent({ session }: { session: any }) {
         store={store}
       />
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative print:h-auto print:overflow-visible print:bg-white">
         <Header 
           activeModule={activeModule} 
           onMenuClick={() => setIsSidebarOpen(true)}
         />
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 print:p-0 print:overflow-visible print:bg-white">
           <div className="max-w-[1400px] mx-auto h-full">
             {activeModule === 'dashboard' && <Dashboard store={store} setView={setActiveModule} />}
             {activeModule === 'tanks' && <Tanks store={store} />}
@@ -222,7 +222,7 @@ function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen, stor
           onClick={() => setIsOpen(false)}
         />
       )}
-      <aside className={`
+      <aside className={`\n        print:hidden
         fixed md:static inset-y-0 left-0 z-50
         w-72 bg-slate-900 text-slate-300 flex flex-col
         transition-transform duration-300 ease-in-out
@@ -317,7 +317,7 @@ function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuCli
     assets: 'Installations & Prix',
     shop: 'Boutique',
     clients: 'Clients',
-    billing: 'Facturation & Achats',
+    billing: 'Facturation & Documents',
     reports: 'Centre de Rapports',
     analytics: 'Analyse & Rentabilité',
     alerts: 'Supervision & IoT',
@@ -326,7 +326,7 @@ function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuCli
   };
 
 return (
-    <header className="md:hidden bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+    <header className="md:hidden print:hidden bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
       <div className="flex items-center gap-4">
         <button 
           onClick={onMenuClick}

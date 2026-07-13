@@ -146,6 +146,7 @@ export default function Tanks({ store }: TanksProps) {
   };
 
   const [isSupplyFormOpen, setIsSupplyFormOpen] = useState(false);
+  const [supplyToDelete, setSupplyToDelete] = useState<string | null>(null);
   const [isCorrectionFormOpen, setIsCorrectionFormOpen] = useState(false);
   const [correctionToDelete, setCorrectionToDelete] = useState<string | null>(null);
 
@@ -226,7 +227,7 @@ export default function Tanks({ store }: TanksProps) {
         qtyDelivered: qty,
         purchasePrice: price,
         invoiceNumber,
-        date: new Date().toISOString()
+        date: supplyDate ? new Date(supplyDate).toISOString() : new Date().toISOString()
       }, currentRole);
       
       const newLevel = Math.min(tank.capacity, tank.currentLevel + qty);
@@ -289,7 +290,7 @@ export default function Tanks({ store }: TanksProps) {
       return;
     }
 
-    correctTankLevel(corrTankId, level, corrReason, corrDate, 'Directeur ERP');
+    correctTankLevel(corrTankId, level, corrReason + ' (' + corrDate + ')', 'Directeur ERP');
     setIsCorrectionFormOpen(false);
   };
 
@@ -321,10 +322,10 @@ export default function Tanks({ store }: TanksProps) {
             Niveaux des Cuves
           </button>
           <button 
-            onClick={() => setActiveSubTab('schema')}
-            className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeSubTab === 'schema' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            onClick={() => setActiveSubTab('corrections')}
+            className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeSubTab === 'corrections' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            Schéma des Installations
+            Corrections Manuelles
           </button>
           <button 
             onClick={() => setActiveSubTab('deliveries')}
@@ -333,10 +334,10 @@ export default function Tanks({ store }: TanksProps) {
             Historique Livraisons
           </button>
           <button 
-            onClick={() => setActiveSubTab('corrections')}
-            className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeSubTab === 'corrections' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            onClick={() => setActiveSubTab('schema')}
+            className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeSubTab === 'schema' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            Corrections Manuelles
+            Schéma des Installations
           </button>
         </div>
       </div>
@@ -1347,6 +1348,7 @@ export default function Tanks({ store }: TanksProps) {
                   <th className="p-3">Prix d'Achat Unitaire</th>
                   <th className="p-3">Coût Total d'Acquisition</th>
                   <th className="p-3">Date Réception</th>
+                  <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1364,6 +1366,16 @@ export default function Tanks({ store }: TanksProps) {
                     <td className="p-3 text-right">{sup.purchasePrice.toFixed(2)} MAD/L</td>
                     <td className="p-3 font-bold text-slate-900 text-right">{(sup.qtyDelivered * sup.purchasePrice).toFixed(2)}</td>
                     <td className="p-3 font-sans text-slate-500">{new Date(sup.date).toLocaleDateString('fr-FR')}</td>
+                    <td className="p-3 text-right">
+                      {hasWriteAccess && (
+                        <button 
+                          onClick={() => setSupplyToDelete(sup.id)}
+                          className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {supplies.length === 0 && (
@@ -1466,6 +1478,78 @@ export default function Tanks({ store }: TanksProps) {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+            {/* CONFIRMATION MODAL FOR SUPPLY DELETION */}
+      {supplyToDelete && (
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="p-5 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 font-display text-lg mb-1">Confirmer la suppression</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Êtes-vous sûr de vouloir supprimer cette livraison ? Le volume sera déduit de la cuve associée. Cette action est irréversible.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setSupplyToDelete(null)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  store.deleteSupply(supplyToDelete, 'Directeur ERP');
+                  setSupplyToDelete(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-lg shadow-xs transition-colors"
+              >
+                Oui, supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+            {/* Modal de Confirmation Générique */}
+      {confirmModalConfig && confirmModalConfig.isOpen && (
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="p-5 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                <Info className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 font-display text-lg mb-1">{confirmModalConfig.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  {confirmModalConfig.message}
+                </p>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmModalConfig(null)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  confirmModalConfig.onConfirm();
+                  setConfirmModalConfig(null);
+                }}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg shadow-xs transition-colors"
+              >
+                Confirmer
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1617,11 +1701,11 @@ export default function Tanks({ store }: TanksProps) {
                 return (
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
                     <div>
-                      <span className="text-xs text-slate-500 block mb-1">Volume Théorique: <strong className="text-slate-700">{theorique} L</strong></span>
+                      <span className="text-xs text-slate-500 block mb-1">Volume Théorique: <strong className="text-slate-700">{theorique.toFixed(2)} L</strong></span>
                       <span className="text-xs text-slate-500 block">Écart constaté:</span>
                     </div>
                     <div className={`text-lg font-bold font-mono px-3 py-1 rounded ${ecart < 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                      {ecart > 0 ? '+' : ''}{ecart} L
+                      {ecart > 0 ? '+' : ''}{ecart.toFixed(2)} L
                     </div>
                   </div>
                 );

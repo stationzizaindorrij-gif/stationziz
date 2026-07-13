@@ -475,7 +475,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     </div>
                     <div className="p-4 flex flex-col">
                       <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses / Manquant</div>
-                      <div className="font-mono font-bold text-rose-600 text-lg">{fuelSalesDetails.totalFuelAmount - totalNonCashPayments > 0 ? "-" : "+"}{Math.abs(fuelSalesDetails.totalFuelAmount - totalNonCashPayments).toFixed(2)} DH</div>
+                      <div className={`font-mono font-bold text-lg ${fuelSalesDetails.totalFuelAmount - totalNonCashPayments < 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{fuelSalesDetails.totalFuelAmount - totalNonCashPayments > 0 ? "-" : "+"}{Math.abs(fuelSalesDetails.totalFuelAmount - totalNonCashPayments).toFixed(2)} DH</div>
                     </div>
                   </div>
                   <div className="p-4 bg-slate-800 flex justify-between items-center text-white">

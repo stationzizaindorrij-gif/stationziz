@@ -291,6 +291,16 @@ export interface StationConfig {
   theme: 'light' | 'dark';
   printerIp: string;
   iotConfigured: boolean;
+  documentLogo?: string;
+  documentColor?: string;
+  documentCompanyDetails?: string;
+  documentNumbering?: {
+    facture: { prefix: string, nextNumber: number };
+    devis: { prefix: string, nextNumber: number };
+    bonLivraison: { prefix: string, nextNumber: number };
+  };
+  documentColumnsOrder?: string[];
+  documentFooter?: string;
 }
 
 export interface ShopProduct {

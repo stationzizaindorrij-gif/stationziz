@@ -409,7 +409,7 @@ export default function Shifts({ store }: ShiftsProps) {
                             return (carteSntl + espece + (s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0) + vignette + bonClient).toFixed(2);
                           })()} MAD
                         </td>
-                        <td className="p-3.5 font-mono text-rose-600 font-semibold">
+                        <td className="p-3.5 font-mono font-semibold">
                           {(() => {
                             const carteSntl = s.nonCashPayments?.carteSntl?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const espece = s.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0;
@@ -419,8 +419,13 @@ export default function Shifts({ store }: ShiftsProps) {
                             
                             const carburantsTotal = s.totalAmount || 0;
                             const ecart = carburantsTotal - encaissements;
-                            return (ecart > 0 ? "-" : "+") + Math.abs(ecart).toFixed(2);
-                          })()} MAD
+                            const surplus = ecart < 0;
+                            return (
+                                <span className={surplus ? "text-emerald-600" : "text-rose-600"}>
+                                  {(ecart > 0 ? "-" : "+")}{Math.abs(ecart).toFixed(2)} MAD
+                                </span>
+                            );
+                          })()}
                         </td>
 
                         <td className="p-3.5 text-right">

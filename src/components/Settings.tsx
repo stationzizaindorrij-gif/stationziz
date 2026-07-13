@@ -26,6 +26,15 @@ export default function Settings({ store }: SettingsProps) {
   const [theme, setTheme] = useState(config.theme);
   const [printerIp, setPrinterIp] = useState(config.printerIp);
   const [iotConfigured, setIotConfigured] = useState(config.iotConfigured);
+  const [documentColor, setDocumentColor] = useState(config.documentColor || '#000000');
+  const [documentCompanyDetails, setDocumentCompanyDetails] = useState(config.documentCompanyDetails || '');
+  const [documentFooter, setDocumentFooter] = useState(config.documentFooter || '');
+  const [documentNumbering, setDocumentNumbering] = useState(config.documentNumbering || {
+    facture: { prefix: 'FACTURE N : ', nextNumber: 152025 },
+    devis: { prefix: 'DEVIS N : ', nextNumber: 152025 },
+    bonLivraison: { prefix: 'BL N : ', nextNumber: 152025 }
+  });
+  const [documentColumnsOrder, setDocumentColumnsOrder] = useState(config.documentColumnsOrder || ['quantity', 'designation', 'unitPrice', 'total']);
 
   const [saving, setSaving] = useState(false);
 
@@ -40,6 +49,11 @@ export default function Settings({ store }: SettingsProps) {
     setTheme(config.theme);
     setPrinterIp(config.printerIp);
     setIotConfigured(config.iotConfigured);
+    setDocumentColor(config.documentColor || '#000000');
+    setDocumentCompanyDetails(config.documentCompanyDetails || '');
+    setDocumentFooter(config.documentFooter || '');
+    if (config.documentNumbering) setDocumentNumbering(config.documentNumbering);
+    if (config.documentColumnsOrder) setDocumentColumnsOrder(config.documentColumnsOrder);
   }, [config]);
 
   const handleSave = (e: React.FormEvent) => {
@@ -57,7 +71,12 @@ export default function Settings({ store }: SettingsProps) {
         language,
         theme,
         printerIp,
-        iotConfigured
+        iotConfigured,
+        documentColor,
+        documentCompanyDetails,
+        documentFooter,
+        documentNumbering,
+        documentColumnsOrder
       }, 'Directeur ERP');
       setSaving(false);
       alert("Configuration de la station-service mise à jour avec succès.");
@@ -227,6 +246,137 @@ export default function Settings({ store }: SettingsProps) {
                   onChange={(e) => setTaxId(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg p-2 text-sm font-mono focus:outline-none focus:border-indigo-500"
                 />
+              </div>
+            </div>
+
+                        {/* --- Document Config --- */}
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2 pt-4 flex items-center gap-2">
+              <Printer className="w-4.5 h-4.5 text-indigo-500" />
+              Configuration des Documents (Factures, Devis, BL)
+            </h3>
+            
+            <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase block">Couleur Principale</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      disabled={!hasWriteAccess}
+                      value={documentColor}
+                      onChange={(e) => setDocumentColor(e.target.value)}
+                      className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                    />
+                    <span className="text-sm text-slate-500 font-mono">{documentColor}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase block">Informations Société (Haut-Gauche)</label>
+                <textarea
+                  disabled={!hasWriteAccess}
+                  value={documentCompanyDetails}
+                  onChange={(e) => setDocumentCompanyDetails(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500 min-h-[100px] whitespace-pre"
+                  placeholder="CNSS : 5586964\nPatente N : 22165705\nR.C : 4702..."
+                />
+                <p className="text-[10px] text-slate-400">Ces informations apparaîtront en haut à gauche de vos documents.</p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase block">Pied de page (Facture / Devis)</label>
+                <textarea
+                  disabled={!hasWriteAccess}
+                  value={documentFooter}
+                  onChange={(e) => setDocumentFooter(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500 min-h-[60px] whitespace-pre"
+                  placeholder="Ex: YOULAS SARL Capital 100 000.00 Dh, Bd...\ntel : 0522..."
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Numérotation</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-2 border border-slate-200 bg-white p-3 rounded-lg">
+                    <span className="text-xs font-bold text-slate-700">FACTURES</span>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase">Préfixe</label>
+                      <input type="text" value={documentNumbering.facture.prefix} onChange={e => setDocumentNumbering({...documentNumbering, facture: {...documentNumbering.facture, prefix: e.target.value}})} disabled={!hasWriteAccess} className="w-full border border-slate-200 rounded p-1 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase">Prochain Numéro</label>
+                      <input type="number" value={documentNumbering.facture.nextNumber} onChange={e => setDocumentNumbering({...documentNumbering, facture: {...documentNumbering.facture, nextNumber: Number(e.target.value)}})} disabled={!hasWriteAccess} className="w-full border border-slate-200 rounded p-1 text-sm font-mono" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 border border-slate-200 bg-white p-3 rounded-lg">
+                    <span className="text-xs font-bold text-slate-700">DEVIS</span>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase">Préfixe</label>
+                      <input type="text" value={documentNumbering.devis.prefix} onChange={e => setDocumentNumbering({...documentNumbering, devis: {...documentNumbering.devis, prefix: e.target.value}})} disabled={!hasWriteAccess} className="w-full border border-slate-200 rounded p-1 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase">Prochain Numéro</label>
+                      <input type="number" value={documentNumbering.devis.nextNumber} onChange={e => setDocumentNumbering({...documentNumbering, devis: {...documentNumbering.devis, nextNumber: Number(e.target.value)}})} disabled={!hasWriteAccess} className="w-full border border-slate-200 rounded p-1 text-sm font-mono" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 border border-slate-200 bg-white p-3 rounded-lg">
+                    <span className="text-xs font-bold text-slate-700">BON DE LIVRAISON</span>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase">Préfixe</label>
+                      <input type="text" value={documentNumbering.bonLivraison.prefix} onChange={e => setDocumentNumbering({...documentNumbering, bonLivraison: {...documentNumbering.bonLivraison, prefix: e.target.value}})} disabled={!hasWriteAccess} className="w-full border border-slate-200 rounded p-1 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 uppercase">Prochain Numéro</label>
+                      <input type="number" value={documentNumbering.bonLivraison.nextNumber} onChange={e => setDocumentNumbering({...documentNumbering, bonLivraison: {...documentNumbering.bonLivraison, nextNumber: Number(e.target.value)}})} disabled={!hasWriteAccess} className="w-full border border-slate-200 rounded p-1 text-sm font-mono" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Ordre des Colonnes du Tableau</label>
+                <div className="flex flex-wrap gap-2">
+                  {documentColumnsOrder.map((col, idx) => (
+                    <div key={col} className="flex items-center bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold shadow-sm">
+                      <span className="text-indigo-600 mr-2">{idx + 1}.</span>
+                      {col === 'quantity' && 'Quantité'}
+                      {col === 'designation' && 'Désignation'}
+                      {col === 'unitPrice' && 'Prix Unité'}
+                      {col === 'total' && 'Montant'}
+                      
+                      <div className="ml-3 flex gap-1">
+                        <button 
+                          type="button" 
+                          disabled={!hasWriteAccess || idx === 0}
+                          onClick={() => {
+                            const newArr = [...documentColumnsOrder];
+                            [newArr[idx - 1], newArr[idx]] = [newArr[idx], newArr[idx - 1]];
+                            setDocumentColumnsOrder(newArr);
+                          }}
+                          className="text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-400"
+                        >
+                          ←
+                        </button>
+                        <button 
+                          type="button" 
+                          disabled={!hasWriteAccess || idx === documentColumnsOrder.length - 1}
+                          onClick={() => {
+                            const newArr = [...documentColumnsOrder];
+                            [newArr[idx + 1], newArr[idx]] = [newArr[idx], newArr[idx + 1]];
+                            setDocumentColumnsOrder(newArr);
+                          }}
+                          className="text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-400"
+                        >
+                          →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Cliquez sur les flèches pour réorganiser l'ordre d'affichage sur les factures et devis.</p>
               </div>
             </div>
 

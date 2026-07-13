@@ -293,7 +293,7 @@ export default function Attendants({ store }: AttendantsProps) {
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => handleConfirmDelete(att)}
+                            onClick={() => setDeleteConfirmId(att.id)}
                             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Supprimer le pompiste"
                           >

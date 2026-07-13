@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Fuel, Plus, CheckCircle, AlertTriangle, Edit2, Trash2, 
+  Fuel, Plus, CheckCircle, AlertTriangle, Edit2, AlertCircle, Trash2, 
   Settings, Layers, Link, Sliders, Play, X, SlidersHorizontal 
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
@@ -13,7 +13,7 @@ interface AssetsProps {
 
 export default function Assets({ store }: AssetsProps) {
   const { 
-    products, pumps, nozzles, tanks, addProduct, updateProduct, 
+    products, pumps, nozzles, tanks, addProduct, updateProduct, deleteProduct, 
     addPump, updatePump, deletePump, addNozzle, updateNozzle, deleteNozzle, currentRole 
   } = store;
 
@@ -24,6 +24,7 @@ export default function Assets({ store }: AssetsProps) {
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [isPumpFormOpen, setIsPumpFormOpen] = useState(false);
   const [isNozzleFormOpen, setIsNozzleFormOpen] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
 
   // Edit states
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -293,7 +294,18 @@ export default function Assets({ store }: AssetsProps) {
                       onClick={() => handleOpenProductForm(prod)}
                       className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-semibold text-indigo-600 transition-colors flex items-center gap-1"
                     >
-                      <Edit2 className="w-3.5 h-3.5" /> Modifier Prix
+                      <Edit2 className="w-3.5 h-3.5" /> Modifier
+                    </button>
+                    <button 
+                      onClick={() => setConfirmModalConfig({
+                        isOpen: true,
+                        title: 'Supprimer Carburant',
+                        message: `Êtes-vous sûr de vouloir supprimer définitivement le carburant ${prod.name} ? Cette action est irréversible.`,
+                        onConfirm: () => deleteProduct(prod.id, 'Directeur ERP')
+                      })}
+                      className="px-2.5 py-1 hover:bg-rose-50 rounded text-xs font-semibold text-rose-600 transition-colors flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Supprimer
                     </button>
                   </div>
                 )}
@@ -753,6 +765,42 @@ export default function Assets({ store }: AssetsProps) {
       {activeTab === 'history' && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6 p-6">
           <PriceHistory store={store} />
+        </div>
+      )}
+
+      {/* Modal de Confirmation Générique */}
+      {confirmModalConfig && confirmModalConfig.isOpen && (
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="p-5 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 font-display text-lg mb-1">{confirmModalConfig.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  {confirmModalConfig.message}
+                </p>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmModalConfig(null)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  confirmModalConfig.onConfirm();
+                  setConfirmModalConfig(null);
+                }}
+                className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-lg shadow-xs transition-colors"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

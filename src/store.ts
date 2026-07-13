@@ -1,30 +1,132 @@
 import { supabase } from './lib/supabase';
-import { useState, useEffect } from 'react';
-import {
-  Product, Tank, Pump, Nozzle, Attendant, Shift, Sale, Supply,
-  CashRegistry, StockCorrection, AuditLog, Alert, User, StationConfig, UserRole,
-  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, PriceChange
+import React, { useState
+, useEffect } from 'react';
+import { 
+  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, PriceChange, 
+  AuditLog, CashRegistry, Shift, Alert, Supply, Tank, Product, Attendant,
+  StationConfig, UserRole, User, StockCorrection, Pump, Nozzle, Sale
 } from './types';
-export function useERPStore() {
-  // Initialize Storage
-  
-  
 
+export interface ERPStoreType {
+  loadInitialData: (data?: any) => void;
+  products: Product[];
+  shopProducts: ShopProduct[];
+  tanks: Tank[];
+  pumps: Pump[];
+  nozzles: Nozzle[];
+  attendants: Attendant[];
+  shifts: Shift[];
+  sales: Sale[];
+  supplies: Supply[];
+  cashRegistry: CashRegistry;
+  stockCorrections: StockCorrection[];
+  auditLogs: AuditLog[];
+  alerts: Alert[];
+  users: User[];
+  config: StationConfig;
+  currentRole: UserRole;
+  priceChanges: PriceChange[];
+  suppliers: Supplier[];
+  clients: Client[];
+  purchaseInvoices: PurchaseInvoice[];
+  salesInvoices: SalesInvoice[];
+  deliveryInvoices: SalesInvoice[];
 
+  switchRole: (role: UserRole) => void;
+  markAlertAsRead: (id: string) => void;
+  clearAllAlerts: () => void;
+  resetAllData: () => Promise<void>;
+
+  addAttendant: (attendant: Omit<Attendant, 'id'>, author: string) => void;
+  updateAttendant: (id: string, updates: Partial<Attendant>, author: string) => void;
+  deleteAttendant: (id: string, author: string) => void;
+
+  addShopProduct: (product: Omit<ShopProduct, 'id'>, author: string) => void;
+  updateShopProduct: (id: string, updates: Partial<ShopProduct>, author: string) => void;
+  deleteShopProduct: (id: string, author: string) => void;
+
+  addProduct: (product: Omit<Product, 'id'>, author: string) => void;
+  updateProduct: (id: string, updates: Partial<Product>, author: string) => void;
+  deleteProduct: (id: string, author: string) => void;
+
+  addTank: (tank: Omit<Tank, 'id'>, author: string) => void;
+  updateTank: (id: string, updates: Partial<Tank>, author: string) => void;
+  deleteTank: (id: string, author: string) => void;
+  correctTankLevel: (tankId: string, newLevel: number, reason: string, author: string) => void;
+  deleteStockCorrection: (id: string, author: string) => void;
+
+  addPump: (pump: Omit<Pump, 'id'>, author: string) => void;
+  updatePump: (id: string, updates: Partial<Pump>, author: string) => void;
+  deletePump: (id: string, author: string) => void;
+  reorderPumps: (pumps: Pump[]) => void;
+
+  addNozzle: (nozzle: Omit<Nozzle, 'id'>, author: string) => void;
+  updateNozzle: (id: string, updates: Partial<Nozzle>, author: string) => void;
+  deleteNozzle: (id: string, author: string) => void;
+
+  addSupply: (supply: Omit<Supply, 'id'>, author: string) => void;
+  deleteSupply: (id: string, author: string) => void;
+
+  addSupplier: (supplier: Omit<Supplier, 'id'>, author: string) => void;
+  updateSupplier: (id: string, updates: Partial<Supplier>, author: string) => void;
+  deleteSupplier: (id: string, author: string) => void;
+
+  addClient: (client: Omit<Client, 'id'>, author: string) => void;
+  addClients: (newClients: Omit<Client, 'id'>[], author: string) => void;
+  updateClient: (id: string, updates: Partial<Client>, author: string) => void;
+  deleteClient: (id: string, author: string) => void;
+
+  addPurchaseInvoice: (invoice: Omit<PurchaseInvoice, 'id'>, author: string) => void;
+  updatePurchaseInvoiceStatus: (id: string, status: 'pending' | 'paid', author: string) => void;
+  updatePurchaseInvoice: (id: string, updates: Partial<PurchaseInvoice>, author: string) => void;
+  deletePurchaseInvoice: (id: string, author: string) => void;
+
+  addSalesInvoice: (invoice: Omit<SalesInvoice, 'id'>, author: string) => void;
+  updateSalesInvoice: (id: string, updates: Partial<SalesInvoice>, author: string) => void;
+  deleteSalesInvoice: (id: string, author: string) => void;
+
+  addDeliveryInvoice: (invoice: Omit<SalesInvoice, 'id'>, author: string) => void;
+  updateDeliveryInvoice: (id: string, updates: Partial<SalesInvoice>, author: string) => void;
+  deleteDeliveryInvoice: (id: string, author: string) => void;
+
+  openCashRegistry: (amount: number, author: string) => void;
+  addCashMovement: (type: 'input' | 'output', amount: number, label: string, author: string) => void;
+  closeCashRegistry: (realCash: number, author: string) => void;
+
+  startShift: (attendantId: string, shiftName: Shift['shiftName'], assignedPumpIds: string[], author: string, customStartCounters?: Shift['startCounters']) => void;
+  submitShiftCounters: (shiftId: string, endCounters: any, author: string) => void;
+  finalizeShiftClosing: (shiftId: string, realCash: number, theoreticalCash: number, notes: string, author: string, updatedTotals?: any) => void;
+  deleteShift: (id: string, author: string) => void;
+  updateShift: (id: string, updates: Partial<Shift>, author: string) => void;
+  
+  updateConfig?: (fields: Partial<StationConfig>, author: string) => void;
+  addCompletedShift?: (data: any, author: string) => void;
+}
+
+export function useERPStore(): ERPStoreType {
   const [products, setProducts] = useState<Product[]>([]);
-  const [priceChanges, setPriceChanges] = useState<PriceChange[]>(() => {
-    const saved = localStorage.getItem('erp_price_changes');
-    if (saved) {
-      try { return JSON.parse(saved); } catch(e) {}
-    }
-    return [];
-  });
   const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
   const [tanks, setTanks] = useState<Tank[]>([]);
   const [pumps, setPumps] = useState<Pump[]>([]);
   const [nozzles, setNozzles] = useState<Nozzle[]>([]);
   const [attendants, setAttendants] = useState<Attendant[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  
+  // Migration for dummy data dates
+  React.useEffect(() => {
+    const localToday = new Date().toISOString().split('T')[0];
+    if (shifts.length > 0 && shifts.some(s => s.id === 'shift_past_1' && s.date !== localToday)) {
+      const updatedShifts = shifts.map(s => {
+        if (s.id.startsWith('shift_past')) {
+          return { ...s, date: localToday };
+        }
+        return s;
+      });
+      setShifts(updatedShifts);
+      localStorage.setItem('erp_state_shifts', JSON.stringify(updatedShifts));
+    }
+  }, [shifts]);
+
   const [sales, setSales] = useState<Sale[]>([]);
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [cashRegistry, setCashRegistry] = useState<CashRegistry>({
@@ -37,581 +139,410 @@ export function useERPStore() {
   const [config, setConfig] = useState<StationConfig>({
     name: 'Station ERP', logo: '⛽', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
   });
+  const [currentRole, setCurrentRole] = useState<UserRole>('admin');
+  const [priceChanges, setPriceChanges] = useState<PriceChange[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [purchaseInvoices, setPurchaseInvoices] = useState<PurchaseInvoice[]>([]);
   const [salesInvoices, setSalesInvoices] = useState<SalesInvoice[]>([]);
-  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
-    return (localStorage.getItem('station_erp_current_user_role') as UserRole) || 'admin';
-  });
+  const [deliveryInvoices, setDeliveryInvoices] = useState<SalesInvoice[]>([]);
 
-  // Sync state helpers
-  
-  const loadInitialData = (data: any) => {
-    if (data.products) {
-      const realProducts = data.products.filter((p: any) => !p.id.startsWith('sprod_'));
-      setProducts(realProducts);
-
-      const spProducts = data.products.filter((p: any) => p.id.startsWith('sprod_')).map((p: any) => {
-        let name = p.name;
-        let photo = '';
-        if (name.includes('|__PHOTO:')) {
-          const match = name.match(/\|__PHOTO:(.*?)__\|/);
-          if (match) {
-            photo = match[1];
-            name = name.replace(match[0], '');
+  // Forced migration for specific historical prices
+  React.useEffect(() => {
+    if (products.length > 0) {
+       const isFixed = localStorage.getItem('erp_price_history_fixed_v6');
+       if (!isFixed) {
+          const sp = products.find(p => p.name.toLowerCase().includes('sans plom') || p.name.toLowerCase().includes('sans-plom'));
+          const melange = products.find(p => p.name.toLowerCase().includes('lange') || p.name.toLowerCase().includes('mélange'));
+          const gasoil = products.find(p => p.name.toLowerCase().includes('gasoil') || p.name.toLowerCase().includes('gazoil'));
+          
+          // Keep existing non-fuel price changes
+          const otherChanges = priceChanges.filter(pc => 
+             (!sp || pc.productId !== sp.id) && 
+             (!melange || pc.productId !== melange.id) && 
+             (!gasoil || pc.productId !== gasoil.id)
+          );
+          
+          let newChanges = [...otherChanges];
+          
+          if (sp) {
+             newChanges.push({ id: `fixed_sp_1`, date: '2026-07-03T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 11.71, salePrice: 12.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
+             newChanges.push({ id: `fixed_sp_2`, date: '2026-07-06T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 12.71, salePrice: 13.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
+             newChanges.push({ id: `fixed_sp_3`, date: '2026-07-09T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 15.90, salePrice: 16.45, oldPurchasePrice: 12.71, oldSalePrice: 13.71 });
           }
-        }
-        return {
-          id: p.id,
-          name,
-          photo,
-          purchasePrice: p.purchasePrice,
-          salePrice: p.salePrice,
-          stockQuantity: p.vatRate,
-          status: p.status
-        };
-      });
-
-      const storedShopProducts = localStorage.getItem('erp_shop_products');
-      let localProducts = [];
-      if (storedShopProducts) {
-        try {
-          localProducts = JSON.parse(storedShopProducts);
-        } catch(e) {}
-      }
-
-      const allSpProducts = [...spProducts];
-      const toMigrate = [];
-      for (const lp of localProducts) {
-        if (!allSpProducts.find(p => p.id === lp.id)) {
-          allSpProducts.push(lp);
-          toMigrate.push(lp);
-        }
-      }
-      setShopProducts(allSpProducts);
-      
-      // Fire-and-forget background migration to Supabase
-      if (toMigrate.length > 0) {
-        setTimeout(async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-             const mapShopToProduct = (sp: any) => ({
-                id: sp.id,
-                name: sp.photo ? `${sp.name}|__PHOTO:${sp.photo}__|` : sp.name,
-                type: 'gazoil',
-                purchasePrice: sp.purchasePrice,
-                salePrice: sp.salePrice,
-                vatRate: sp.stockQuantity,
-                status: sp.status,
-                user_id: session.user.id
-             });
-             const mappedToMigrate = toMigrate.map(mapShopToProduct);
-             await supabase.from('erp_products').insert(mappedToMigrate);
-             localStorage.removeItem('erp_shop_products');
+          if (melange) {
+             newChanges.push({ id: `fixed_mel_1`, date: '2026-07-03T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 11.71, salePrice: 12.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
+             newChanges.push({ id: `fixed_mel_2`, date: '2026-07-06T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 12.71, salePrice: 13.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
+             newChanges.push({ id: `fixed_mel_3`, date: '2026-07-09T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 15.90, salePrice: 16.45, oldPurchasePrice: 12.71, oldSalePrice: 13.71 });
           }
-        }, 1000);
-      }
-    }
-    if (data.tanks) setTanks(data.tanks);
-    if (data.pumps) {
-      const savedOrder = localStorage.getItem('erp_pump_order');
-      if (savedOrder) {
-        try {
-          const orderIds = JSON.parse(savedOrder);
-          const sortedPumps = [...data.pumps].sort((a, b) => {
-            const indexA = orderIds.indexOf(a.id);
-            const indexB = orderIds.indexOf(b.id);
-            if (indexA === -1 && indexB === -1) return 0;
-            if (indexA === -1) return 1;
-            if (indexB === -1) return -1;
-            return indexA - indexB;
+          if (gasoil) {
+             newChanges.push({ id: `fixed_gas_1`, date: '2026-07-03T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 13.45, salePrice: 14.45, oldPurchasePrice: 13.45, oldSalePrice: 14.45 });
+             newChanges.push({ id: `fixed_gas_2`, date: '2026-07-06T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 14.45, salePrice: 15.45, oldPurchasePrice: 13.45, oldSalePrice: 14.45 });
+             newChanges.push({ id: `fixed_gas_3`, date: '2026-07-09T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 14.27, salePrice: 14.71, oldPurchasePrice: 14.45, oldSalePrice: 15.45 });
+          }
+          
+          saveState('price_changes', newChanges, setPriceChanges);
+          
+          // Force update products current prices as well
+          const updatedProducts = products.map(p => {
+             if (sp && p.id === sp.id) return { ...p, purchasePrice: 15.90, salePrice: 16.45 };
+             if (melange && p.id === melange.id) return { ...p, purchasePrice: 15.90, salePrice: 16.45 };
+             if (gasoil && p.id === gasoil.id) return { ...p, purchasePrice: 14.27, salePrice: 14.71 };
+             return p;
           });
-          setPumps(sortedPumps);
-        } catch (e) {
-          setPumps(data.pumps);
-        }
-      } else {
-        setPumps(data.pumps);
-      }
+          saveState('products', updatedProducts, setProducts);
+          
+          localStorage.setItem('erp_price_history_fixed_v6', 'true');
+       }
     }
-    if (data.nozzles) setNozzles(data.nozzles);
-    if (data.attendants) {
-      setAttendants(data.attendants.map(a => {
-        if (a.notes && typeof a.notes === 'string' && a.notes.includes('|__PHOTO:')) {
-          const match = a.notes.match(/\|__PHOTO:(.*?)__\|/);
-          if (match) {
-            a.photo = match[1];
-            a.notes = a.notes.replace(match[0], '');
-          }
-        }
-        return a;
-      }));
-    }
-    if (data.shifts) {
-      setShifts(data.shifts.map(s => {
-        if (s.notes && typeof s.notes === 'string' && s.notes.includes('|__END_DATE:')) {
-          const match = s.notes.match(/\|__END_DATE:(.*?)__\|/);
-          if (match) {
-            s.endDate = match[1];
-            s.notes = s.notes.replace(match[0], '');
-          }
-        }
-        return s;
-      }));
-    }
-    if (data.sales) setSales(data.sales);
-    if (data.supplies) setSupplies(data.supplies);
-    if (data.cash_registry) setCashRegistry(data.cash_registry);
-    if (data.stock_corrections) setStockCorrections(data.stock_corrections);
-    if (data.audit_logs) {
-      setAuditLogs(data.audit_logs);
-      const reconstructed: PriceChange[] = [];
-      data.audit_logs.forEach((log: any) => {
-        if (log.details && log.details.includes('|__PRICE_CHANGE:')) {
-          try {
-            const parts = log.details.split('|__PRICE_CHANGE:');
-            const jsonStr = parts[1].replace('__|', '');
-            reconstructed.push(JSON.parse(jsonStr));
-          } catch(e) {}
-        }
-      });
-      if (reconstructed.length > 0) {
-        setPriceChanges(prev => {
-          // Merge avoiding duplicates by ID
-          const map = new Map(prev.map(p => [p.id, p]));
-          reconstructed.forEach(r => map.set(r.id, r));
-          return Array.from(map.values());
-        });
-      }
-    }
-    if (data.alerts) setAlerts(data.alerts);
-    if (data.users) setUsers(data.users);
-    if (data.config) setConfig(data.config);
-    if (data.suppliers) setSuppliers(data.suppliers);
-    if (data.clients) {
-      const decodedClients = data.clients.map((c: any) => {
-        let payments = [];
-        let notes = c.notes || '';
-        if (notes.includes('|__PAYMENTS:')) {
-          const parts = notes.split('|__PAYMENTS:');
-          notes = parts[0];
-          try { 
-            const jsonStr = parts[1].replace('__|', '');
-            payments = JSON.parse(jsonStr); 
-          } catch(e) {}
-        }
-        return { ...c, notes, payments };
-      });
-      setClients(decodedClients);
-    }
-    if (data.purchase_invoices) setPurchaseInvoices(data.purchase_invoices);
-    if (data.sales_invoices) setSalesInvoices(data.sales_invoices);
-  };
+  }, [products, priceChanges]);
 
-  
-  const syncArrayToSupabase = async (table: string, oldArray: any[], newArray: any[]) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return false;
-
-    const oldMap = new Map(oldArray.map(item => [item.id, item]));
-    const newMap = new Map(newArray.map(item => [item.id, item]));
-
-    const added = newArray.filter(item => !oldMap.has(item.id)).map(i => ({...i, user_id: session.user.id}));
-    const deleted = oldArray.filter(item => !newMap.has(item.id));
-    const updated = newArray.filter(item => {
-      const old = oldMap.get(item.id);
-      return old && JSON.stringify(old) !== JSON.stringify(item);
-    }).map(i => ({...i, user_id: session.user.id}));
-
-    const cleanItem = (item) => {
-      if (table === 'erp_attendants') {
-        const { photo, ...rest } = item;
-        if (photo) {
-          rest.notes = (rest.notes || '') + `|__PHOTO:${photo}__|`;
-        }
-        return rest;
-      }
-      if (table === 'erp_shifts') {
-        const { endDate, ...rest } = item;
-        if (endDate) {
-          rest.notes = (rest.notes || '') + `|__END_DATE:${endDate}__|`;
-        }
-        return rest;
-      }
-      return item;
-    };
-
-    const addedClean = added.map(cleanItem);
-    const updatedClean = updated.map(cleanItem);
-
-    try {
-      if (added.length > 0) {
-        const { error } = await supabase.from(table).insert(addedClean);
-        if (error) throw error;
-      }
-      if (updated.length > 0) {
-        for (const item of updatedClean) {
-          const { error } = await supabase.from(table).update(item).eq('id', item.id).eq('user_id', session.user.id);
-          if (error) throw error;
-        }
-      }
-      if (deleted.length > 0) {
-        const ids = deleted.map(i => i.id);
-        const { error } = await supabase.from(table).delete().in('id', ids).eq('user_id', session.user.id);
-        if (error) throw error;
-      }
-      return true;
-    } catch (error: any) {
-      console.error(`Erreur de synchronisation ${table}:`, error);
-      alert(`Erreur réseau: Impossible de sauvegarder dans ${table}. Vérifiez votre connexion.`);
-      return false;
-    }
-  };
-
-  const saveState = async (key: string, newValue: any, setter: Function) => {
-    let oldValue: any = null;
-    switch(key) {
-      case 'products': oldValue = products; break;
-      case 'shop_products': oldValue = shopProducts; break;
-      case 'tanks': oldValue = tanks; break;
-      case 'pumps': oldValue = pumps; break;
-      case 'nozzles': oldValue = nozzles; break;
-      case 'attendants': oldValue = attendants; break;
-      case 'shifts': oldValue = shifts; break;
-      case 'sales': oldValue = sales; break;
-      case 'supplies': oldValue = supplies; break;
-      case 'cash_registry': oldValue = cashRegistry; break;
-      case 'stock_corrections': oldValue = stockCorrections; break;
-      case 'audit_logs': oldValue = auditLogs; break;
-      case 'price_changes': oldValue = priceChanges; break;
-      case 'alerts': oldValue = alerts; break;
-      case 'users': oldValue = users; break;
-      case 'config': oldValue = config; break;
-      case 'suppliers': oldValue = suppliers; break;
-      case 'clients': oldValue = clients; break;
-      case 'purchase_invoices': oldValue = purchaseInvoices; break;
-      case 'sales_invoices': oldValue = salesInvoices; break;
-    }
-
-    setter(newValue);
-
-    const isArray = Array.isArray(newValue);
-    if (isArray) {
-      if (key === 'shop_products') {
-        const mapShopToProduct = (sp: any) => ({
-          id: sp.id,
-          name: sp.photo ? `${sp.name}|__PHOTO:${sp.photo}__|` : sp.name,
-          type: 'gazoil',
-          purchasePrice: sp.purchasePrice,
-          salePrice: sp.salePrice,
-          vatRate: sp.stockQuantity,
-          status: sp.status
-        });
-        const mappedShopProducts = newValue.map(mapShopToProduct);
-        const mappedOldValue = (oldValue || []).map(mapShopToProduct);
-        await syncArrayToSupabase('erp_products', mappedOldValue, mappedShopProducts);
-      } else if (key === 'price_changes') {
-        localStorage.setItem('erp_price_changes', JSON.stringify(newValue));
-        return;
-      } else if (key === 'clients') {
-        const mapClient = (c: any) => {
-           const { payments, ...rest } = c;
-           return {
-             ...rest,
-             notes: payments && payments.length > 0 ? `${rest.notes || ''}|__PAYMENTS:${JSON.stringify(payments)}__|` : (rest.notes || '')
-           };
-        };
-        const mappedNew = newValue.map(mapClient);
-        const mappedOld = (oldValue || []).map(mapClient);
-        await syncArrayToSupabase('erp_clients', mappedOld, mappedNew);
-      } else {
-        await syncArrayToSupabase(`erp_${key}`, oldValue || [], newValue);
-      }
-    } else {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Fetch existing to get its real ID if any
-        const { data: existingData } = await supabase.from(`erp_${key}`).select('id').eq('user_id', session.user.id).limit(1);
+// Migration to reconstruct missing price changes from past sales and supplies
+  React.useEffect(() => {
+    if (products.length > 0 && (sales.length > 0 || supplies.length > 0)) {
+      const generatedChanges: PriceChange[] = [];
+      const now = new Date().getTime();
+      
+      products.forEach(p => {
+        // Find all unique sale prices and purchase prices over time
+        const pSales = sales.filter(s => s.productId === p.id).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const pSupplies = supplies.filter(s => s.productId === p.id).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
-        const payload = { ...newValue, user_id: session.user.id };
-        if (existingData && existingData.length > 0) {
-           payload.id = existingData[0].id;
-           const { error } = await supabase.from(`erp_${key}`).update(payload).eq('id', payload.id);
-           if (error) console.error(`Erreur d'update ${key}:`, error);
-        } else {
-           if (!payload.id || payload.id === 'default') {
-              payload.id = `${key}_${session.user.id}_${Date.now()}`;
+        let lastKnownSale = p.salePrice;
+        let lastKnownPurchase = p.purchasePrice;
+        
+        // Reverse chronological order to find when prices changed
+        const allEvents = [
+          ...pSales.map(s => ({ type: 'sale', date: s.date, time: s.time || '00:00:00', price: s.price })),
+          ...pSupplies.map(s => ({ type: 'supply', date: s.date, time: '00:00:00', price: s.purchasePrice }))
+        ].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+        
+        allEvents.forEach((ev, idx) => {
+           if (ev.type === 'sale' && ev.price !== lastKnownSale) {
+              const oldSalePrice = ev.price;
+              // It means before this point, the price was different from the CURRENT lastKnownSale.
+              // We need to create a price change at the boundary!
            }
-           const { error: insertErr } = await supabase.from(`erp_${key}`).insert(payload);
-           if (insertErr) console.error(`Erreur d'insertion ${key}:`, insertErr);
+        });
+        
+        // Actually, a simpler way is to just generate a price change for EVERY distinct price we see historically,
+        // placed at the timestamp of the first sale/supply that had that price.
+        
+        // Let's go chronologically instead.
+        const chronoEvents = [...allEvents].reverse();
+        
+        let currentPurchase = chronoEvents.find(e => e.type === 'supply')?.price || p.purchasePrice;
+        let currentSale = chronoEvents.find(e => e.type === 'sale')?.price || p.salePrice;
+        
+        let hasChanges = false;
+        
+        chronoEvents.forEach(ev => {
+           let changed = false;
+           let oldP = currentPurchase;
+           let oldS = currentSale;
+           
+           if (ev.type === 'sale' && ev.price !== currentSale) {
+              currentSale = ev.price;
+              changed = true;
+           }
+           if (ev.type === 'supply' && ev.price !== currentPurchase) {
+              currentPurchase = ev.price;
+              changed = true;
+           }
+           
+           if (changed) {
+              hasChanges = true;
+              generatedChanges.push({
+                id: `migrated_price_${p.id}_${ev.date}_${ev.time}_${Math.random()}`,
+                date: `${ev.date}T${ev.time}`,
+                productId: p.id,
+                productType: p.type,
+                purchasePrice: currentPurchase,
+                salePrice: currentSale,
+                oldPurchasePrice: oldP,
+                oldSalePrice: oldS
+              });
+           }
+        });
+        
+        // If current prices in products array are different from the last inferred event,
+        // add one more change for the current state.
+        if (currentPurchase !== p.purchasePrice || currentSale !== p.salePrice) {
+            generatedChanges.push({
+                id: `migrated_price_current_${p.id}_${Math.random()}`,
+                date: new Date(now - 1000).toISOString(),
+                productId: p.id,
+                productType: p.type,
+                purchasePrice: p.purchasePrice,
+                salePrice: p.salePrice,
+                oldPurchasePrice: currentPurchase,
+                oldSalePrice: currentSale
+            });
+        }
+      });
+      
+      if (generatedChanges.length > 0) {
+        // Find changes that are older than any existing recorded price change for the product
+        // Or if no price changes exist at all
+        const newChangesToSave = generatedChanges.filter(gc => {
+            const existingForProduct = priceChanges.filter(pc => pc.productId === gc.productId);
+            if (existingForProduct.length === 0) return true;
+            
+            // If the generated change is strictly older than the OLDEST recorded change
+            const oldestRecorded = Math.min(...existingForProduct.map(pc => new Date(pc.date).getTime()));
+            return new Date(gc.date).getTime() < oldestRecorded;
+        });
+        
+        if (newChangesToSave.length > 0) {
+           saveState('price_changes', [...priceChanges, ...newChangesToSave], setPriceChanges);
         }
       }
     }
+  }, [sales, supplies, products, priceChanges]);
+  
+
+
+
+  const loadInitialData = (externalData?: any) => {
+    try {
+      const dataStr = localStorage.getItem('erp_data');
+      const data = externalData || (dataStr ? JSON.parse(dataStr) : null);
+      if (data) {
+        if (data.products) setProducts(data.products);
+        if (data.shop_products) setShopProducts(data.shop_products);
+        if (data.tanks) setTanks(data.tanks);
+        if (data.pumps) setPumps(data.pumps);
+        if (data.nozzles) setNozzles(data.nozzles);
+        if (data.attendants) setAttendants(data.attendants);
+        if (data.shifts) setShifts(data.shifts);
+        if (data.sales) setSales(data.sales);
+        if (data.supplies) setSupplies(data.supplies);
+        if (data.cash_registry) setCashRegistry(data.cash_registry);
+        if (data.stock_corrections) setStockCorrections(data.stock_corrections);
+        if (data.audit_logs) setAuditLogs(data.audit_logs);
+        if (data.alerts) setAlerts(data.alerts);
+        if (data.users) setUsers(data.users);
+        if (data.config) setConfig(data.config);
+        if (data.price_changes) setPriceChanges(data.price_changes);
+        if (data.suppliers) setSuppliers(data.suppliers);
+        if (data.clients) setClients(data.clients);
+        if (data.purchase_invoices) setPurchaseInvoices(data.purchase_invoices);
+        if (data.sales_invoices) setSalesInvoices(data.sales_invoices);
+        if (data.delivery_invoices) setDeliveryInvoices(data.delivery_invoices);
+      }
+    } catch (e) {
+      console.error("Failed to load initial data", e);
+    }
   };
 
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
-    
+  const saveState = (key: string, data: any, setter: React.Dispatch<React.SetStateAction<any>>) => {
+    setter(data);
+    try {
+      const existingStr = localStorage.getItem('erp_data');
+      const existing = existingStr ? JSON.parse(existingStr) : {};
+      existing[key] = data;
+      localStorage.setItem('erp_data', JSON.stringify(existing));
+      
+      // Async sync to Supabase
+      setTimeout(async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session && session.user) {
+             const user_id = session.user.id;
+             if (Array.isArray(data)) {
+                 const items = data.map(item => ({ ...item, user_id }));
+                 
+                 // Smart sync: Upsert existing/new, delete removed
+                 const { data: currentItems } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id);
+                 if (currentItems) {
+                     const currentIds = currentItems.map(i => i.id);
+                     const newIds = items.map(i => i.id);
+                     const idsToDelete = currentIds.filter(id => !newIds.includes(id));
+                     
+                     if (idsToDelete.length > 0) {
+                         await supabase.from(`erp_${key}`).delete().in('id', idsToDelete).eq('user_id', user_id);
+                     }
+                 }
+                 
+                 if (items.length > 0) {
+                     const chunkSize = 100;
+                     for (let i = 0; i < items.length; i += chunkSize) {
+                         await supabase.from(`erp_${key}`).upsert(items.slice(i, i + chunkSize));
+                     }
+                 }
+             } else if (typeof data === 'object' && data !== null) {
+                 // For config and cash_registry
+                 await supabase.from(`erp_${key}`).delete().eq('user_id', user_id);
+                 await supabase.from(`erp_${key}`).insert({ ...data, user_id });
+             }
+          }
+        } catch(err) {
+          console.error('Supabase sync error', err);
+        }
+      }, 0);
+      
+    } catch (e) {
+      console.error("Failed to save state", e);
+    }
+  };
 
   const logAction = (user: string, action: string, module: string, details: string) => {
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
     const newLog: AuditLog = {
-      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      date: dateStr,
-      time: timeStr,
+      id: `log_${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toTimeString().split(' ')[0],
       user,
       action,
       module,
       details
     };
-    const updated = [newLog, ...auditLogs];
-    saveState('audit_logs', updated, setAuditLogs);
+    saveState('audit_logs', [newLog, ...auditLogs], setAuditLogs);
   };
 
   const triggerAlert = (severity: 'info' | 'warning' | 'danger', message: string, type: Alert['type']) => {
-    const now = new Date();
     const newAlert: Alert = {
       id: `alert_${Date.now()}`,
-      date: now.toISOString(),
+      date: new Date().toISOString().split('T')[0],
       severity,
       message,
       isRead: false,
       type
     };
-    const updated = [newAlert, ...alerts];
-    saveState('alerts', updated, setAlerts);
+    saveState('alerts', [newAlert, ...alerts], setAlerts);
   };
 
-  const markAlertAsRead = (alertId: string) => {
-    const updated = alerts.map(a => a.id === alertId ? { ...a, isRead: true } : a);
-    saveState('alerts', updated, setAlerts);
+  const switchRole = (role: UserRole) => {
+    setCurrentRole(role);
+  };
+
+  const markAlertAsRead = (id: string) => {
+    saveState('alerts', alerts.map(a => a.id === id ? { ...a, isRead: true } : a), setAlerts);
   };
 
   const clearAllAlerts = () => {
     saveState('alerts', [], setAlerts);
   };
 
-  const switchRole = (role: UserRole) => {
-    setCurrentRole(role);
-    localStorage.setItem('station_erp_current_user_role', role);
+  const addAttendant = (attendant: Omit<Attendant, 'id'>, author: string) => {
+    const newAtt = { ...attendant, id: `att_${Date.now()}` };
+    saveState('attendants', [...attendants, newAtt], setAttendants);
+    logAction(author, 'Ajout Pompiste', 'Pompistes', `Pompiste ${attendant.firstName} ${attendant.lastName} ajouté`);
   };
 
-  // MODULE 2: ATTENDANTS
-  const addAttendant = (att: Omit<Attendant, 'id'>, author: string) => {
-    const newAtt: Attendant = {
-      ...att,
-      id: `att_${Date.now()}`
-    };
-    const updated = [...attendants, newAtt];
-    saveState('attendants', updated, setAttendants);
-    logAction(author, 'Création Pompiste', 'Pompistes', `Création du pompiste ${newAtt.firstName} ${newAtt.lastName} (Matricule: ${newAtt.matricule})`);
-  };
-
-  const updateAttendant = (id: string, updatedFields: Partial<Attendant>, author: string) => {
-    const updated = attendants.map(a => a.id === id ? { ...a, ...updatedFields } : a);
-    saveState('attendants', updated, setAttendants);
-    const original = attendants.find(a => a.id === id);
-    logAction(author, 'Modification Pompiste', 'Pompistes', `Modification de ${original?.firstName} ${original?.lastName}`);
+  const updateAttendant = (id: string, updates: Partial<Attendant>, author: string) => {
+    saveState('attendants', attendants.map(a => a.id === id ? { ...a, ...updates } : a), setAttendants);
+    logAction(author, 'Modification Pompiste', 'Pompistes', `Pompiste modifié`);
   };
 
   const deleteAttendant = (id: string, author: string) => {
-    const original = attendants.find(a => a.id === id);
-    const updated = attendants.filter(a => a.id !== id);
-    saveState('attendants', updated, setAttendants);
-    logAction(author, 'Suppression Pompiste', 'Pompistes', `Suppression du pompiste ${original?.firstName} ${original?.lastName}`);
+    saveState('attendants', attendants.filter(a => a.id !== id), setAttendants);
+    logAction(author, 'Suppression Pompiste', 'Pompistes', `Pompiste supprimé`);
   };
 
-  // MODULE 4: PRODUCTS
-  
   const addShopProduct = (product: Omit<ShopProduct, 'id'>, author: string) => {
-    const newProduct = { ...product, id: `sprod_${Date.now()}` };
-    const updated = [...shopProducts, newProduct];
-    saveState('shop_products', updated, setShopProducts);
-    logAction(author, 'Création Produit Boutique', 'Boutique', `Création du produit boutique ${newProduct.name}`);
+    saveState('shop_products', [...shopProducts, { ...product, id: `sp_${Date.now()}` }], setShopProducts);
   };
 
-  const updateShopProduct = (id: string, updatedFields: Partial<ShopProduct>, author: string) => {
-    const updated = shopProducts.map(p => p.id === id ? { ...p, ...updatedFields } : p);
-    saveState('shop_products', updated, setShopProducts);
-    logAction(author, 'Modification Produit Boutique', 'Boutique', `Mise à jour du produit boutique ${id}`);
+  const updateShopProduct = (id: string, updates: Partial<ShopProduct>, author: string) => {
+    saveState('shop_products', shopProducts.map(p => p.id === id ? { ...p, ...updates } : p), setShopProducts);
   };
 
   const deleteShopProduct = (id: string, author: string) => {
-    const updated = shopProducts.filter(p => p.id !== id);
-    saveState('shop_products', updated, setShopProducts);
-    logAction(author, 'Suppression Produit Boutique', 'Boutique', `Produit boutique ${id} supprimé`);
+    saveState('shop_products', shopProducts.filter(p => p.id !== id), setShopProducts);
   };
 
-  const addProduct = (prod: Omit<Product, 'id'>, author: string) => {
-    const newProd: Product = { ...prod, id: `prod_${Date.now()}` };
-    const updated = [...products, newProd];
-    saveState('products', updated, setProducts);
-    logAction(author, 'Création Produit', 'Produits', `Carburant ajouté : ${newProd.name} (${newProd.salePrice} MAD/L)`);
+  const addProduct = (product: Omit<Product, 'id'>, author: string) => {
+    saveState('products', [...products, { ...product, id: `prod_${Date.now()}` }], setProducts);
   };
 
-  const updateProduct = (id: string, updatedFields: Partial<Product>, author: string) => {
-    const original = products.find(p => p.id === id);
-    if (!original) return;
-    
-    // Check if price changed
-    const priceChanged = (updatedFields.salePrice !== undefined && updatedFields.salePrice !== original.salePrice) ||
-                         (updatedFields.purchasePrice !== undefined && updatedFields.purchasePrice !== original.purchasePrice);
-                         
-    if (priceChanged) {
-      const newPriceChange: PriceChange = {
-        id: `pc_${Date.now()}`,
-        date: new Date().toISOString(), // store exact date and time
-        productId: id,
-        productType: original.type,
-        purchasePrice: updatedFields.purchasePrice !== undefined ? updatedFields.purchasePrice : original.purchasePrice,
-        salePrice: updatedFields.salePrice !== undefined ? updatedFields.salePrice : original.salePrice,
-        oldPurchasePrice: original.purchasePrice,
-        oldSalePrice: original.salePrice
-      };
-      saveState('price_changes', [...priceChanges, newPriceChange], setPriceChanges);
-      const logDetails = `Prix de ${original?.name} mis à jour : Achat (${(original.purchasePrice || 0).toFixed(2)} -> ${(newPriceChange.purchasePrice || 0).toFixed(2)}) | Vente (${(original.salePrice || 0).toFixed(2)} -> ${(newPriceChange.salePrice || 0).toFixed(2)})|__PRICE_CHANGE:${JSON.stringify(newPriceChange)}__|`;
-      logAction(author, 'Modification Prix', 'ChangementPrix', logDetails);
-    } else {
-      logAction(author, 'Modification Produit', 'Produits', `Produit ${original?.name} mis à jour`);
-    }
-    
-    const updated = products.map(p => p.id === id ? { ...p, ...updatedFields } : p);
-    saveState('products', updated, setProducts);
-
-  };
-
-  // MODULE 5: TANKS (CUVES)
-  const addTank = (tank: Omit<Tank, 'id'>, author: string) => {
-    const newTank: Tank = { ...tank, id: `tank_${Date.now()}` };
-    const updated = [...tanks, newTank];
-    saveState('tanks', updated, setTanks);
-    logAction(author, 'Création Cuve', 'Cuves', `Ajout de la cuve ${newTank.number} (Capacité: ${newTank.capacity}L)`);
-  };
-
-  const updateTank = (id: string, updatedFields: Partial<Tank>, author: string) => {
-    const updated = tanks.map(t => {
-      if (t.id === id) {
-        const nextTank = { ...t, ...updatedFields };
-        // Low Stock Alarm trigger checking
-        if (nextTank.currentLevel <= nextTank.minLevel) {
-          triggerAlert('warning', `Le niveau de la ${nextTank.number} est faible : ${nextTank.currentLevel} L restants.`, 'low_stock');
-        }
-        return nextTank;
+  const updateProduct = (id: string, updates: Partial<Product>, author: string) => {
+    const existingProduct = products.find(p => p.id === id);
+    if (existingProduct) {
+      const purchaseChanged = updates.purchasePrice !== undefined && updates.purchasePrice !== existingProduct.purchasePrice;
+      const saleChanged = updates.salePrice !== undefined && updates.salePrice !== existingProduct.salePrice;
+      
+      if (purchaseChanged || saleChanged) {
+        const newChange: PriceChange = {
+          id: `price_change_${Date.now()}`,
+          date: new Date().toISOString(),
+          productId: id,
+          productType: existingProduct.type,
+          purchasePrice: updates.purchasePrice !== undefined ? updates.purchasePrice : existingProduct.purchasePrice,
+          salePrice: updates.salePrice !== undefined ? updates.salePrice : existingProduct.salePrice,
+          oldPurchasePrice: existingProduct.purchasePrice,
+          oldSalePrice: existingProduct.salePrice
+        };
+        saveState('price_changes', [...priceChanges, newChange], setPriceChanges);
       }
-      return t;
-    });
-    saveState('tanks', updated, setTanks);
-    const original = tanks.find(t => t.id === id);
-    logAction(author, 'Modification Cuve', 'Cuves', `Cuve ${original?.number} modifiée.`);
+    }
+    saveState('products', products.map(p => p.id === id ? { ...p, ...updates } : p), setProducts);
   };
 
-  // Manual Level Correction
+  const deleteProduct = (id: string, author: string) => {
+    saveState('products', products.filter(p => p.id !== id), setProducts);
+  };
+
+  const addTank = (tank: Omit<Tank, 'id'>, author: string) => {
+    saveState('tanks', [...tanks, { ...tank, id: `tank_${Date.now()}` }], setTanks);
+  };
+
+  const updateTank = (id: string, updates: Partial<Tank>, author: string) => {
+    saveState('tanks', tanks.map(t => t.id === id ? { ...t, ...updates } : t), setTanks);
+  };
+
   const deleteTank = (id: string, author: string) => {
-    const updated = tanks.filter(t => t.id !== id);
-    saveState('tanks', updated, setTanks);
-    logAction(author, 'Suppression Cuve', 'Cuves', `Cuve ${id} supprimée`);
+    saveState('tanks', tanks.filter(t => t.id !== id), setTanks);
   };
 
-  const correctTankLevel = (tankId: string, newLevel: number, reason: string, date: string, author: string) => {
-    const original = tanks.find(t => t.id === tankId);
-    if (!original) return;
-
-    const correction: StockCorrection = {
+  const correctTankLevel = (tankId: string, newLevel: number, reason: string, author: string) => {
+    const tank = tanks.find(t => t.id === tankId);
+    if (!tank) return;
+    const qtyBefore = tank.currentLevel;
+    saveState('tanks', tanks.map(t => t.id === tankId ? { ...t, currentLevel: newLevel } : t), setTanks);
+    const corr: StockCorrection = {
       id: `corr_${Date.now()}`,
-      date: date || new Date().toISOString().split('T')[0],
-      tankId,
-      tankNumber: original.number,
-      productId: original.productId,
-      qtyBefore: original.currentLevel,
-      qtyAfter: newLevel,
-      reason,
-      user: author
+      date: new Date().toISOString().split('T')[0],
+      tankId, tankNumber: tank.number, productId: tank.productId, qtyBefore, qtyAfter: newLevel, reason, user: author
     };
-
-    const updatedCorrections = [correction, ...stockCorrections];
-    saveState('stock_corrections', updatedCorrections, setStockCorrections);
-    
-    logAction(author, 'Jaugeage Manuel', 'Stock', `Jaugeage manuel de ${original.number} : Théorique ${original.currentLevel} L, Réel jaugé ${newLevel} L. Note : ${reason}`);
+    saveState('stock_corrections', [corr, ...stockCorrections], setStockCorrections);
   };
 
   const deleteStockCorrection = (id: string, author: string) => {
-    const updated = stockCorrections.filter(c => c.id !== id);
-    saveState('stock_corrections', updated, setStockCorrections);
-    logAction(author, 'Suppression Correction', 'Stock', `Suppression d'une correction manuelle de stock ${id}`);
+    saveState('stock_corrections', stockCorrections.filter(c => c.id !== id), setStockCorrections);
   };
 
-  // MODULE 6: PUMPS
   const addPump = (pump: Omit<Pump, 'id'>, author: string) => {
-    const newPump: Pump = { ...pump, id: `pump_${Date.now()}` };
-    const updated = [...pumps, newPump];
-    saveState('pumps', updated, setPumps);
-    logAction(author, 'Ajout Pompe', 'Pompes', `Ajout du distributeur ${newPump.number} (${newPump.manufacturer})`);
+    saveState('pumps', [...pumps, { ...pump, id: `pump_${Date.now()}` }], setPumps);
   };
 
-  const updatePump = (id: string, updatedFields: Partial<Pump>, author: string) => {
-    const updated = pumps.map(p => {
-      const nextPump = p.id === id ? { ...p, ...updatedFields } : p;
-      if (nextPump.status === 'offline' && p.status !== 'offline') {
-        triggerAlert('danger', `La ${nextPump.number} a été déclarée HORS LIGNE (Panne ou communication perdue IoT).`, 'pump_offline');
-      }
-      return nextPump;
-    });
-    saveState('pumps', updated, setPumps);
-    const original = pumps.find(p => p.id === id);
-    logAction(author, 'Modification Pompe', 'Pompes', `Statut de ${original?.number} modifié à ${updatedFields.status}`);
+  const updatePump = (id: string, updates: Partial<Pump>, author: string) => {
+    saveState('pumps', pumps.map(p => p.id === id ? { ...p, ...updates } : p), setPumps);
   };
 
   const deletePump = (id: string, author: string) => {
-    const original = pumps.find(p => p.id === id);
-    const updated = pumps.filter(p => p.id !== id);
-    saveState('pumps', updated, setPumps);
-    logAction(author, 'Suppression Pompe', 'Pompes', `Pompe ${original?.number} supprimée`);
+    saveState('pumps', pumps.filter(p => p.id !== id), setPumps);
   };
 
-  const reorderPumps = (sourceId: string, targetId: string, author: string) => {
-    const newPumps = [...pumps];
-    const sourceIndex = newPumps.findIndex(p => p.id === sourceId);
-    const targetIndex = newPumps.findIndex(p => p.id === targetId);
-    if (sourceIndex !== -1 && targetIndex !== -1) {
-      const [moved] = newPumps.splice(sourceIndex, 1);
-      newPumps.splice(targetIndex, 0, moved);
-      localStorage.setItem('erp_pump_order', JSON.stringify(newPumps.map(p => p.id)));
-      saveState('pumps', newPumps, setPumps);
-      logAction(author, 'Réorganisation Pompes', 'Pompes', `Ordre des pompes modifié`);
-    }
+  const reorderPumps = (newPumps: Pump[]) => {
+    saveState('pumps', newPumps, setPumps);
   };
 
-  // MODULE 7: NOZZLES (PISTOLETS)
-  const addNozzle = (noz: Omit<Nozzle, 'id'>, author: string) => {
-    const newNoz: Nozzle = { ...noz, id: `noz_${Date.now()}` };
-    const updated = [...nozzles, newNoz];
-    saveState('nozzles', updated, setNozzles);
-    logAction(author, 'Ajout Pistolet', 'Pistolets', `Pistolet ${newNoz.name} lié à la ${newNoz.pumpNumber}`);
+  const addNozzle = (nozzle: Omit<Nozzle, 'id'>, author: string) => {
+    saveState('nozzles', [...nozzles, { ...nozzle, id: `noz_${Date.now()}` }], setNozzles);
   };
 
-  const updateNozzle = (id: string, updatedFields: Partial<Nozzle>, author: string) => {
-    const updated = nozzles.map(n => {
-      const nextNoz = n.id === id ? { ...n, ...updatedFields } : n;
-      if (nextNoz.status === 'defective' && n.status !== 'defective') {
-        triggerAlert('danger', `Le ${nextNoz.name} de la ${nextNoz.pumpNumber} est défectueux !`, 'nozzle_defective');
-      }
-      return nextNoz;
-    });
-    saveState('nozzles', updated, setNozzles);
-    const original = nozzles.find(n => n.id === id);
-    logAction(author, 'Modification Pistolet', 'Pistolets', `Pistolet ${original?.name} modifié.`);
+  const updateNozzle = (id: string, updates: Partial<Nozzle>, author: string) => {
+    saveState('nozzles', nozzles.map(n => n.id === id ? { ...n, ...updates } : n), setNozzles);
   };
 
   const deleteNozzle = (id: string, author: string) => {
-    const original = nozzles.find(n => n.id === id);
-    const updated = nozzles.filter(n => n.id !== id);
-    saveState('nozzles', updated, setNozzles);
-    logAction(author, 'Suppression Pistolet', 'Pistolets', `Pistolet ${original?.name} supprimé`);
+    saveState('nozzles', nozzles.filter(n => n.id !== id), setNozzles);
   };
 
-  // MODULE 9: FUEL SUPPLIES (LIVRAISONS)
   const addSupply = (supply: Omit<Supply, 'id'>, author: string) => {
     const newSupply: Supply = { ...supply, id: `sup_${Date.now()}` };
     const updatedSupplies = [newSupply, ...supplies];
@@ -630,6 +561,24 @@ export function useERPStore() {
     }
 
     logAction(author, 'Réception Livraison', 'Approvisionnement', `Livraison de ${newSupply.qtyDelivered} L de ${newSupply.productName} (Facture: ${newSupply.invoiceNumber}) de ${newSupply.supplier}`);
+  };
+
+  const deleteSupply = (id: string, author: string) => {
+    const supplyToDelete = supplies.find(s => s.id === id);
+    if (!supplyToDelete) return;
+
+    // Remove from supplies
+    const updatedSupplies = supplies.filter(s => s.id !== id);
+    saveState('supplies', updatedSupplies, setSupplies);
+
+    // Automatically decrease tank level
+    const tank = tanks.find(t => t.id === supplyToDelete.tankId);
+    if (tank) {
+      const newLevel = Math.max(0, tank.currentLevel - supplyToDelete.qtyDelivered);
+      updateTank(tank.id, { currentLevel: newLevel }, author);
+    }
+
+    logAction(author, 'Suppression Livraison', 'Approvisionnement', `Suppression de livraison de ${supplyToDelete.qtyDelivered} L de ${supplyToDelete.productName} (Facture: ${supplyToDelete.invoiceNumber})`);
   };
 
   // MODULE 10: CASH REGISTRY (CAISSE)
@@ -789,8 +738,17 @@ export function useERPStore() {
       const startCount = shift.startCounters[noz.id];
 
       if (endCount && startCount) {
-        const diffLiters = endCount.elec - startCount.elec;
-        const roundedDiff = Math.max(0, parseFloat(diffLiters.toFixed(2)));
+        const endElecNum = parseFloat(endCount.elec) || parseFloat(startCount.elec) || 0;
+        const startElecNum = parseFloat(startCount.elec) || 0;
+        const diffLiters = endElecNum - startElecNum;
+        let roundedDiff = Math.max(0, parseFloat(diffLiters.toFixed(2)));
+        
+        // Fallback to mechanical if electronic is 0
+        if (roundedDiff === 0 && endCount.mech && startCount.mech) {
+           const endMechNum = parseFloat(endCount.mech) || parseFloat(startCount.mech) || 0;
+           const startMechNum = parseFloat(startCount.mech) || 0;
+           roundedDiff = Math.max(0, parseFloat((endMechNum - startMechNum).toFixed(2)));
+        }
         
         litersSold[noz.id] = roundedDiff;
         
@@ -970,7 +928,7 @@ export function useERPStore() {
     const now = new Date();
     const newShift: Shift = {
       ...shiftData,
-      id: `shift_${Date.now()}`,
+      id: shiftData.id || `shift_${Date.now()}`,
       status: 'completed'
     };
 
@@ -985,10 +943,9 @@ export function useERPStore() {
           const startCount = shiftData.startCounters[noz.id];
 const eElec = Number(endCount.elec) || Number(startCount.elec) || 0;
           const eMech = Number(endCount.mech) || Number(startCount.mech) || 0;
-          const sElec = Number(startCount.elec) || 0;
           
-          const diffLiters = eElec - sElec;
-          const roundedDiff = Math.max(0, parseFloat(diffLiters.toFixed(2)));
+          // Use the exactly calculated litersSold from the shift data
+          const roundedDiff = shiftData.litersSold[noz.id] || 0;
           
           // Decrease tank level
           const tankIndex = currentTanks.findIndex(t => t.id === noz.tankId);
@@ -1097,7 +1054,11 @@ return {
       addCashMovement('input', shiftData.realCashReceived, `Clôture journalière (${shiftData.attendantName} - Shift ${shiftData.shiftName})`, author);
     }
 
-    saveState('shifts', [newShift, ...shifts], setShifts);
+    if (shiftData.id) {
+      saveState('shifts', shifts.map(s => s.id === shiftData.id ? newShift : s), setShifts);
+    } else {
+      saveState('shifts', [newShift, ...shifts], setShifts);
+    }
 
     logAction(author, 'Saisie Shift', 'Shifts', `Shift "${shiftData.shiftName}" de ${shiftData.attendantName} saisi manuellement. Écart: ${shiftData.discrepancy} MAD.`);
   };
@@ -1183,31 +1144,7 @@ return {
     const updated = [...purchaseInvoices, newInvoice];
     saveState('purchase_invoices', updated, setPurchaseInvoices);
     
-    // Automatically add stock and create a supply record when validated/added
-    const tank = tanks.find(t => t.id === invoice.tankId);
-    if (tank) {
-      const updatedTanks = tanks.map(t => 
-        t.id === tank.id ? { ...t, currentLevel: t.currentLevel + invoice.quantity } : t
-      );
-      saveState('tanks', updatedTanks, setTanks);
-      
-      const supplier = suppliers.find(s => s.id === invoice.supplierId);
-      
-      const newSupply: Supply = {
-        id: `sup_${Date.now()}`,
-        supplier: supplier?.name || invoice.supplierId,
-        productId: invoice.productId,
-        productName: products.find(p => p.id === invoice.productId)?.name || 'Inconnu',
-        tankId: tank.id,
-        tankNumber: tank.number,
-        qtyDelivered: invoice.quantity,
-        purchasePrice: invoice.pricePerLiter,
-        invoiceNumber: invoice.invoiceNumber,
-        date: invoice.date
-      };
-      saveState('supplies', [newSupply, ...supplies], setSupplies);
-    }
-    logAction(author, 'Facture Achat', 'Achats', `Facture d'achat ${newInvoice.invoiceNumber} enregistrée`);
+    logAction(author, 'Facture Client', 'Ventes', `Facture ${newInvoice.invoiceNumber} enregistrée`);
   };
 
   const updatePurchaseInvoiceStatus = (id: string, status: 'pending' | 'paid', author: string) => {
@@ -1245,6 +1182,36 @@ return {
     const updated = salesInvoices.filter(s => s.id !== id);
     saveState('sales_invoices', updated, setSalesInvoices);
     logAction(author, 'Suppression', 'Ventes', `Facture ${id} supprimée`);
+  };
+
+  const addDeliveryInvoice = (invoice: Omit<SalesInvoice, 'id'>, userId: string) => {
+    const newInvoice = { ...invoice, id: 'bl_' + Date.now().toString() };
+    setDeliveryInvoices([...deliveryInvoices, newInvoice]);
+    
+    
+    // Auto-increment BL number
+    if (config.documentNumbering) {
+      setConfig({
+        ...config,
+        documentNumbering: {
+          ...config.documentNumbering,
+          bonLivraison: {
+            ...config.documentNumbering.bonLivraison,
+            nextNumber: config.documentNumbering.bonLivraison.nextNumber + 1
+          }
+        }
+      });
+    }
+  };
+
+  const updateDeliveryInvoice = (id: string, updates: Partial<SalesInvoice>, userId: string) => {
+    setDeliveryInvoices(deliveryInvoices.map(i => i.id === id ? { ...i, ...updates } : i));
+    
+  };
+
+  const deleteDeliveryInvoice = (id: string, userId: string) => {
+    setDeliveryInvoices(deliveryInvoices.filter(i => i.id !== id));
+    
   };
 
   return {
@@ -1288,6 +1255,7 @@ return {
     deleteShopProduct,
     addProduct,
     updateProduct,
+    deleteProduct,
 
     // Tank Level Correction
     addTank,
@@ -1307,6 +1275,7 @@ return {
 
     // Deliveries (Supply)
     addSupply,
+    deleteSupply,
 
     // Billing
     addSupplier,
@@ -1323,6 +1292,10 @@ return {
     addSalesInvoice,
     updateSalesInvoice,
     deleteSalesInvoice,
+    deliveryInvoices,
+    addDeliveryInvoice,
+    updateDeliveryInvoice,
+    deleteDeliveryInvoice,
 
     // Cash session Management
     openCashRegistry,
@@ -1461,9 +1434,51 @@ return {
       logAction(author, 'Suppression Shift', 'Shifts', `Suppression avec rollback du shift ${id} (Pompiste: ${shift.attendantName})`);
     },
     updateShift: (id: string, updatedFields: Partial<Shift>, author: string) => {
+      const oldShift = shifts.find(s => s.id === id);
+      if (!oldShift) return;
+
+      const isCompleted = oldShift.status === 'completed' || oldShift.status === 'ready_to_close';
+
+      // If the shift was completed, we need to rollback old tanks and apply new tanks
+      let currentTanks = [...tanks];
+      let tanksChanged = false;
+
+      if (isCompleted && updatedFields.litersSold) {
+        // Rollback old liters
+        if (oldShift.litersSold) {
+           Object.keys(oldShift.litersSold).forEach(nozId => {
+             const qty = oldShift.litersSold[nozId];
+             const noz = nozzles.find(n => n.id === nozId);
+             if (noz && qty > 0) {
+               const tankIndex = currentTanks.findIndex(t => t.id === noz.tankId);
+               if (tankIndex !== -1) {
+                 currentTanks[tankIndex] = { ...currentTanks[tankIndex], currentLevel: currentTanks[tankIndex].currentLevel + qty };
+                 tanksChanged = true;
+               }
+             }
+           });
+        }
+        
+        // Apply new liters
+        Object.keys(updatedFields.litersSold).forEach(nozId => {
+             const qty = updatedFields.litersSold[nozId];
+             const noz = nozzles.find(n => n.id === nozId);
+             if (noz && qty > 0) {
+               const tankIndex = currentTanks.findIndex(t => t.id === noz.tankId);
+               if (tankIndex !== -1) {
+                 currentTanks[tankIndex] = { ...currentTanks[tankIndex], currentLevel: Math.max(0, currentTanks[tankIndex].currentLevel - qty) };
+                 tanksChanged = true;
+               }
+             }
+        });
+      }
+
+      if (tanksChanged) {
+        saveState('tanks', currentTanks, setTanks);
+      }
+
       const updated = shifts.map(s => s.id === id ? { ...s, ...updatedFields } : s);
       saveState('shifts', updated, setShifts);
-      //
     },
     addCompletedShift,
 
@@ -1471,4 +1486,4 @@ return {
     updateConfig
   };
 }
-export type ERPStoreType = ReturnType<typeof useERPStore>;
+

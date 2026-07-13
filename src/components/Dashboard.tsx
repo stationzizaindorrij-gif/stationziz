@@ -57,14 +57,14 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           if (nozzle) {
             const pump = store.pumps.find(p => p.id === nozzle.pumpId);
             if (pump) {
-              const tank = store.tanks.find(t => t.id === pump.tankId);
+              const tank = store.tanks.find(t => t.id === nozzle.tankId);
               if (tank) {
                 const product = store.products.find(p => p.id === tank.productId);
                 if (product) {
                   const purchaseCost = getHistoricalPrice(product.id, shift.date);
                   // Pour trouver le prix de vente, on peut utiliser amountSold / litersSold
                   // ou le currentProd.price. amountSold / litersSold est plus précis pour ce shift
-                  let unitPrice = product.price;
+                  let unitPrice = product.salePrice;
                   if (shift.amountSold && shift.amountSold[nozzleId]) {
                       unitPrice = shift.amountSold[nozzleId] / liters;
                   }
@@ -157,22 +157,10 @@ export default function Dashboard({ store, setView }: DashboardProps) {
         key = shift.date.substring(0, 4); // YYYY
         label = key;
       } else {
-        // day (par shift)
-        key = shift.id; // Ne pas agréger par jour, afficher chaque shift
+        // day (agréger par jour)
+        key = shift.date; // YYYY-MM-DD
         const startDateStr = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-        let dateLabel = '';
-        if (shift.endDate) {
-          const endDateObj = new Date(shift.endDate);
-          const endDateStr = endDateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-          if (shift.date !== shift.endDate) {
-            dateLabel = `Du ${startDateStr} au ${endDateStr}`;
-          } else {
-            dateLabel = `Le ${startDateStr}`;
-          }
-        } else {
-          dateLabel = `Le ${startDateStr}`;
-        }
-        label = `${dateLabel} (${shift.shiftName || 'Shift'})`;
+        label = `Le ${startDateStr}`;
       }
       
       if (!aggregated[key]) {
@@ -183,7 +171,23 @@ export default function Dashboard({ store, setView }: DashboardProps) {
       aggregated[key].litres += (shift.totalLiters || 0);
     });
     
-    return Object.values(aggregated);
+    let result = Object.values(aggregated);
+    
+    // To bring bars closer together when there are very few of them, we pad the array
+    if (result.length > 0 && result.length < 7) {
+      const paddingNeeded = 7 - result.length;
+      const leftPad = Math.floor(paddingNeeded / 2);
+      const rightPad = paddingNeeded - leftPad;
+      
+      for (let i = 0; i < leftPad; i++) {
+        result.unshift({ label: ' '.repeat(i + 1), ventes: 0, litres: 0 }); // Spaces to keep label unique
+      }
+      for (let i = 0; i < rightPad; i++) {
+        result.push({ label: ' '.repeat(leftPad + i + 1), ventes: 0, litres: 0 });
+      }
+    }
+    
+    return result;
   }, [store.shifts, chartPeriod]);
 
   // Graphique de distribution par produit
@@ -237,7 +241,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
       </div>
 
       {/* Grid des statistiques clés */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Chiffre d'affaires du jour */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start">
@@ -276,22 +280,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           </div>
         </div>
 
-        {/* Recettes & Bénéfices */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bénéfices Estimés (Jour)</p>
-              <h3 className="text-2xl font-bold text-emerald-600 mt-1 font-mono">+{totalProfitStats.toFixed(2)}</h3>
-            </div>
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 mt-3 text-xs">
-            <span className="text-slate-500 font-medium">Marge brute moyenne:</span>
-            <span className="text-slate-700 font-semibold">{( (totalProfitStats / (totalRevenueStats || 1)) * 100 ).toFixed(2)}%</span>
-          </div>
-        </div>
+
 
         {/* État des Stocks de Carburant */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
@@ -362,7 +351,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
                 <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} tickLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(value) => Math.round(Number(value)).toString()} width={60} />
                 <Tooltip formatter={(value: any) => [`${Number(value).toFixed(2)} L`, "Volume (L)"]} />
-                <Bar dataKey="litres" name="Volume (L)" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                <Bar dataKey="litres" name="Volume (L)" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={60} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -12,7 +12,7 @@ import html2pdf from 'html2pdf.js';
 
 export function Billing({ store }: { store: ERPStoreType }) {
   const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'purchase' | 'sales' | 'suppliers' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'factures' | 'devis' | 'delivery' | 'suppliers' | 'history'>('dashboard');
   
   const [showPartnerModal, setShowPartnerModal] = useState<'supplier'|'client'|null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -47,7 +47,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const partnerName = inv.type === 'purchase' 
-          ? store.suppliers.find(s => s.id === (inv as PurchaseInvoice).supplierId)?.name
+          ? store.clients.find(s => s.id === (inv as PurchaseInvoice).supplierId)?.name
           : store.clients.find(c => c.id === (inv as SalesInvoice).clientId)?.name;
         const productName = store.products.find(p => p.id === inv.productId)?.name;
         
@@ -79,7 +79,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
     filteredInvoices.forEach(inv => {
       const isPurchase = inv.type === 'purchase';
       const partnerName = isPurchase 
-        ? store.suppliers.find(s => s.id === (inv as PurchaseInvoice).supplierId)?.name
+        ? store.clients.find(s => s.id === (inv as PurchaseInvoice).supplierId)?.name
         : store.clients.find(c => c.id === (inv as SalesInvoice).clientId)?.name;
       const status = isPurchase ? ((inv as any).status === 'paid' ? 'Payée' : 'En attente') : 'Validée';
       csv += `${inv.date},${isPurchase ? 'Achat' : 'Vente'},${inv.invoiceNumber},${partnerName || ''},${inv.amountTTC},${status}
@@ -96,22 +96,39 @@ export function Billing({ store }: { store: ERPStoreType }) {
     if (!printRef.current) return;
     const element = printRef.current;
     
-    // Si on veut imprimer une facture spécifique
+    const screenView = element.querySelector('.print\\:hidden');
+    const printView = element.querySelector('.hidden.print\\:block');
+    
+    if (screenView && printView) {
+      screenView.classList.add('hidden');
+      printView.classList.remove('hidden');
+      printView.classList.remove('print:block');
+      printView.classList.add('block');
+    }
+
     const opt = {
       margin: 10,
-      filename: invoiceId ? `Facture-${invoiceId}.pdf` : 'Factures.pdf',
+      filename: invoiceId ? `Facture-${invoiceId}.pdf` : 'Facture.pdf',
       image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2 },
+      html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
     };
-    html2pdf().from(element).set(opt).save();
+    
+    html2pdf().from(element).set(opt).save().then(() => {
+      if (screenView && printView) {
+        screenView.classList.remove('hidden');
+        printView.classList.add('hidden');
+        printView.classList.add('print:block');
+        printView.classList.remove('block');
+      }
+    });
   };
 
   const stats = {
     totalPurchases: store.purchaseInvoices.reduce((sum, inv) => sum + inv.amountTTC, 0),
     totalSales: store.salesInvoices.reduce((sum, inv) => sum + inv.amountTTC, 0),
     invoiceCount: store.purchaseInvoices.length + store.salesInvoices.length,
-    topSupplier: store.suppliers[0]?.name || 'N/A' // simplistic
+    topClient: store.clients[0]?.name || 'N/A' // simplistic
   };
 
   const handlePartnerSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -220,8 +237,8 @@ export function Billing({ store }: { store: ERPStoreType }) {
       />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Facturation & Achats</h2>
-          <p className="text-sm text-slate-500 font-medium mt-1">Gérez vos factures d'achat, de vente et vos fournisseurs</p>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Facturation & Documents</h2>
+          <p className="text-sm text-slate-500 font-medium mt-1">Gérez vos factures, devis et documents clients</p>
         </div>
       </div>
 
@@ -234,26 +251,27 @@ export function Billing({ store }: { store: ERPStoreType }) {
           Tableau de bord
         </button>
         <button 
-          onClick={() => setActiveTab('purchase')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'purchase' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+          onClick={() => setActiveTab('factures')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'factures' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
         >
           <FileArchive className="w-4 h-4" />
-          Factures d'Achat
+          Factures
         </button>
         <button 
-          onClick={() => setActiveTab('sales')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'sales' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+          onClick={() => setActiveTab('devis')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'devis' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
         >
           <FileSpreadsheet className="w-4 h-4" />
-          Factures de Vente
+          Devis
         </button>
         <button 
-          onClick={() => setActiveTab('suppliers')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'suppliers' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+          onClick={() => setActiveTab('delivery')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'delivery' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
         >
           <Truck className="w-4 h-4" />
-          Partenaires
+          Bons de Livraison
         </button>
+        
         <button 
           onClick={() => setActiveTab('history')}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'history' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
@@ -293,18 +311,18 @@ export function Billing({ store }: { store: ERPStoreType }) {
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
               <div className="flex items-center gap-3 text-slate-500 mb-2">
                 <Factory className="w-5 h-5 text-purple-500" />
-                <span className="text-xs font-bold uppercase tracking-wider">Top Fournisseur</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Top Client</span>
               </div>
-              <p className="text-lg font-black text-slate-800 truncate">{stats.topSupplier}</p>
+              <p className="text-lg font-black text-slate-800 truncate">{stats.topClient}</p>
             </div>
           </div>
         </div>
       )}
 
-      {activeTab === 'purchase' && (
+      {activeTab === 'factures' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-            <h3 className="font-bold text-slate-800">Factures d'Achat</h3>
+            <h3 className="font-bold text-slate-800">Factures</h3>
             <button 
               onClick={() => setShowPurchaseModal(true)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
@@ -320,7 +338,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                 <tr>
                   <th className="p-4">N° Facture</th>
                   <th className="p-4">Date</th>
-                  <th className="p-4">Fournisseur</th>
+                  <th className="p-4">Client</th>
                   <th className="p-4">Produit</th>
                   <th className="p-4 text-right">Quantité</th>
                   <th className="p-4 text-right">Montant TTC</th>
@@ -338,11 +356,11 @@ export function Billing({ store }: { store: ERPStoreType }) {
                   </tr>
                 ) : (
                   store.purchaseInvoices.map(inv => {
-                    const sup = store.suppliers.find(s => s.id === inv.supplierId);
+                    const sup = store.clients.find(s => s.id === inv.supplierId);
                     const prod = store.products.find(p => p.id === inv.productId);
                     return (
                       <tr key={inv.id} className="hover:bg-slate-50">
-                        <td className="p-4 font-bold"><button onClick={() => setSelectedInvoice({...inv, type: inv.clientId ? 'sales' : 'purchase'})} className="text-indigo-600 hover:text-indigo-800 hover:underline">{inv.invoiceNumber}</button></td>
+                        <td className="p-4 font-bold"><button onClick={() => setSelectedInvoice({...inv, type: 'clientId' in inv ? 'sales' : 'purchase'})} className="text-indigo-600 hover:text-indigo-800 hover:underline">{inv.invoiceNumber}</button></td>
                         <td className="p-4 text-slate-500">{inv.date}</td>
                         <td className="p-4 font-bold text-slate-800">{sup?.name}</td>
                         <td className="p-4 text-slate-600">{prod?.name}</td>
@@ -385,16 +403,16 @@ export function Billing({ store }: { store: ERPStoreType }) {
         </div>
       )}
 
-      {activeTab === 'sales' && (
+      {activeTab === 'devis' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-            <h3 className="font-bold text-slate-800">Factures de Vente (Pro)</h3>
+            <h3 className="font-bold text-slate-800">Devis</h3>
             <button 
               onClick={() => setShowSalesModal(true)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Générer Facture
+              Créer Devis
             </button>
           </div>
           <div className="p-0 overflow-x-auto">
@@ -463,47 +481,21 @@ export function Billing({ store }: { store: ERPStoreType }) {
         </div>
       )}
 
-      {activeTab === 'suppliers' && (
+      
+      {activeTab === 'delivery' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-            <h3 className="font-bold text-slate-800">Fournisseurs</h3>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setShowPartnerModal('supplier')}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" /> Fournisseur
-              </button>
-              
-            </div>
+            <h3 className="font-bold text-slate-800">Bons de Livraison</h3>
+            <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2">
+              Créer un Bon de Livraison
+            </button>
           </div>
-          <div className="p-0 overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th className="p-4">Type</th>
-                  <th className="p-4">Nom</th>
-                  <th className="p-4">Contact</th>
-                  <th className="p-4">ICE / IF</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {store.suppliers.map(s => (
-                  <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4"><span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">Fournisseur</span></td>
-                    <td className="p-4 font-bold text-slate-800">{s.name}</td>
-                    <td className="p-4 text-slate-600">{s.phone}<br/><span className="text-xs text-slate-400">{s.email}</span></td>
-                    <td className="p-4 text-slate-600 font-mono">{s.ice}</td>
-                  </tr>
-                ))}
-                
-              </tbody>
-            </table>
+          <div className="p-12 text-center text-slate-500">
+            <p>Module de gestion des bons de livraison en cours de développement.</p>
           </div>
         </div>
       )}
-
-      {activeTab === 'history' && (
+      \n            {activeTab === 'history' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50">
             <h3 className="font-bold text-slate-800">Historique des Opérations</h3>
@@ -603,12 +595,12 @@ export function Billing({ store }: { store: ERPStoreType }) {
       
       {/* Invoice Details Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-[#0f172a80] backdrop-blur-sm flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:relative print:z-auto">
+        <div className="fixed inset-0 bg-[#0f172a80] backdrop-blur-sm flex items-center justify-center z-50 p-4 print:static print:block print:p-0 print:bg-white print:z-auto">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] print:max-h-none print:shadow-none print:rounded-none">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-[#f8fafc80] print:hidden">
               <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
                 <FileText className="w-5 h-5" /> 
-                Détails de la Facture
+                Détails du Document
               </h3>
               <div className="flex items-center gap-2">
                 <button onClick={() => { setEditingInvoice(selectedInvoice); selectedInvoice.type === 'purchase' ? setShowPurchaseModal(true) : setShowSalesModal(true); setSelectedInvoice(null); }} className="px-3 py-1.5 text-sm font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg flex items-center gap-2">
@@ -635,7 +627,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto bg-[#f8fafc80] print:p-0 print:bg-white" ref={printRef}>
+            <div className="flex-1 overflow-y-auto bg-[#f8fafc80] print:p-0 print:bg-white print:overflow-visible" ref={printRef}>
               {/* === ERP DETAIL VIEW (Screen Only) === */}
               <div className="p-6 space-y-6 print:hidden max-w-5xl mx-auto">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -647,7 +639,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                         <span className="text-slate-500 block mb-1">Partenaire</span>
                         <div className="font-bold text-slate-800 text-base">
                           {selectedInvoice.type === 'purchase' 
-                            ? store.suppliers.find(s => s.id === selectedInvoice.supplierId)?.name 
+                            ? store.clients.find(s => s.id === selectedInvoice.supplierId)?.name 
                             : store.clients.find(c => c.id === selectedInvoice.clientId)?.name}
                         </div>
                       </div>
@@ -658,7 +650,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                       <div>
                         <span className="text-slate-500 block mb-1">Type</span>
                         <div className="font-medium text-slate-800">
-                          {selectedInvoice.type === 'purchase' ? 'Facture Fournisseur' : 'Facture Client'}
+                          {selectedInvoice.type === 'purchase' ? 'Facture' : 'Devis'}
                         </div>
                       </div>
                       <div>
@@ -766,133 +758,120 @@ export function Billing({ store }: { store: ERPStoreType }) {
               </div>
 
               {/* === PDF PRINT VIEW (Hidden on screen, visible on print) === */}
-              <div className="hidden print:block max-w-3xl mx-auto space-y-8 w-full p-8">
-              <div className="max-w-3xl mx-auto space-y-8 print:w-full">
-                
-                {/* Header */}
+              <div className="hidden print:block w-full h-full bg-white text-black font-sans relative" style={{ padding: '40px', minHeight: '297mm' }}>
+                {/* Header Row */}
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">FACTURE</h1>
-                    <p className="text-slate-500 font-mono mt-1">N° {selectedInvoice.invoiceNumber}</p>
-                    <p className="text-sm text-slate-500 mt-1">Date: {selectedInvoice.date}</p>
-                    <div className="mt-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${selectedInvoice.type === 'purchase' ? ((selectedInvoice as any).status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700') : 'bg-emerald-100 text-emerald-700'}`}>
-                        {selectedInvoice.type === 'purchase' ? ((selectedInvoice as any).status === 'paid' ? 'Payée' : 'En attente') : 'Validée'}
-                      </span>
+                  <div className="flex flex-col gap-2 max-w-sm">
+                    {config.logo && config.logo.length > 5 ? (
+                      <div className="h-16 mb-2">
+                        <img src={config.logo} alt="Logo" className="h-full object-contain object-left" referrerPolicy="no-referrer" />
+                      </div>
+                    ) : (
+                      <strong className="text-xl block mb-1 uppercase tracking-wide">{config.name}</strong>
+                    )}
+                    <div className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">
+                      {config.documentCompanyDetails || config.address}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="flex flex-col items-end gap-2 mb-2">
-                      <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden">
-                        {config.logo && (config.logo.startsWith('data:') || config.logo.startsWith('http') || config.logo.length > 5) ? (
-                          <img src={config.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <span className="text-2xl">{config.logo || '⛽'}</span>
-                        )}
-                      </div>
-                      <h2 className="font-bold text-slate-800 text-lg">{config.name}</h2>
-                    </div>
-                    <p className="text-sm text-slate-500 whitespace-pre-line">{config.address || '123 Route Nationale\nCasablanca, Maroc'}</p>
-                    <p className="text-sm text-slate-500 mt-1">ICE: {config.taxId || '012345678900011'}</p>
+                    <h1 className="text-3xl font-bold uppercase tracking-wider mb-2" style={{ color: config.documentColor || '#f39c12' }}>
+                      {selectedInvoice.type === 'purchase' ? 'FACTURE' : (selectedInvoice.type === 'devis' ? 'DEVIS' : 'FACTURE')}
+                    </h1>
+                    <p className="text-sm font-bold text-slate-800 uppercase">{selectedInvoice.invoiceNumber}</p>
+                    <p className="text-xs text-slate-600 mt-1">Date : <span className="font-bold">{selectedInvoice.date}</span></p>
                   </div>
                 </div>
 
-                <div className="h-px bg-slate-200 w-full" />
-
-                {/* Addresses */}
-                <div className="grid grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Émetteur</h3>
-                    {selectedInvoice.type === 'purchase' ? (
-                      <div className="text-slate-800">
-                        <p className="font-bold text-lg">{store.suppliers.find(s => s.id === (selectedInvoice as PurchaseInvoice).supplierId)?.name}</p>
-                        <p className="text-sm text-slate-600 mt-1">{store.suppliers.find(s => s.id === (selectedInvoice as PurchaseInvoice).supplierId)?.address || 'Adresse non renseignée'}</p>
-                        <p className="text-sm text-slate-600">ICE: <span className="font-mono">{store.suppliers.find(s => s.id === (selectedInvoice as PurchaseInvoice).supplierId)?.ice}</span></p>
-                      </div>
-                    ) : (
-                      <div className="text-slate-800">
-                        <p className="font-bold text-lg">{config.name}</p>
-                        <p className="text-sm text-slate-600 mt-1">{config.address || "123 Route Nationale\nCasablanca, Maroc"}</p>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Destinataire</h3>
-                    {selectedInvoice.type === 'sale' ? (
-                      <div className="text-slate-800">
-                        <p className="font-bold text-lg">{store.clients.find(c => c.id === (selectedInvoice as SalesInvoice).clientId)?.name}</p>
-                        <p className="text-sm text-slate-600 mt-1">{store.clients.find(c => c.id === (selectedInvoice as SalesInvoice).clientId)?.address || 'Adresse non renseignée'}</p>
-                        <p className="text-sm text-slate-600">ICE: <span className="font-mono">{store.clients.find(c => c.id === (selectedInvoice as SalesInvoice).clientId)?.ice}</span></p>
-                      </div>
-                    ) : (
-                      <div className="text-slate-800">
-                        <p className="font-bold text-lg">{config.name}</p>
-                        <p className="text-sm text-slate-600 mt-1">{config.address || "123 Route Nationale\nCasablanca, Maroc"}</p>
-                      </div>
-                    )}
+                {/* Client Info Block */}
+                <div className="mt-12">
+                  <div className="inline-block border border-slate-200 rounded-lg p-5 min-w-[300px]">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Adressé à</span>
+                    <h3 className="text-base font-bold text-slate-800 mb-1">
+                      {selectedInvoice.type === 'purchase' 
+                         ? store.clients.find(s => s.id === (selectedInvoice as any).supplierId)?.name 
+                         : store.clients.find(c => c.id === (selectedInvoice as any).clientId)?.name}
+                    </h3>
+                    <div className="text-xs text-slate-500 leading-relaxed">
+                      <p>
+                        {selectedInvoice.type === 'purchase' 
+                           ? store.clients.find(s => s.id === (selectedInvoice as any).supplierId)?.ice 
+                           : store.clients.find(c => c.id === (selectedInvoice as any).clientId)?.ice}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Table */}
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                      <tr>
-                        <th className="p-4">Désignation</th>
-                        <th className="p-4 text-right">Quantité</th>
-                        <th className="p-4 text-right">Prix Unitaire HT</th>
-                        <th className="p-4 text-right">Total HT</th>
+                <div className="mt-12">
+                  <table className="w-full text-sm text-center">
+                    <thead>
+                      <tr style={{ backgroundColor: config.documentColor || '#f39c12', color: 'white' }}>
+                        <th className="py-4 px-4 align-middle font-bold uppercase text-[10px] tracking-wider w-16 text-center">N°</th>
+                        <th className="py-4 px-4 align-middle font-bold uppercase text-[10px] tracking-wider text-left">Désignation</th>
+                        <th className="py-4 px-4 align-middle font-bold uppercase text-[10px] tracking-wider text-center">Quantité</th>
+                        <th className="py-4 px-4 align-middle font-bold uppercase text-[10px] tracking-wider text-center">Prix Unitaire</th>
+                        <th className="py-4 px-4 align-middle font-bold uppercase text-[10px] tracking-wider text-center">Montant HT</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      <tr>
-                        <td className="p-4 text-slate-800 font-bold">{store.products.find(p => p.id === selectedInvoice.productId)?.name}</td>
-                        <td className="p-4 text-right font-mono text-slate-600">{selectedInvoice.quantity} L</td>
-                        <td className="p-4 text-right font-mono text-slate-600">{selectedInvoice.pricePerLiter.toFixed(2)}</td>
-                        <td className="p-4 text-right font-mono font-bold text-slate-800">{selectedInvoice.amountHT.toFixed(2)}</td>
+                    <tbody>
+                      <tr className="border-b border-slate-200">
+                        <td className="py-5 px-4 text-slate-600 align-middle text-center">-</td>
+                        <td className="py-5 px-4 font-bold text-slate-800 align-middle text-left">
+                          {store.products.find(p => p.id === selectedInvoice.productId)?.name || 'Produit'}
+                        </td>
+                        <td className="py-5 px-4 text-center font-mono align-middle">{selectedInvoice.quantity}</td>
+                        <td className="py-5 px-4 text-center font-mono align-middle">{selectedInvoice.pricePerLiter.toFixed(2)}</td>
+                        <td className="py-5 px-4 text-center font-mono font-bold align-middle">{selectedInvoice.amountHT.toFixed(2)}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                {/* Totals */}
-                <div className="flex justify-end">
-                  <div className="w-64 space-y-3">
-                    <div className="flex justify-between text-sm text-slate-600">
-                      <span>Total HT</span>
+                {/* Totals Section */}
+                <div className="mt-8 flex justify-between items-start gap-8">
+                  {/* Amount in words */}
+                  <div className="flex-1 bg-slate-50 p-4 border-l-4" style={{ borderColor: config.documentColor || '#f39c12' }}>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Arrêté la présente facture à la somme de :</p>
+                    <p className="text-sm font-bold italic text-slate-800">
+                      {selectedInvoice.amountTTC.toFixed(2)} dirhams
+                    </p>
+                  </div>
+                  
+                  {/* Numbers */}
+                  <div className="w-72">
+                    <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
+                      <span className="text-slate-600">Total ht</span>
                       <span className="font-mono">{selectedInvoice.amountHT.toFixed(2)} MAD</span>
                     </div>
-                    <div className="flex justify-between text-sm text-slate-600">
-                      <span>TVA (20%)</span>
-                      <span className="font-mono">{selectedInvoice.vatAmount.toFixed(2)} MAD</span>
+                    <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
+                      <span className="text-slate-600">TVA</span>
+                      <span className="font-mono">{(selectedInvoice.amountTTC - selectedInvoice.amountHT).toFixed(2)} MAD</span>
                     </div>
-                    <div className="pt-3 border-t border-slate-200 flex justify-between font-black text-slate-800 text-lg">
-                      <span>Total TTC</span>
-                      <span className="font-mono">{selectedInvoice.amountTTC.toFixed(2)} MAD</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer / Info */}
-                <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-sm text-slate-600">
-                  <div>
-                    <h4 className="font-bold text-slate-800 mb-1">Informations de paiement</h4>
-                    <p>Mode: <span className="font-bold uppercase">{selectedInvoice.paymentMethod}</span></p>
-                    {(selectedInvoice as any).observations && (
-                      <div className="mt-4">
-                        <h4 className="font-bold text-slate-800 mb-1">Observations</h4>
-                        <p className="italic text-slate-500">{(selectedInvoice as any).observations}</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="w-32 h-32 border-2 border-dashed border-slate-200 rounded-xl ml-auto flex items-center justify-center">
-                      <span className="text-xs text-slate-400 font-bold uppercase">Cachet & Signature</span>
+                    <div className="flex justify-between py-3 text-base">
+                      <span className="font-bold text-slate-800">Montant TTC</span>
+                      <span className="font-bold font-mono text-slate-800">{selectedInvoice.amountTTC.toFixed(2)} MAD</span>
                     </div>
                   </div>
                 </div>
 
-              </div>
+                {/* Footer */}
+                <div className="absolute bottom-10 left-10 right-10">
+                  <div className="border-t border-black pt-4 flex justify-between items-end">
+                    <div className="flex-1 text-center text-[10px] text-slate-600 leading-relaxed">
+                      {config.documentFooter ? (
+                        <span className="whitespace-pre-line text-black leading-snug">{config.documentFooter}</span>
+                      ) : (
+                        <>
+                          <p className="uppercase font-bold text-black mb-1">{config.name} Capital 100 000.00 Dh, {config.address ? config.address.split('\n')[0] : ''}</p>
+                          <p>tel : {config.phone} {config.taxId ? ' | ICE: ' + config.taxId : ''}</p>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      Page 1 / 1
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -905,7 +884,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-[#f8fafc80]">
               <h3 className="font-black text-slate-800 text-lg">
-                Ajouter un {showPartnerModal === 'supplier' ? 'Fournisseur' : 'Client Pro'}
+                Ajouter un Client Pro
               </h3>
               <button onClick={() => setShowPartnerModal(null)} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
@@ -974,7 +953,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-[#f8fafc80]">
               <h3 className="font-black text-slate-800 text-lg">
-                {editingInvoice ? 'Modifier Facture d\'Achat' : 'Saisir une Facture d\'Achat'}
+                {editingInvoice ? 'Modifier Facture' : 'Saisir une Facture'}
               </h3>
               <button onClick={() => { setShowPurchaseModal(false); setEditingInvoice(null); }} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
@@ -986,7 +965,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">N° Facture</label>
-                    <input name="invoiceNumber" type="text" defaultValue={editingInvoice?.invoiceNumber || ''} required className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="FA-2026-001" />
+                    <input name="invoiceNumber" type="text" defaultValue={editingInvoice?.invoiceNumber || ((store.config.documentNumbering?.facture?.prefix || 'FACTURE N : ') + (store.config.documentNumbering?.facture?.nextNumber || 152025))} required className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="FA-2026-001" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Date</label>
@@ -995,10 +974,15 @@ export function Billing({ store }: { store: ERPStoreType }) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Fournisseur</label>
-                  <select name="supplierId" defaultValue={(editingInvoice as PurchaseInvoice)?.supplierId || ''} required className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white">
-                    <option value="">Sélectionnez un fournisseur</option>
-                    {store.suppliers.map(s => <option key={s.id} value={s.id}>{s.name} ({s.ice})</option>)}
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Client</label>
+                    <button type="button" onClick={() => setShowPartnerModal('client')} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">
+                      + Nouveau
+                    </button>
+                  </div>
+                  <select name="supplierId" defaultValue={(editingInvoice as any)?.supplierId || ''} required className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white">
+                    <option value="">Sélectionnez un client</option>
+                    {store.clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.ice})</option>)}
                   </select>
                 </div>
 
@@ -1007,11 +991,11 @@ export function Billing({ store }: { store: ERPStoreType }) {
                     <label className="text-xs font-bold text-slate-500 uppercase">Produit</label>
                     <select name="productId" defaultValue={editingInvoice?.productId || ''} required className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white">
                       <option value="">Sélectionnez un produit</option>
-                      {store.products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      {store.products.filter(p => ['gazoil', 'sans_plomb', 'melange'].includes(p.type)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Cuve de réception</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Cuve de prélèvement</label>
                     <select name="tankId" defaultValue={(editingInvoice as PurchaseInvoice)?.tankId || ''} required className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white">
                       <option value="">Sélectionnez la cuve</option>
                       {store.tanks.map(t => <option key={t.id} value={t.id}>{t.number} ({t.productName})</option>)}
@@ -1081,7 +1065,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-[#f8fafc80]">
               <h3 className="font-black text-slate-800 text-lg">
-                Générer Facture de Vente
+                Générer Devis
               </h3>
               <button onClick={() => { setShowSalesModal(false); setEditingInvoice(null); }} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-5 h-5" />
@@ -1114,7 +1098,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                     <label className="text-xs font-bold text-slate-500 uppercase">Produit</label>
                     <select name="productId" defaultValue={editingInvoice?.productId || ''} required className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white">
                       <option value="">Sélectionnez un produit</option>
-                      {store.products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.salePrice} MAD/L)</option>)}
+                      {store.products.filter(p => ['gazoil', 'sans_plomb', 'melange'].includes(p.type)).map(p => <option key={p.id} value={p.id}>{p.name} ({p.salePrice} MAD/L)</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">

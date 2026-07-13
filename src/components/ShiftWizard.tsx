@@ -135,15 +135,18 @@ useEffect(() => {
           const sMech = parseFloat(start.mech) || 0;
           const eMech = parseFloat(end.mech) || 0;
 
-          const qtyElec = (end.elec !== '' && end.elec !== undefined) ? (eElec - sElec) : 0;
-          const qtyMech = (end.mech !== '' && end.mech !== undefined) ? (eMech - sMech) : 0;
+          const qtyElec = (end.elec !== '' && end.elec !== undefined) ? Math.max(0, eElec - sElec) : 0;
+          const qtyMech = (end.mech !== '' && end.mech !== undefined) ? Math.max(0, eMech - sMech) : 0;
           const product = store.products.find(p => p.id === noz.productId);
           const price = product ? product.salePrice : 0;
-          const total = qtyElec * price; // Defaulting to Elec for totals
+          
+          // Fallback to mechanical if electronic is 0 or empty
+          const actualQty = qtyElec > 0 ? qtyElec : qtyMech;
+          const total = actualQty * price;
           
           totalFuelAmount += total;
-          totalFuelLiters += qtyElec;
-          litersSold[noz.id] = qtyElec;
+          totalFuelLiters += actualQty;
+          litersSold[noz.id] = actualQty;
           amountSold[noz.id] = total;
 
           details.push({
@@ -280,9 +283,13 @@ useEffect(() => {
     }
 
     if (editingShift) {
-      store.updateShift(editingShift.id, shiftData, store.currentRole);
+      if (editingShift.status === 'open') {
+        store.addCompletedShift({ ...shiftData, id: editingShift.id } as any, store.currentRole);
+      } else {
+        store.updateShift(editingShift.id, shiftData, store.currentRole);
+      }
     } else {
-      store.addCompletedShift(shiftData, store.currentRole);
+      store.addCompletedShift(shiftData as any, store.currentRole);
     }
     
     localStorage.removeItem('erp_shift_draft');
