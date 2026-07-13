@@ -1,6 +1,0 @@
-{
-  "name": "StationERP",
-  "description": "SaaS ERP professionnel de gestion complète pour stations-service (cuves, pompes, pistolets, ventes, shifts, stocks et caisse)",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
