@@ -175,7 +175,8 @@ export function useERPStore(): ERPStoreType {
                       documentFooter: config.documentFooter || '',
                       documentNumbering: config.documentNumbering || null,
                       documentColumnsOrder: config.documentColumnsOrder || null,
-                      documentCompanyDetails: config.documentCompanyDetails || ''
+                      documentCompanyDetails: config.documentCompanyDetails || '',
+                      documentSettings: config.documentSettings || null
                   });
                   const configToSave = {
                       user_id,
@@ -190,20 +191,24 @@ export function useERPStore(): ERPStoreType {
                       printerIp: stringified,
                       iotConfigured: config.iotConfigured
                   };
-                  await supabase.from('erp_config').delete().eq('user_id', user_id);
-                  const { error } = await supabase.from('erp_config').insert(configToSave);
+                  const { error } = await supabase.from('erp_config').upsert(configToSave);
                   if (error) {
-                      console.warn("Full config insert failed, trying simpler payload:", error);
-                      const simplerConfig = {
-                          user_id,
-                          name: configToSave.name,
-                          logo: configToSave.logo,
-                          address: configToSave.address,
-                          phone: configToSave.phone,
-                          taxId: configToSave.taxId,
-                          printerIp: stringified
-                      };
-                      await supabase.from('erp_config').insert(simplerConfig);
+                      console.warn("Upsert failed, falling back to delete+insert:", error);
+                      await supabase.from('erp_config').delete().eq('user_id', user_id);
+                      const { error: insertErr } = await supabase.from('erp_config').insert(configToSave);
+                      if (insertErr) {
+                          console.warn("Full insert failed, trying simpler payload:", insertErr);
+                          const simplerConfig = {
+                              user_id,
+                              name: configToSave.name,
+                              logo: configToSave.logo,
+                              address: configToSave.address,
+                              phone: configToSave.phone,
+                              taxId: configToSave.taxId,
+                              printerIp: stringified
+                          };
+                          await supabase.from('erp_config').insert(simplerConfig);
+                      }
                   }
                   return;
               }
@@ -217,7 +222,8 @@ export function useERPStore(): ERPStoreType {
                       documentFooter: data.documentFooter || '',
                       documentNumbering: data.documentNumbering || null,
                       documentColumnsOrder: data.documentColumnsOrder || null,
-                      documentCompanyDetails: data.documentCompanyDetails || ''
+                      documentCompanyDetails: data.documentCompanyDetails || '',
+                      documentSettings: data.documentSettings || null
                   });
                   const configToSave = {
                       user_id,
@@ -232,20 +238,24 @@ export function useERPStore(): ERPStoreType {
                       printerIp: stringifiedPriceChanges,
                       iotConfigured: data.iotConfigured
                   };
-                  await supabase.from('erp_config').delete().eq('user_id', user_id);
-                  const { error } = await supabase.from('erp_config').insert(configToSave);
+                  const { error } = await supabase.from('erp_config').upsert(configToSave);
                   if (error) {
-                      console.warn("Full config insert failed, trying simpler payload:", error);
-                      const simplerConfig = {
-                          user_id,
-                          name: configToSave.name,
-                          logo: configToSave.logo,
-                          address: configToSave.address,
-                          phone: configToSave.phone,
-                          taxId: configToSave.taxId,
-                          printerIp: stringifiedPriceChanges
-                      };
-                      await supabase.from('erp_config').insert(simplerConfig);
+                      console.warn("Upsert failed, falling back to delete+insert:", error);
+                      await supabase.from('erp_config').delete().eq('user_id', user_id);
+                      const { error: insertErr } = await supabase.from('erp_config').insert(configToSave);
+                      if (insertErr) {
+                          console.warn("Full insert failed, trying simpler payload:", insertErr);
+                          const simplerConfig = {
+                              user_id,
+                              name: configToSave.name,
+                              logo: configToSave.logo,
+                              address: configToSave.address,
+                              phone: configToSave.phone,
+                              taxId: configToSave.taxId,
+                              printerIp: stringifiedPriceChanges
+                          };
+                          await supabase.from('erp_config').insert(simplerConfig);
+                      }
                   }
                   return;
               }
@@ -559,7 +569,30 @@ export function useERPStore(): ERPStoreType {
         setAlerts(data.alerts || []);
         setUsers(data.users || []);
         if (data.config) {
-          let loadedConfig = data.config;
+          let loadedConfig = { ...data.config };
+          // Map lowercase columns from Supabase back to camelCase keys used in the store
+          if (loadedConfig.printerip !== undefined && loadedConfig.printerIp === undefined) {
+            loadedConfig.printerIp = loadedConfig.printerip;
+          }
+          if (loadedConfig.taxid !== undefined && loadedConfig.taxId === undefined) {
+            loadedConfig.taxId = loadedConfig.taxid;
+          }
+          if (loadedConfig.autobackup !== undefined && loadedConfig.autoBackup === undefined) {
+            loadedConfig.autoBackup = loadedConfig.autobackup;
+          }
+          if (loadedConfig.iotconfigured !== undefined && loadedConfig.iotConfigured === undefined) {
+            loadedConfig.iotConfigured = loadedConfig.iotconfigured;
+          }
+
+          // Sanitize old default Atlas/Station ERP values
+          if (loadedConfig.name === 'ATLAS PETROLEUM SARL') loadedConfig.name = '';
+          if (loadedConfig.address && (loadedConfig.address === 'Zone Industrielle Sidi Maârouf, N° 14, Casablanca, Maroc' || loadedConfig.address.includes('Sidi Maârouf'))) loadedConfig.address = '';
+          if (loadedConfig.phone === '+212 522 45 67 89') loadedConfig.phone = '';
+          if (loadedConfig.taxId === '001548796000085') loadedConfig.taxId = '';
+          if (loadedConfig.logo === '⛽') loadedConfig.logo = '';
+          if (loadedConfig.documentLogo === '⛽') loadedConfig.documentLogo = '';
+          if (loadedConfig.documentFooter && loadedConfig.documentFooter.includes('ATLAS PETROLEUM')) loadedConfig.documentFooter = '';
+
           if (loadedConfig.printerIp) {
             const trimmed = loadedConfig.printerIp.trim();
             if (trimmed.startsWith('{')) {
@@ -575,6 +608,7 @@ export function useERPStore(): ERPStoreType {
                 if (parsed.documentNumbering) loadedConfig.documentNumbering = parsed.documentNumbering;
                 if (parsed.documentColumnsOrder) loadedConfig.documentColumnsOrder = parsed.documentColumnsOrder;
                 if (parsed.documentCompanyDetails) loadedConfig.documentCompanyDetails = parsed.documentCompanyDetails;
+                if (parsed.documentSettings) loadedConfig.documentSettings = parsed.documentSettings;
               } catch (e) {
                 console.error("Failed to parse complex printerIp JSON", e);
               }
@@ -590,6 +624,14 @@ export function useERPStore(): ERPStoreType {
             }
             loadedConfig = { ...loadedConfig, printerIp: '' };
           }
+
+          // Re-sanitize after hydrating extra settings
+          if (loadedConfig.documentLogo === '⛽') loadedConfig.documentLogo = '';
+          if (loadedConfig.documentFooter && loadedConfig.documentFooter.includes('ATLAS PETROLEUM')) loadedConfig.documentFooter = '';
+          if (loadedConfig.documentCompanyDetails && (loadedConfig.documentCompanyDetails.includes('ATLAS PETROLEUM') || loadedConfig.documentCompanyDetails.includes('001548796000085'))) {
+            loadedConfig.documentCompanyDetails = '';
+          }
+
           setConfig(loadedConfig);
         } else {
           setConfig({

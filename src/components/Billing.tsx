@@ -16,40 +16,95 @@ import { BillingDocumentModal } from './BillingDocumentModal';
 import { BillingDocumentView } from './BillingDocumentView';
 import { BillingHistory } from './BillingHistory';
 
+const oldDefaultsMap: Record<string, string> = {
+  companyName: 'ATLAS PETROLEUM SARL',
+  address: 'Zone Industrielle Sidi Maârouf, N° 14, Casablanca, Maroc',
+  phone: '+212 522 45 67 89',
+  email: 'contact@atlaspetroleum.ma',
+  ice: '001548796000085',
+  rc: '45896',
+  ifNum: '15248965',
+  patente: '36521489',
+  cnss: '85965412',
+  capital: '1 000 000 MAD',
+  footerText: 'Merci pour votre confiance. ATLAS PETROLEUM - Station service certifiée.',
+  termsAndConditions: 'Le règlement des factures s’effectue à la date d’échéance mentionnée sur le document. Aucun escompte n’est accordé pour paiement anticipé. Tout retard de paiement entraînera des pénalités au taux légal en vigueur.',
+  stampText: 'STATION SERVICE ATLAS - REÇU ET APPROUVÉ',
+};
+
+function sanitizeSettings(settings: DocumentSettings): DocumentSettings {
+  if (!settings) return settings;
+  const copy = { ...settings };
+  
+  (Object.keys(oldDefaultsMap) as Array<keyof DocumentSettings>).forEach((key) => {
+    const val = copy[key];
+    const defaultVal = oldDefaultsMap[key];
+    if (typeof val === 'string' && typeof defaultVal === 'string') {
+      if (val.trim() === defaultVal.trim()) {
+        (copy[key] as any) = '';
+      }
+    }
+  });
+
+  if (copy.companyName === 'ATLAS PETROLEUM SARL' || copy.companyName === 'Station ERP') copy.companyName = '';
+  if (copy.address && (copy.address === 'Zone Industrielle Sidi Maârouf, N° 14, Casablanca, Maroc' || copy.address.includes('Sidi Maârouf'))) copy.address = '';
+  if (copy.phone === '+212 522 45 67 89') copy.phone = '';
+  if (copy.email === 'contact@atlaspetroleum.ma') copy.email = '';
+  if (copy.ice === '001548796000085') copy.ice = '';
+  if (copy.rc === '45896') copy.rc = '';
+  if (copy.ifNum === '15248965') copy.ifNum = '';
+  if (copy.patente === '36521489') copy.patente = '';
+  if (copy.cnss === '85965412') copy.cnss = '';
+  if (copy.capital === '1 000 000 MAD') copy.capital = '';
+  if (copy.footerText && (copy.footerText.includes('ATLAS PETROLEUM') || copy.footerText.includes('Merci pour votre confiance. ATLAS'))) copy.footerText = '';
+  if (copy.termsAndConditions && copy.termsAndConditions.includes('Le règlement des factures s’effectue')) copy.termsAndConditions = '';
+  if (copy.stampText && (copy.stampText.includes('STATION SERVICE ATLAS') || copy.stampText === 'STATION SERVICE ATLAS - REÇU ET APPROUVÉ')) copy.stampText = '';
+  if (copy.logoUrl === '⛽') copy.logoUrl = '';
+
+  return copy;
+}
+
 export function Billing({ store }: { store: ERPStoreType }) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'client_docs' | 'supplier_docs' | 'settings' | 'history'>('dashboard');
   
   // Custom billing settings state
   const [docSettings, setDocSettings] = useState<DocumentSettings>(() => {
+    if (store.config && store.config.documentSettings) {
+      return sanitizeSettings(store.config.documentSettings);
+    }
     const local = localStorage.getItem('erp_billing_settings_v1');
     if (local) {
       try {
-        return JSON.parse(local);
+        return sanitizeSettings(JSON.parse(local));
       } catch (e) {
         console.error("Failed to load custom billing settings", e);
       }
     }
     // Fallback to defaults or store config if available
-    const initialName = (store.config.name && store.config.name !== 'Station ERP') ? store.config.name : '';
-    return {
+    const initialName = (store.config.name && store.config.name !== 'Station ERP' && store.config.name !== 'ATLAS PETROLEUM SARL') ? store.config.name : '';
+    return sanitizeSettings({
       ...DEFAULT_SETTINGS,
       companyName: initialName,
       address: store.config.address || '',
       phone: store.config.phone || '',
       ice: store.config.taxId || '',
-    };
+    });
   });
 
   // Sync settings when store config changes (e.g. loaded from Supabase asynchronously)
   useEffect(() => {
     if (store.config) {
       setDocSettings(prev => {
+        let base = prev;
+        if (store.config.documentSettings) {
+          base = { ...prev, ...store.config.documentSettings };
+        }
         const nextSettings = {
-          ...prev,
-          companyName: (store.config.name && store.config.name !== 'Station ERP') ? store.config.name : prev.companyName,
-          address: store.config.address || prev.address,
-          phone: store.config.phone || prev.phone,
-          ice: store.config.taxId || prev.ice,
+          ...base,
+          companyName: (store.config.name && store.config.name !== 'Station ERP' && store.config.name !== 'ATLAS PETROLEUM SARL') ? store.config.name : (base.companyName || ''),
+          address: store.config.address || base.address || '',
+          phone: store.config.phone || base.phone || '',
+          ice: store.config.taxId || base.ice || '',
         };
         if (store.config.documentLogo !== undefined && store.config.documentLogo !== '') {
           nextSettings.logoUrl = store.config.documentLogo;
@@ -62,25 +117,27 @@ export function Billing({ store }: { store: ERPStoreType }) {
         if (store.config.documentFooter !== undefined && store.config.documentFooter !== '') {
           nextSettings.footerText = store.config.documentFooter;
         }
-        return nextSettings;
+        return sanitizeSettings(nextSettings);
       });
     }
   }, [store.config]);
 
   // Keep store's config in sync when custom settings change
   const handleSaveSettings = (updated: DocumentSettings) => {
-    setDocSettings(updated);
-    localStorage.setItem('erp_billing_settings_v1', JSON.stringify(updated));
+    const sanitized = sanitizeSettings(updated);
+    setDocSettings(sanitized);
+    localStorage.setItem('erp_billing_settings_v1', JSON.stringify(sanitized));
     
     // Sync back to store config to ensure it is backed up to Supabase
     store.updateConfig({
-      name: updated.companyName,
-      address: updated.address,
-      phone: updated.phone,
-      taxId: updated.ice,
-      documentLogo: updated.logoUrl,
-      documentColor: updated.primaryColor,
-      documentFooter: updated.footerText,
+      name: sanitized.companyName,
+      address: sanitized.address,
+      phone: sanitized.phone,
+      taxId: sanitized.ice,
+      documentLogo: sanitized.logoUrl,
+      documentColor: sanitized.primaryColor,
+      documentFooter: sanitized.footerText,
+      documentSettings: sanitized,
     }, 'Admin');
   };
 

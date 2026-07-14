@@ -301,6 +301,7 @@ export interface StationConfig {
   };
   documentColumnsOrder?: string[];
   documentFooter?: string;
+  documentSettings?: any;
 }
 
 export interface ShopProduct {
