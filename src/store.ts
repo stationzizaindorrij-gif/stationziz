@@ -154,22 +154,13 @@ export function useERPStore(): ERPStoreType {
 
   const saveState = (key: string, data: any, setter: React.Dispatch<React.SetStateAction<any>>) => {
     setter(data);
-    try {
-      const existingStr = localStorage.getItem('erp_data');
-      const existing = existingStr ? JSON.parse(existingStr) : {};
-      existing[key] = data;
+    
+    // Async sync to Supabase
+    setTimeout(async () => {
       try {
-        localStorage.setItem('erp_data', JSON.stringify(existing));
-      } catch (e) {
-        console.warn("localStorage quota exceeded, skipping local cache.");
-      }
-      
-      // Async sync to Supabase
-      setTimeout(async () => {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session && session.user) {
-             const user_id = session.user.id;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user) {
+           const user_id = session.user.id;
              
              if (key === 'price_changes') {
                   // Intercept price_changes and backup to database under erp_config.printerIp
@@ -184,6 +175,7 @@ export function useERPStore(): ERPStoreType {
                       documentSettings: config.documentSettings || null
                   });
                   const configToSave = {
+                      id: user_id,
                       user_id,
                       name: config.name,
                       logo: config.logo,
@@ -196,24 +188,21 @@ export function useERPStore(): ERPStoreType {
                       printerip: stringified,
                       iotconfigured: config.iotConfigured
                   };
-                  const { error } = await supabase.from('erp_config').upsert(configToSave);
-                  if (error) {
-                      console.warn("Upsert failed, falling back to delete+insert:", error);
-                      await supabase.from('erp_config').delete().eq('user_id', user_id);
-                      const { error: insertErr } = await supabase.from('erp_config').insert(configToSave);
-                      if (insertErr) {
-                          console.warn("Full insert failed, trying simpler payload:", insertErr);
-                          const simplerConfig = {
-                              user_id,
-                              name: configToSave.name,
-                              logo: configToSave.logo,
-                              address: configToSave.address,
-                              phone: configToSave.phone,
-                              taxid: configToSave.taxid,
-                              printerip: stringified
-                          };
-                          await supabase.from('erp_config').insert(simplerConfig);
-                      }
+                  await supabase.from('erp_config').delete().eq('user_id', user_id);
+                  const { error: insertErr } = await supabase.from('erp_config').insert(configToSave);
+                  if (insertErr) {
+                      console.warn("Full insert failed, trying simpler payload:", insertErr);
+                      const simplerConfig = {
+                          id: user_id,
+                          user_id,
+                          name: configToSave.name,
+                          logo: configToSave.logo,
+                          address: configToSave.address,
+                          phone: configToSave.phone,
+                          taxid: configToSave.taxid,
+                          printerip: stringified
+                      };
+                      await supabase.from('erp_config').insert(simplerConfig);
                   }
                   return;
               }
@@ -231,6 +220,7 @@ export function useERPStore(): ERPStoreType {
                       documentSettings: data.documentSettings || null
                   });
                   const configToSave = {
+                      id: user_id,
                       user_id,
                       name: data.name,
                       logo: data.logo,
@@ -243,27 +233,48 @@ export function useERPStore(): ERPStoreType {
                       printerip: stringifiedPriceChanges,
                       iotconfigured: data.iotConfigured
                   };
-                  const { error } = await supabase.from('erp_config').upsert(configToSave);
-                  if (error) {
-                      console.warn("Upsert failed, falling back to delete+insert:", error);
-                      await supabase.from('erp_config').delete().eq('user_id', user_id);
-                      const { error: insertErr } = await supabase.from('erp_config').insert(configToSave);
-                      if (insertErr) {
-                          console.warn("Full insert failed, trying simpler payload:", insertErr);
-                          const simplerConfig = {
-                              user_id,
-                              name: configToSave.name,
-                              logo: configToSave.logo,
-                              address: configToSave.address,
-                              phone: configToSave.phone,
-                              taxid: configToSave.taxid,
-                              printerip: stringifiedPriceChanges
-                          };
-                          await supabase.from('erp_config').insert(simplerConfig);
-                      }
+                  await supabase.from('erp_config').delete().eq('user_id', user_id);
+                  const { error: insertErr } = await supabase.from('erp_config').insert(configToSave);
+                  if (insertErr) {
+                      console.warn("Full insert failed, trying simpler payload:", insertErr);
+                      const simplerConfig = {
+                          id: user_id,
+                          user_id,
+                          name: configToSave.name,
+                          logo: configToSave.logo,
+                          address: configToSave.address,
+                          phone: configToSave.phone,
+                          taxid: configToSave.taxid,
+                          printerip: stringifiedPriceChanges
+                      };
+                      await supabase.from('erp_config').insert(simplerConfig);
                   }
                   return;
               }
+
+             if (key === 'cash_registry') {
+                  const cashData = {
+                      user_id,
+                      id: user_id,
+                      isopen: data.isOpen,
+                      openedat: data.openedAt,
+                      openedby: data.openedBy,
+                      openingcash: data.openingCash,
+                      closedat: data.closedAt,
+                      closedby: data.closedBy,
+                      realcash: data.realCash,
+                      discrepancy: data.discrepancy,
+                      inputs: JSON.stringify(data.inputs || []),
+                      outputs: JSON.stringify(data.outputs || []),
+                      theoreticalcash: data.theoreticalCash
+                  };
+                  await supabase.from('erp_cash_registry').delete().eq('user_id', user_id);
+                  const { error } = await supabase.from('erp_cash_registry').insert(cashData);
+                  if (error) {
+                      console.warn("Failed to upsert cash_registry:", error);
+                  }
+                  return;
+             }
 
              if (Array.isArray(data)) {
                  let items = data.map(item => ({ ...item, user_id }));
@@ -363,10 +374,6 @@ export function useERPStore(): ERPStoreType {
           console.error('Supabase sync error', err);
         }
       }, 0);
-      
-    } catch (e) {
-      console.error("Failed to save state", e);
-    }
   };
 
   // Forced migration for specific historical prices
@@ -567,20 +574,7 @@ export function useERPStore(): ERPStoreType {
 
    const loadInitialData = (externalData?: any) => {
     try {
-      const dataStr = localStorage.getItem('erp_data');
-      const localData = dataStr ? JSON.parse(dataStr) : null;
-      
-      let data = externalData || localData;
-      if (externalData && localData) {
-        // Safe-merge: if a key is missing or empty in externalData (fetched from Supabase),
-        // keep the value from localData (from localStorage) instead of resetting it to defaults.
-        data = { ...localData };
-        Object.keys(externalData).forEach(key => {
-          if (externalData[key] !== undefined && externalData[key] !== null) {
-            data[key] = externalData[key];
-          }
-        });
-      }
+      let data = externalData;
 
       if (data) {
         if (!data.products || !data.products.some((p: any) => p.id === 'prod_gazoil')) {
@@ -596,7 +590,28 @@ export function useERPStore(): ERPStoreType {
         setShifts(data.shifts || []);
         setSales(data.sales || []);
         setSupplies(data.supplies || []);
-        setCashRegistry(data.cash_registry || {
+        let loadedCashRegistry = data.cash_registry;
+        if (loadedCashRegistry) {
+            loadedCashRegistry = {
+                ...loadedCashRegistry,
+                isOpen: loadedCashRegistry.isopen !== undefined ? loadedCashRegistry.isopen : loadedCashRegistry.isOpen,
+                openedAt: loadedCashRegistry.openedat !== undefined ? loadedCashRegistry.openedat : loadedCashRegistry.openedAt,
+                openedBy: loadedCashRegistry.openedby !== undefined ? loadedCashRegistry.openedby : loadedCashRegistry.openedBy,
+                openingCash: loadedCashRegistry.openingcash !== undefined ? loadedCashRegistry.openingcash : loadedCashRegistry.openingCash,
+                closedAt: loadedCashRegistry.closedat !== undefined ? loadedCashRegistry.closedat : loadedCashRegistry.closedAt,
+                closedBy: loadedCashRegistry.closedby !== undefined ? loadedCashRegistry.closedby : loadedCashRegistry.closedBy,
+                realCash: loadedCashRegistry.realcash !== undefined ? loadedCashRegistry.realcash : loadedCashRegistry.realCash,
+                theoreticalCash: loadedCashRegistry.theoreticalcash !== undefined ? loadedCashRegistry.theoreticalcash : loadedCashRegistry.theoreticalCash,
+            };
+            if (typeof loadedCashRegistry.inputs === 'string') {
+                try { loadedCashRegistry.inputs = JSON.parse(loadedCashRegistry.inputs); } catch(e) { loadedCashRegistry.inputs = []; }
+            }
+            if (typeof loadedCashRegistry.outputs === 'string') {
+                try { loadedCashRegistry.outputs = JSON.parse(loadedCashRegistry.outputs); } catch(e) { loadedCashRegistry.outputs = []; }
+            }
+        }
+        
+        setCashRegistry(loadedCashRegistry || {
           id: 'cash_session_current', isOpen: false, openedAt: '', openedBy: '', openingCash: 0, inputs: [], outputs: [], theoreticalCash: 0
         });
         setStockCorrections(data.stock_corrections || []);
@@ -1672,12 +1687,11 @@ return {
 
   const addDeliveryInvoice = (invoice: Omit<SalesInvoice, 'id'>, userId: string) => {
     const newInvoice = { ...invoice, id: 'bl_' + Date.now().toString() };
-    setDeliveryInvoices([...deliveryInvoices, newInvoice]);
-    
+    saveState('delivery_invoices', [...deliveryInvoices, newInvoice], setDeliveryInvoices);
     
     // Auto-increment BL number
     if (config.documentNumbering) {
-      setConfig({
+      saveState('config', {
         ...config,
         documentNumbering: {
           ...config.documentNumbering,
@@ -1686,18 +1700,16 @@ return {
             nextNumber: config.documentNumbering.bonLivraison.nextNumber + 1
           }
         }
-      });
+      }, setConfig);
     }
   };
 
   const updateDeliveryInvoice = (id: string, updates: Partial<SalesInvoice>, userId: string) => {
-    setDeliveryInvoices(deliveryInvoices.map(i => i.id === id ? { ...i, ...updates } : i));
-    
+    saveState('delivery_invoices', deliveryInvoices.map(i => i.id === id ? { ...i, ...updates } : i), setDeliveryInvoices);
   };
 
   const deleteDeliveryInvoice = (id: string, userId: string) => {
-    setDeliveryInvoices(deliveryInvoices.filter(i => i.id !== id));
-    
+    saveState('delivery_invoices', deliveryInvoices.filter(i => i.id !== id), setDeliveryInvoices);
   };
 
   return {

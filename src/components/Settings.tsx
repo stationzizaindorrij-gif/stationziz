@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { 
   Settings as SettingsIcon, Save, RotateCcw, Building, Printer, 
   MapPin, Phone, ShieldCheck, Cpu, Check, HelpCircle, HardDriveDownload,
-  Upload, Trash2
+  Upload, Trash2, Loader2
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { ConfirmModal } from './ConfirmModal';
 import { compressImage } from '../utils/image';
+import { supabase } from '../lib/supabase';
 
 interface SettingsProps {
   store: ERPStoreType;
@@ -17,16 +18,56 @@ export default function Settings({ store }: SettingsProps) {
   const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [name, setName] = useState(config.name);
-  const [logo, setLogo] = useState(config.logo);
-  const [address, setAddress] = useState(config.address);
-  const [phone, setPhone] = useState(config.phone);
-  const [taxId, setTaxId] = useState(config.taxId);
-  const [autoBackup, setAutoBackup] = useState(config.autoBackup);
-  const [language, setLanguage] = useState(config.language);
-  const [theme, setTheme] = useState(config.theme);
-  const [printerIp, setPrinterIp] = useState(config.printerIp);
-  const [iotConfigured, setIotConfigured] = useState(config.iotConfigured);
+  const [name, setName] = useState(config.name || '');
+  const [logo, setLogo] = useState(config.logo || '');
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [address, setAddress] = useState(config.address || '');
+
+  const handleLogoUpload = async (file: File) => {
+    if (!hasWriteAccess) return;
+    try {
+      setIsUploadingLogo(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('logos')
+        .getPublicUrl(filePath);
+
+      setLogo(data.publicUrl);
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      alert("Erreur lors du téléchargement du logo. Veuillez vérifier que le bucket 'logos' existe et est public.");
+      // Fallback to base64 if bucket doesn't exist
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          compressImage(event.target.result as string, (compressed) => {
+            setLogo(compressed);
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+  const [phone, setPhone] = useState(config.phone || '');
+  const [taxId, setTaxId] = useState(config.taxId || '');
+  const [autoBackup, setAutoBackup] = useState(config.autoBackup ?? true);
+  const [language, setLanguage] = useState(config.language || 'fr');
+  const [theme, setTheme] = useState(config.theme || 'light');
+  const [printerIp, setPrinterIp] = useState(config.printerIp || '');
+  const [iotConfigured, setIotConfigured] = useState(config.iotConfigured ?? false);
   const [documentColor, setDocumentColor] = useState(config.documentColor || '#000000');
   const [documentCompanyDetails, setDocumentCompanyDetails] = useState(config.documentCompanyDetails || '');
   const [documentFooter, setDocumentFooter] = useState(config.documentFooter || '');
@@ -40,16 +81,16 @@ export default function Settings({ store }: SettingsProps) {
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
-    setName(config.name);
-    setLogo(config.logo);
-    setAddress(config.address);
-    setPhone(config.phone);
-    setTaxId(config.taxId);
-    setAutoBackup(config.autoBackup);
-    setLanguage(config.language);
-    setTheme(config.theme);
-    setPrinterIp(config.printerIp);
-    setIotConfigured(config.iotConfigured);
+    setName(config.name || '');
+    setLogo(config.logo || '');
+    setAddress(config.address || '');
+    setPhone(config.phone || '');
+    setTaxId(config.taxId || '');
+    setAutoBackup(config.autoBackup ?? true);
+    setLanguage(config.language || 'fr');
+    setTheme(config.theme || 'light');
+    setPrinterIp(config.printerIp || '');
+    setIotConfigured(config.iotConfigured ?? false);
     setDocumentColor(config.documentColor || '#000000');
     setDocumentCompanyDetails(config.documentCompanyDetails || '');
     setDocumentFooter(config.documentFooter || '');
@@ -146,43 +187,31 @@ export default function Settings({ store }: SettingsProps) {
                       if (!hasWriteAccess) return;
                       const file = e.dataTransfer.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          if (event.target?.result) {
-                            compressImage(event.target.result as string, (compressed) => {
-                              setLogo(compressed);
-                            });
-                          }
-                        };
-                        reader.readAsDataURL(file);
+                        handleLogoUpload(file);
                       }
                     }}
-                    className={`border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-4 text-center cursor-pointer transition-colors group relative ${!hasWriteAccess ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-4 text-center cursor-pointer transition-colors group relative ${!hasWriteAccess || isUploadingLogo ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <input 
                       type="file" 
                       accept="image/*"
-                      disabled={!hasWriteAccess}
+                      disabled={!hasWriteAccess || isUploadingLogo}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            if (event.target?.result) {
-                              compressImage(event.target.result as string, (compressed) => {
-                                setLogo(compressed);
-                              });
-                            }
-                          };
-                          reader.readAsDataURL(file);
+                          handleLogoUpload(file);
                         }
                       }}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                     />
                     <div className="flex flex-col items-center gap-1.5">
-                      <Upload className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                      {isUploadingLogo ? (
+                        <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                      ) : (
+                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                      )}
                       <p className="text-xs font-semibold text-slate-600">
-                        <span className="text-indigo-600 group-hover:underline">Cliquez pour uploader le logo</span> ou glissez-déposez l'image ici
+                        <span className="text-indigo-600 group-hover:underline">{isUploadingLogo ? 'Téléchargement...' : 'Cliquez pour uploader le logo'}</span> {!isUploadingLogo && "ou glissez-déposez l'image ici"}
                       </p>
                       <p className="text-[10px] text-slate-400">PNG, JPG, SVG ou WEBP (Max. 1MB)</p>
                     </div>
