@@ -6,6 +6,7 @@ import {
   AuditLog, CashRegistry, Shift, Alert, Supply, Tank, Product, Attendant,
   StationConfig, UserRole, User, StockCorrection, Pump, Nozzle, Sale
 } from './types';
+import { RichDocument } from './components/BillingTypes';
 
 export interface ERPStoreType {
   loadInitialData: (data?: any) => void;
@@ -31,6 +32,8 @@ export interface ERPStoreType {
   purchaseInvoices: PurchaseInvoice[];
   salesInvoices: SalesInvoice[];
   deliveryInvoices: SalesInvoice[];
+  richDocuments: RichDocument[];
+  setRichDocuments: (data: RichDocument[]) => void;
 
   switchRole: (role: UserRole) => void;
   markAlertAsRead: (id: string) => void;
@@ -146,6 +149,7 @@ export function useERPStore(): ERPStoreType {
   const [purchaseInvoices, setPurchaseInvoices] = useState<PurchaseInvoice[]>([]);
   const [salesInvoices, setSalesInvoices] = useState<SalesInvoice[]>([]);
   const [deliveryInvoices, setDeliveryInvoices] = useState<SalesInvoice[]>([]);
+  const [richDocuments, setRichDocuments] = useState<RichDocument[]>([]);
 
   const saveState = (key: string, data: any, setter: React.Dispatch<React.SetStateAction<any>>) => {
     setter(data);
@@ -184,12 +188,12 @@ export function useERPStore(): ERPStoreType {
                       logo: config.logo,
                       address: config.address,
                       phone: config.phone,
-                      taxId: config.taxId,
-                      autoBackup: config.autoBackup,
+                      taxid: config.taxId,
+                      autobackup: config.autoBackup,
                       language: config.language,
                       theme: config.theme,
-                      printerIp: stringified,
-                      iotConfigured: config.iotConfigured
+                      printerip: stringified,
+                      iotconfigured: config.iotConfigured
                   };
                   const { error } = await supabase.from('erp_config').upsert(configToSave);
                   if (error) {
@@ -204,8 +208,8 @@ export function useERPStore(): ERPStoreType {
                               logo: configToSave.logo,
                               address: configToSave.address,
                               phone: configToSave.phone,
-                              taxId: configToSave.taxId,
-                              printerIp: stringified
+                              taxid: configToSave.taxid,
+                              printerip: stringified
                           };
                           await supabase.from('erp_config').insert(simplerConfig);
                       }
@@ -231,12 +235,12 @@ export function useERPStore(): ERPStoreType {
                       logo: data.logo,
                       address: data.address,
                       phone: data.phone,
-                      taxId: data.taxId,
-                      autoBackup: data.autoBackup,
+                      taxid: data.taxId,
+                      autobackup: data.autoBackup,
                       language: data.language,
                       theme: data.theme,
-                      printerIp: stringifiedPriceChanges,
-                      iotConfigured: data.iotConfigured
+                      printerip: stringifiedPriceChanges,
+                      iotconfigured: data.iotConfigured
                   };
                   const { error } = await supabase.from('erp_config').upsert(configToSave);
                   if (error) {
@@ -251,8 +255,8 @@ export function useERPStore(): ERPStoreType {
                               logo: configToSave.logo,
                               address: configToSave.address,
                               phone: configToSave.phone,
-                              taxId: configToSave.taxId,
-                              printerIp: stringifiedPriceChanges
+                              taxid: configToSave.taxid,
+                              printerip: stringifiedPriceChanges
                           };
                           await supabase.from('erp_config').insert(simplerConfig);
                       }
@@ -264,6 +268,30 @@ export function useERPStore(): ERPStoreType {
                  let items = data.map(item => ({ ...item, user_id }));
                  
                  // Strip fields that might not be in Supabase schema
+                 if (key === 'rich_documents') {
+                     items = items.map(doc => {
+                         return {
+                             id: doc.id,
+                             user_id,
+                             doctype: doc.docType,
+                             document_number: doc.documentNumber,
+                             partner_id: doc.partnerId,
+                             partner_name: doc.partnerName,
+                             date: doc.date,
+                             due_date: doc.dueDate,
+                             items: JSON.stringify(doc.items || []),
+                             amount_ht: doc.amountHT,
+                             vat_amount: doc.vatAmount,
+                             amount_ttc: doc.amountTTC,
+                             payment_method: doc.paymentMethod,
+                             mixed_payments: JSON.stringify(doc.mixedPayments || []),
+                             notes: doc.notes,
+                             terms: doc.terms,
+                             status: doc.status,
+                             history_logs: JSON.stringify(doc.historyLogs || [])
+                         };
+                     });
+                 }
                  if (key === 'supplies') {
                      items = items.map(s => {
                          const { totalAmount, ...rest } = s;
@@ -657,6 +685,63 @@ export function useERPStore(): ERPStoreType {
         setPurchaseInvoices(data.purchase_invoices || []);
         setSalesInvoices(data.sales_invoices || []);
         setDeliveryInvoices(data.delivery_invoices || []);
+
+        // Load rich documents
+        let loadedRichDocs: RichDocument[] = [];
+        if (data.rich_documents) {
+            loadedRichDocs = data.rich_documents.map((d: any) => {
+                let itemsParsed = d.items;
+                if (typeof itemsParsed === 'string') {
+                    try { itemsParsed = JSON.parse(itemsParsed); } catch(e) { itemsParsed = []; }
+                }
+                let mixedParsed = d.mixed_payments;
+                if (typeof mixedParsed === 'string') {
+                    try { mixedParsed = JSON.parse(mixedParsed); } catch(e) { mixedParsed = []; }
+                }
+                let logsParsed = d.history_logs;
+                if (typeof logsParsed === 'string') {
+                    try { logsParsed = JSON.parse(logsParsed); } catch(e) { logsParsed = []; }
+                }
+                
+                return {
+                    id: d.id,
+                    docType: d.doctype || d.docType,
+                    documentNumber: d.document_number || d.documentNumber,
+                    partnerId: d.partner_id || d.partnerId,
+                    partnerName: d.partner_name || d.partnerName,
+                    date: d.date,
+                    dueDate: d.due_date || d.dueDate,
+                    items: itemsParsed || [],
+                    amountHT: d.amount_ht !== undefined ? Number(d.amount_ht) : (d.amountHT !== undefined ? Number(d.amountHT) : 0),
+                    vatAmount: d.vat_amount !== undefined ? Number(d.vat_amount) : (d.vatAmount !== undefined ? Number(d.vatAmount) : 0),
+                    amountTTC: d.amount_ttc !== undefined ? Number(d.amount_ttc) : (d.amountTTC !== undefined ? Number(d.amountTTC) : 0),
+                    paymentMethod: d.payment_method || d.paymentMethod,
+                    mixedPayments: mixedParsed || [],
+                    notes: d.notes || '',
+                    terms: d.terms || '',
+                    status: d.status || 'draft',
+                    historyLogs: logsParsed || []
+                };
+            });
+        } else {
+            // Local fallback/migration
+            const oldLocalDocs = localStorage.getItem('erp_rich_documents_v1');
+            if (oldLocalDocs) {
+                try {
+                    loadedRichDocs = JSON.parse(oldLocalDocs);
+                } catch(e) {
+                    console.error("Failed to parse local erp_rich_documents_v1", e);
+                }
+            }
+        }
+        setRichDocuments(loadedRichDocs);
+        
+        // Auto sync local migrated docs if they exist but were not in the database load
+        if (!data.rich_documents && loadedRichDocs.length > 0) {
+            setTimeout(() => {
+                saveState('rich_documents', loadedRichDocs, setRichDocuments);
+            }, 1000);
+        }
       } else {
         localStorage.setItem('erp_prices_aligned_v22', 'true');
         localStorage.setItem('erp_reconstruct_price_changes_fixed_v12', 'true');
@@ -676,6 +761,7 @@ export function useERPStore(): ERPStoreType {
         setAuditLogs([]);
         setAlerts([]);
         setUsers([]);
+        setRichDocuments([]);
         setConfig({
           name: 'Station ERP', logo: '⛽', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
         });
@@ -1802,7 +1888,11 @@ return {
     addCompletedShift,
 
     // Config updating
-    updateConfig
+    updateConfig,
+
+    // Rich documents states
+    richDocuments,
+    setRichDocuments: (data: RichDocument[]) => saveState('rich_documents', data, setRichDocuments)
   };
 }
 
