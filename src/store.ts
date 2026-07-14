@@ -147,157 +147,222 @@ export function useERPStore(): ERPStoreType {
   const [salesInvoices, setSalesInvoices] = useState<SalesInvoice[]>([]);
   const [deliveryInvoices, setDeliveryInvoices] = useState<SalesInvoice[]>([]);
 
+  const saveState = (key: string, data: any, setter: React.Dispatch<React.SetStateAction<any>>) => {
+    setter(data);
+    try {
+      const existingStr = localStorage.getItem('erp_data');
+      const existing = existingStr ? JSON.parse(existingStr) : {};
+      existing[key] = data;
+      try {
+        localStorage.setItem('erp_data', JSON.stringify(existing));
+      } catch (e) {
+        console.warn("localStorage quota exceeded, skipping local cache.");
+      }
+      
+      // Async sync to Supabase
+      setTimeout(async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session && session.user) {
+             const user_id = session.user.id;
+             
+             if (key === 'price_changes') {
+                 // Intercept price_changes and backup to database under erp_config.printerIp
+                 const stringified = JSON.stringify(data);
+                 const configToSave = {
+                     user_id,
+                     name: config.name,
+                     logo: config.logo,
+                     address: config.address,
+                     phone: config.phone,
+                     taxId: config.taxId,
+                     autoBackup: config.autoBackup,
+                     language: config.language,
+                     theme: config.theme,
+                     printerIp: stringified,
+                     iotConfigured: config.iotConfigured
+                 };
+                 await supabase.from('erp_config').delete().eq('user_id', user_id);
+                 await supabase.from('erp_config').insert(configToSave);
+                 return;
+             }
+             
+             if (key === 'config') {
+                 // Intercept config saving and always preserve current priceChanges inside printerIp
+                 const stringifiedPriceChanges = JSON.stringify(priceChanges);
+                 const configToSave = {
+                     user_id,
+                     name: data.name,
+                     logo: data.logo,
+                     address: data.address,
+                     phone: data.phone,
+                     taxId: data.taxId,
+                     autoBackup: data.autoBackup,
+                     language: data.language,
+                     theme: data.theme,
+                     printerIp: stringifiedPriceChanges,
+                     iotConfigured: data.iotConfigured
+                 };
+                 await supabase.from('erp_config').delete().eq('user_id', user_id);
+                 await supabase.from('erp_config').insert(configToSave);
+                 return;
+             }
+
+             if (Array.isArray(data)) {
+                 let items = data.map(item => ({ ...item, user_id }));
+                 
+                 // Strip fields that might not be in Supabase schema
+                 if (key === 'supplies') {
+                     items = items.map(s => {
+                         const { totalAmount, ...rest } = s;
+                         return rest;
+                     });
+                 }
+                 if (key === 'sales') {
+                     items = items.map(s => {
+                         const { totalAmount, ...rest } = s;
+                         return rest;
+                     });
+                 }
+                 if (key === 'shifts') {
+                     items = items.map(s => {
+                         const { totalAmount, ...rest } = s;
+                         return rest;
+                     });
+                 }
+
+                 // Smart sync: Upsert existing/new, delete removed
+                 let currentItems = [];
+                 let from = 0;
+                 const step = 1000;
+                 let hasMore = true;
+                 while(hasMore) {
+                   const { data: selectData, error: selectErr } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id).order('id').range(from, from + step - 1);
+                   if (selectErr) {
+                       console.warn(`Skipping smart sync for erp_${key} (table missing or error): `, selectErr);
+                       return;
+                   }
+                   if (!selectData || selectData.length === 0) {
+                     hasMore = false;
+                   } else {
+                     currentItems = [...currentItems, ...selectData];
+                     if (selectData.length < step) hasMore = false;
+                     from += step;
+                   }
+                 }
+                 if (currentItems) {
+                     const currentIds = currentItems.map(i => i.id);
+                     const newIds = items.map(i => i.id);
+                     const idsToDelete = currentIds.filter(id => !newIds.includes(id));
+                     
+                     if (idsToDelete.length > 0) {
+                         await supabase.from(`erp_${key}`).delete().in('id', idsToDelete).eq('user_id', user_id);
+                     }
+                 }
+                 
+                 if (items.length > 0) {
+                     const chunkSize = 100;
+                     for (let i = 0; i < items.length; i += chunkSize) {
+                         await supabase.from(`erp_${key}`).upsert(items.slice(i, i + chunkSize));
+                     }
+                 }
+             } else if (typeof data === 'object' && data !== null) {
+                 // For config and cash_registry (except config, which is handled above)
+                 await supabase.from(`erp_${key}`).delete().eq('user_id', user_id);
+                 await supabase.from(`erp_${key}`).insert({ ...data, user_id });
+             }
+          }
+        } catch(err) {
+          console.error('Supabase sync error', err);
+        }
+      }, 0);
+      
+    } catch (e) {
+      console.error("Failed to save state", e);
+    }
+  };
+
   // Forced migration for specific historical prices
   React.useEffect(() => {
     if (products.length > 0) {
-       const isFixed = localStorage.getItem('erp_price_history_fixed_v11');
-       if (!isFixed && sales.length > 0) {
-          console.log("Running migration v11 to sync with Supabase...");
-          const sp = products.find(p => p.name.toLowerCase().includes('sans plom') || p.name.toLowerCase().includes('sans-plom'));
-          const melange = products.find(p => p.name.toLowerCase().includes('lange') || p.name.toLowerCase().includes('mélange'));
-          const gasoil = products.find(p => p.name.toLowerCase().includes('gasoil') || p.name.toLowerCase().includes('gazoil'));
-          
-          // Keep existing non-fuel price changes
-          const otherChanges = priceChanges.filter(pc => 
-              (!sp || pc.productId !== sp.id) && 
-              (!melange || pc.productId !== melange.id) && 
-              (!gasoil || pc.productId !== gasoil.id)
-          );
-          
-          let newChanges = [...otherChanges];
-          
-          if (sp) {
-             newChanges.push({ id: `fixed_sp_1`, date: '2026-07-03T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 11.71, salePrice: 12.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
-             newChanges.push({ id: `fixed_sp_2`, date: '2026-07-06T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 12.71, salePrice: 13.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
-             newChanges.push({ id: `fixed_sp_3`, date: '2026-07-09T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 15.90, salePrice: 16.45, oldPurchasePrice: 12.71, oldSalePrice: 13.71 });
-          }
-          if (melange) {
-             newChanges.push({ id: `fixed_mel_1`, date: '2026-07-03T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 11.71, salePrice: 12.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
-             newChanges.push({ id: `fixed_mel_2`, date: '2026-07-06T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 12.71, salePrice: 13.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
-             newChanges.push({ id: `fixed_mel_3`, date: '2026-07-09T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 15.90, salePrice: 16.45, oldPurchasePrice: 12.71, oldSalePrice: 13.71 });
-          }
-          if (gasoil) {
-             newChanges.push({ id: `fixed_gas_1`, date: '2026-07-03T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 13.45, salePrice: 14.45, oldPurchasePrice: 13.45, oldSalePrice: 14.45 });
-             newChanges.push({ id: `fixed_gas_2`, date: '2026-07-06T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 14.45, salePrice: 15.45, oldPurchasePrice: 13.45, oldSalePrice: 14.45 });
-             newChanges.push({ id: `fixed_gas_3`, date: '2026-07-09T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 14.27, salePrice: 14.71, oldPurchasePrice: 14.45, oldSalePrice: 15.45 });
-          }
-          
-          const updatedProducts = products.map(p => {
-             if (sp && p.id === sp.id) return { ...p, purchasePrice: 15.90, salePrice: 16.45 };
-             if (melange && p.id === melange.id) return { ...p, purchasePrice: 15.90, salePrice: 16.45 };
-             if (gasoil && p.id === gasoil.id) return { ...p, purchasePrice: 14.27, salePrice: 14.71 };
-             return p;
-          });
-          
-          const getHistoricalP = (productId, date) => {
-             const sortedChanges = [...newChanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-             const changesBeforeDate = sortedChanges.filter(c => c.productId === productId && c.date.split('T')[0] <= date.split('T')[0]);
-             if (changesBeforeDate.length > 0) return { purchasePrice: changesBeforeDate[0].purchasePrice, salePrice: changesBeforeDate[0].salePrice };
-             return null;
-          };
-          
-          let salesChanged = false;
-          const updatedSales = sales.map(s => {
-             const h = getHistoricalP(s.productId, s.date);
-             if (h && s.price !== h.salePrice) {
-                 salesChanged = true;
-                 return { ...s, price: h.salePrice, total: parseFloat((s.qty * h.salePrice).toFixed(2)) };
-             }
-             return s;
-          });
-
-          let suppliesChanged = false;
-          const updatedSupplies = supplies.map(s => {
-             const h = getHistoricalP(s.productId, s.date);
-             if (h && s.purchasePrice !== h.purchasePrice) {
-                 suppliesChanged = true;
-                 return { ...s, purchasePrice: h.purchasePrice };
-             }
-             return s;
-          });
-
-          // Perform robust Supabase sync
-          const performSync = async () => {
-              try {
-                  const { data: { session } } = await supabase.auth.getSession();
-                  if (!session || !session.user) {
-                      console.log("No session, will retry later.");
-                      return;
-                  }
-                  const user_id = session.user.id;
-                  
-                  // Delete old price changes for these products to avoid duplicates
-                  const { data: existingChanges, error: existingErr } = await supabase.from('erp_price_changes').select('id').eq('user_id', user_id);
-                  if (existingErr) {
-                     console.warn("Skipping erp_price_changes table (might not exist).");
-                  } else if (existingChanges) {
-                     const existingIds = existingChanges.map(c => c.id);
-                     const newIds = newChanges.map(c => c.id);
-                     const toDelete = existingIds.filter(id => !newIds.includes(id));
-                     if (toDelete.length > 0) {
-                         await supabase.from('erp_price_changes').delete().in('id', toDelete).eq('user_id', user_id);
-                     }
-                  }
-
-                  // Upsert new price changes (stripping bad fields)
-                  if (!existingErr) {
-                      const changesToInsert = newChanges.map(c => {
-                          const { oldPurchasePrice, oldSalePrice, productType, ...rest } = c;
-                          return { ...rest, user_id };
-                      });
-                      for (let i = 0; i < changesToInsert.length; i += 100) {
-                          const { error } = await supabase.from('erp_price_changes').upsert(changesToInsert.slice(i, i + 100));
-                          if (error) console.warn("price_changes error (ignored): " + error.message);
-                      }
-                  }
-                  setPriceChanges(newChanges);
-
-                  // Update products
-                  const prodsToInsert = updatedProducts.map(p => ({ ...p, user_id }));
-                  for (let i = 0; i < prodsToInsert.length; i += 100) {
-                      const { error } = await supabase.from('erp_products').upsert(prodsToInsert.slice(i, i + 100));
-                      if (error) throw new Error("products error: " + error.message);
-                  }
-                  setProducts(updatedProducts);
-
-                  // Update sales
-                  if (salesChanged) {
-                      const salesToInsert = updatedSales.map(s => {
-                          const { totalAmount, ...rest } = s;
-                          return { ...rest, user_id };
-                      });
-                      for (let i = 0; i < salesToInsert.length; i += 100) {
-                          const { error } = await supabase.from('erp_sales').upsert(salesToInsert.slice(i, i + 100));
-                          if (error) throw new Error("sales error: " + error.message);
-                      }
-                      setSales(updatedSales);
-                  }
-
-                  // Update supplies
-                  if (suppliesChanged) {
-                      const suppliesToInsert = updatedSupplies.map(s => {
-                          const { totalAmount, ...rest } = s;
-                          return { ...rest, user_id };
-                      });
-                      for (let i = 0; i < suppliesToInsert.length; i += 100) {
-                          const { error } = await supabase.from('erp_supplies').upsert(suppliesToInsert.slice(i, i + 100));
-                          if (error) throw new Error("supplies error: " + error.message);
-                      }
-                      setSupplies(updatedSupplies);
-                  }
-
-                  // Only if everything succeeded do we mark as fixed
-                  localStorage.setItem('erp_price_history_fixed_v11', 'true');
-                  console.log("Migration v11 successfully saved to Supabase.");
-              } catch (err) {
-                  console.error("Migration v11 failed to sync to Supabase:", err);
-                  alert("Erreur de synchronisation Supabase: " + err.message);
-                  // Do not set localStorage so it retries on next reload
+        // Run migration if the specific fixed changes are missing from state
+        const hasFixed = priceChanges.some(pc => pc.id === 'fixed_sp_1');
+        if (!hasFixed) {
+           console.log("Running migration v11 to sync with Supabase and local cache...");
+           const sp = products.find(p => p.name.toLowerCase().includes('sans plom') || p.name.toLowerCase().includes('sans-plom'));
+           const melange = products.find(p => p.name.toLowerCase().includes('lange') || p.name.toLowerCase().includes('mélange'));
+           const gasoil = products.find(p => p.name.toLowerCase().includes('gasoil') || p.name.toLowerCase().includes('gazoil'));
+           
+           // Keep existing non-fuel price changes
+           const otherChanges = priceChanges.filter(pc => 
+               (!sp || pc.productId !== sp.id) && 
+               (!melange || pc.productId !== melange.id) && 
+               (!gasoil || pc.productId !== gasoil.id)
+           );
+           
+           let newChanges = [...otherChanges];
+           
+           if (sp) {
+              newChanges.push({ id: `fixed_sp_1`, date: '2026-07-03T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 11.71, salePrice: 12.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
+              newChanges.push({ id: `fixed_sp_2`, date: '2026-07-06T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 12.71, salePrice: 13.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
+              newChanges.push({ id: `fixed_sp_3`, date: '2026-07-09T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 15.90, salePrice: 16.45, oldPurchasePrice: 12.71, oldSalePrice: 13.71 });
+           }
+           if (melange) {
+              newChanges.push({ id: `fixed_mel_1`, date: '2026-07-03T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 11.71, salePrice: 12.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
+              newChanges.push({ id: `fixed_mel_2`, date: '2026-07-06T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 12.71, salePrice: 13.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
+              newChanges.push({ id: `fixed_mel_3`, date: '2026-07-09T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 15.90, salePrice: 16.45, oldPurchasePrice: 12.71, oldSalePrice: 13.71 });
+           }
+           if (gasoil) {
+              newChanges.push({ id: `fixed_gas_1`, date: '2026-07-03T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 13.45, salePrice: 14.45, oldPurchasePrice: 13.45, oldSalePrice: 14.45 });
+              newChanges.push({ id: `fixed_gas_2`, date: '2026-07-06T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 14.45, salePrice: 15.45, oldPurchasePrice: 13.45, oldSalePrice: 14.45 });
+              newChanges.push({ id: `fixed_gas_3`, date: '2026-07-09T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 14.27, salePrice: 14.71, oldPurchasePrice: 14.45, oldSalePrice: 15.45 });
+           }
+           
+           const updatedProducts = products.map(p => {
+              if (sp && p.id === sp.id) return { ...p, purchasePrice: 15.90, salePrice: 16.45 };
+              if (melange && p.id === melange.id) return { ...p, purchasePrice: 15.90, salePrice: 16.45 };
+              if (gasoil && p.id === gasoil.id) return { ...p, purchasePrice: 14.27, salePrice: 14.71 };
+              return p;
+           });
+           
+           const getHistoricalP = (productId: string, date: string) => {
+              const sortedChanges = [...newChanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              const changesBeforeDate = sortedChanges.filter(c => c.productId === productId && c.date.split('T')[0] <= date.split('T')[0]);
+              if (changesBeforeDate.length > 0) return { purchasePrice: changesBeforeDate[0].purchasePrice, salePrice: changesBeforeDate[0].salePrice };
+              return null;
+           };
+           
+           let salesChanged = false;
+           const updatedSales = sales.map(s => {
+              const h = getHistoricalP(s.productId, s.date);
+              if (h && s.price !== h.salePrice) {
+                  salesChanged = true;
+                  return { ...s, price: h.salePrice, total: parseFloat((s.qty * h.salePrice).toFixed(2)) };
               }
-          };
-          
-          performSync();
-       }
+              return s;
+           });
+
+           let suppliesChanged = false;
+           const updatedSupplies = supplies.map(s => {
+              const h = getHistoricalP(s.productId, s.date);
+              if (h && s.purchasePrice !== h.purchasePrice) {
+                  suppliesChanged = true;
+                  return { ...s, purchasePrice: h.purchasePrice };
+              }
+              return s;
+           });
+
+           // Perform robust save state to local storage and sync to Supabase
+           saveState('price_changes', newChanges, setPriceChanges);
+           saveState('products', updatedProducts, setProducts);
+
+           if (salesChanged) {
+              saveState('sales', updatedSales, setSales);
+           }
+           if (suppliesChanged) {
+              saveState('supplies', updatedSupplies, setSupplies);
+           }
+        }
     }
   }, [products, priceChanges, sales, supplies]);
 
@@ -432,7 +497,21 @@ export function useERPStore(): ERPStoreType {
         if (data.audit_logs) setAuditLogs(data.audit_logs);
         if (data.alerts) setAlerts(data.alerts);
         if (data.users) setUsers(data.users);
-        if (data.config) setConfig(data.config);
+        if (data.config) {
+          let loadedConfig = data.config;
+          if (loadedConfig.printerIp && loadedConfig.printerIp.startsWith('[')) {
+            try {
+              const parsedChanges = JSON.parse(loadedConfig.printerIp);
+              if (Array.isArray(parsedChanges) && parsedChanges.length > 0) {
+                data.price_changes = parsedChanges;
+              }
+            } catch (e) {
+              console.error("Failed to parse price changes from printerIp", e);
+            }
+            loadedConfig = { ...loadedConfig, printerIp: '' };
+          }
+          setConfig(loadedConfig);
+        }
         if (data.price_changes) {
           const sanitizedChanges = data.price_changes.map(pc => {
             if (pc.date.includes('T') && pc.date.split('T').length > 2) {
@@ -460,103 +539,7 @@ export function useERPStore(): ERPStoreType {
     loadInitialData();
   }, []);
 
-  const saveState = (key: string, data: any, setter: React.Dispatch<React.SetStateAction<any>>) => {
-    setter(data);
-    try {
-      const existingStr = localStorage.getItem('erp_data');
-      const existing = existingStr ? JSON.parse(existingStr) : {};
-      existing[key] = data;
-      try {
-        localStorage.setItem('erp_data', JSON.stringify(existing));
-      } catch (e) {
-        console.warn("localStorage quota exceeded, skipping local cache.");
-      }
-      
-      // Async sync to Supabase
-      setTimeout(async () => {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session && session.user) {
-             const user_id = session.user.id;
-             if (Array.isArray(data)) {
-                 let items = data.map(item => ({ ...item, user_id }));
-                 
-                 // Strip fields that might not be in Supabase schema
-                 if (key === 'price_changes') {
-                     items = items.map(c => {
-                         const { oldPurchasePrice, oldSalePrice, productType, ...rest } = c;
-                         return rest;
-                     });
-                 }
-                 if (key === 'supplies') {
-                     items = items.map(s => {
-                         const { totalAmount, ...rest } = s;
-                         return rest;
-                     });
-                 }
-                 if (key === 'sales') {
-                     items = items.map(s => {
-                         const { totalAmount, ...rest } = s;
-                         return rest;
-                     });
-                 }
-                 if (key === 'shifts') {
-                     items = items.map(s => {
-                         const { totalAmount, ...rest } = s;
-                         return rest;
-                     });
-                 }
-
-                 // Smart sync: Upsert existing/new, delete removed
-                 let currentItems = [];
-                 let from = 0;
-                 const step = 1000;
-                 let hasMore = true;
-                 while(hasMore) {
-                   const { data, error: selectErr } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id).order('id').range(from, from + step - 1);
-                   if (selectErr) {
-                       console.warn(`Skipping smart sync for erp_${key} (table missing or error): `, selectErr);
-                       return;
-                   }
-                   if (!data || data.length === 0) {
-                     hasMore = false;
-                   } else {
-                     currentItems = [...currentItems, ...data];
-                     if (data.length < step) hasMore = false;
-                     from += step;
-                   }
-                 }
-                 if (currentItems) {
-                     const currentIds = currentItems.map(i => i.id);
-                     const newIds = items.map(i => i.id);
-                     const idsToDelete = currentIds.filter(id => !newIds.includes(id));
-                     
-                     if (idsToDelete.length > 0) {
-                         await supabase.from(`erp_${key}`).delete().in('id', idsToDelete).eq('user_id', user_id);
-                     }
-                 }
-                 
-                 if (items.length > 0) {
-                     const chunkSize = 100;
-                     for (let i = 0; i < items.length; i += chunkSize) {
-                         await supabase.from(`erp_${key}`).upsert(items.slice(i, i + chunkSize));
-                     }
-                 }
-             } else if (typeof data === 'object' && data !== null) {
-                 // For config and cash_registry
-                 await supabase.from(`erp_${key}`).delete().eq('user_id', user_id);
-                 await supabase.from(`erp_${key}`).insert({ ...data, user_id });
-             }
-          }
-        } catch(err) {
-          console.error('Supabase sync error', err);
-        }
-      }, 0);
-      
-    } catch (e) {
-      console.error("Failed to save state", e);
-    }
-  };
+  // saveState has been moved to the top of the useERPStore hook to prevent ReferenceErrors.
 
   const logAction = (user: string, action: string, module: string, details: string) => {
     const newLog: AuditLog = {

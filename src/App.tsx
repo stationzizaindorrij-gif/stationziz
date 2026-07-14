@@ -36,7 +36,7 @@ function AppContent({ session }: { session: any }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const arrayKeys = ['price_changes', 
+        const arrayKeys = [
           'products', 'tanks', 'pumps', 'nozzles', 'attendants', 'shifts', 
           'sales', 'supplies', 'stock_corrections', 'audit_logs', 
           'alerts', 'users', 'suppliers', 'clients', 'purchase_invoices', 'sales_invoices'
