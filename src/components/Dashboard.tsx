@@ -82,7 +82,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
   // Stock total restant
   const totalCurrentStock = tanks.reduce((acc, t) => acc + t.currentLevel, 0);
   const totalStockCapacity = tanks.reduce((acc, t) => acc + t.capacity, 0);
-  const stockPercentage = Math.round((totalCurrentStock / totalStockCapacity) * 100);
+  const stockPercentage = totalStockCapacity > 0 ? Math.round((totalCurrentStock / totalStockCapacity) * 100) : 0;
 
   // Alertes actives non lues
   const activeAlertsCount = alerts.filter(a => !a.isRead).length;

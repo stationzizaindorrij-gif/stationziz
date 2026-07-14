@@ -483,20 +483,22 @@ export function useERPStore(): ERPStoreType {
       const dataStr = localStorage.getItem('erp_data');
       const data = externalData || (dataStr ? JSON.parse(dataStr) : null);
       if (data) {
-        if (data.products) setProducts(data.products);
-        if (data.shop_products) setShopProducts(data.shop_products);
-        if (data.tanks) setTanks(data.tanks);
-        if (data.pumps) setPumps(data.pumps);
-        if (data.nozzles) setNozzles(data.nozzles);
-        if (data.attendants) setAttendants(data.attendants);
-        if (data.shifts) setShifts(data.shifts);
-        if (data.sales) setSales(data.sales);
-        if (data.supplies) setSupplies(data.supplies);
-        if (data.cash_registry) setCashRegistry(data.cash_registry);
-        if (data.stock_corrections) setStockCorrections(data.stock_corrections);
-        if (data.audit_logs) setAuditLogs(data.audit_logs);
-        if (data.alerts) setAlerts(data.alerts);
-        if (data.users) setUsers(data.users);
+        setProducts(data.products || []);
+        setShopProducts(data.shop_products || []);
+        setTanks(data.tanks || []);
+        setPumps(data.pumps || []);
+        setNozzles(data.nozzles || []);
+        setAttendants(data.attendants || []);
+        setShifts(data.shifts || []);
+        setSales(data.sales || []);
+        setSupplies(data.supplies || []);
+        setCashRegistry(data.cash_registry || {
+          id: 'cash_session_current', isOpen: false, openedAt: '', openedBy: '', openingCash: 0, inputs: [], outputs: [], theoreticalCash: 0
+        });
+        setStockCorrections(data.stock_corrections || []);
+        setAuditLogs(data.audit_logs || []);
+        setAlerts(data.alerts || []);
+        setUsers(data.users || []);
         if (data.config) {
           let loadedConfig = data.config;
           if (loadedConfig.printerIp && loadedConfig.printerIp.startsWith('[')) {
@@ -511,6 +513,10 @@ export function useERPStore(): ERPStoreType {
             loadedConfig = { ...loadedConfig, printerIp: '' };
           }
           setConfig(loadedConfig);
+        } else {
+          setConfig({
+            name: 'Station ERP', logo: '⛽', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
+          });
         }
         if (data.price_changes) {
           const sanitizedChanges = data.price_changes.map(pc => {
@@ -523,12 +529,40 @@ export function useERPStore(): ERPStoreType {
             return pc;
           });
           setPriceChanges(sanitizedChanges);
+        } else {
+          setPriceChanges([]);
         }
-        if (data.suppliers) setSuppliers(data.suppliers);
-        if (data.clients) setClients(data.clients);
-        if (data.purchase_invoices) setPurchaseInvoices(data.purchase_invoices);
-        if (data.sales_invoices) setSalesInvoices(data.sales_invoices);
-        if (data.delivery_invoices) setDeliveryInvoices(data.delivery_invoices);
+        setSuppliers(data.suppliers || []);
+        setClients(data.clients || []);
+        setPurchaseInvoices(data.purchase_invoices || []);
+        setSalesInvoices(data.sales_invoices || []);
+        setDeliveryInvoices(data.delivery_invoices || []);
+      } else {
+        setProducts([]);
+        setShopProducts([]);
+        setTanks([]);
+        setPumps([]);
+        setNozzles([]);
+        setAttendants([]);
+        setShifts([]);
+        setSales([]);
+        setSupplies([]);
+        setCashRegistry({
+          id: 'cash_session_current', isOpen: false, openedAt: '', openedBy: '', openingCash: 0, inputs: [], outputs: [], theoreticalCash: 0
+        });
+        setStockCorrections([]);
+        setAuditLogs([]);
+        setAlerts([]);
+        setUsers([]);
+        setConfig({
+          name: 'Station ERP', logo: '⛽', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
+        });
+        setPriceChanges([]);
+        setSuppliers([]);
+        setClients([]);
+        setPurchaseInvoices([]);
+        setSalesInvoices([]);
+        setDeliveryInvoices([]);
       }
     } catch (e) {
       console.error("Failed to load initial data", e);
@@ -607,7 +641,19 @@ export function useERPStore(): ERPStoreType {
   };
 
   const addProduct = (product: Omit<Product, 'id'>, author: string) => {
-    saveState('products', [...products, { ...product, id: `prod_${Date.now()}` }], setProducts);
+    const newId = `prod_${Date.now()}`;
+    const newChange: PriceChange = {
+      id: `price_change_${Date.now()}`,
+      date: new Date().toISOString(),
+      productId: newId,
+      productType: product.type,
+      purchasePrice: product.purchasePrice,
+      salePrice: product.salePrice,
+      oldPurchasePrice: product.purchasePrice,
+      oldSalePrice: product.salePrice
+    };
+    saveState('price_changes', [...priceChanges, newChange], setPriceChanges);
+    saveState('products', [...products, { ...product, id: newId }], setProducts);
   };
 
   const updateProduct = (id: string, updates: Partial<Product>, author: string) => {
