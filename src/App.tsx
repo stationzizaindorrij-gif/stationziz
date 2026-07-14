@@ -69,6 +69,7 @@ function AppContent({ session }: { session: any }) {
               .from(`erp_${k}`)
               .select('*')
               .eq('user_id', session.user.id)
+              .order('id')
               .range(from, from + step - 1);
               
             if (error || !data || data.length === 0) {

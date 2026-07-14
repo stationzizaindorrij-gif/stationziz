@@ -197,12 +197,12 @@ export default function Analytics({ store }: AnalyticsProps) {
     // We will calculate the PUMP (Prix Unitaire Moyen Pondéré) for each product chronologically
     store.products.forEach(p => {
       // Find all events for this product up to the selected date
-      const pSales = store.sales.filter(s => s.productId === p.id && s.date <= selectedEndDateObj).map(s => ({ type: 'sale', date: s.date, time: s.time || '00:00:00', qty: s.qty, price: s.price }));
-      const pSupplies = store.supplies.filter(s => s.productId === p.id && s.date.split('T')[0] <= selectedEndDateObj).map(s => ({ type: 'supply', date: s.date.split('T')[0], time: s.time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), qty: s.qtyDelivered, price: s.purchasePrice }));
-      const pCorrections = (store.stockCorrections || []).filter(c => {
+      const pSales = store.sales.filter(s => s.productId === p.id && s.date.split('T')[0] <= selectedEndDateObj).map(s => ({ type: 'sale', date: s.date.split('T')[0], time: (s as any).time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), qty: s.qty, price: s.price }));
+      const pSupplies = store.supplies.filter(s => s.productId === p.id && s.date.split('T')[0] <= selectedEndDateObj).map(s => ({ type: 'supply', date: s.date.split('T')[0], time: (s as any).time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), qty: s.qtyDelivered, price: s.purchasePrice }));
+      const pCorrections = (store.stockCorrections || []).filter((c: any) => {
          const tank = store.tanks.find(t => t.id === c.tankId);
          return tank && tank.productId === p.id && c.date.split('T')[0] <= selectedEndDateObj;
-      }).map(c => ({ type: 'correction', date: c.date.split('T')[0], time: c.time || (c.date.includes('T') ? c.date.split('T')[1].substring(0,8) : '00:00:00'), qty: c.qtyAfter - c.qtyBefore }));
+      }).map(c => ({ type: 'correction', date: c.date.split('T')[0], time: (c as any).time || (c.date.includes('T') ? c.date.split('T')[1].substring(0,8) : '00:00:00'), qty: c.qtyAfter - c.qtyBefore, price: 0 }));
       
       const allEvents = [...pSales, ...pSupplies, ...pCorrections].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
       
@@ -266,7 +266,7 @@ export default function Analytics({ store }: AnalyticsProps) {
       const product = store.products.find(p => p.id === tank.productId);
       if (product) {
         if (!stockReste[product.id]) {
-          stockReste[product.id] = { liters: 0, purchase: getHistoricalPrice(product.id, selectedEndDateObj).purchasePrice, montant: 0 };
+          stockReste[product.id] = { liters: 0, purchase: getHistoricalPrice(product.id, selectedEndDateObj).purchasePrice, montant: 0, historyPump: [] };
         }
         stockReste[product.id].liters += tank.currentLevel;
         totalStockLiters += tank.currentLevel;

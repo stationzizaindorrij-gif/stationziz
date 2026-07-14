@@ -345,7 +345,11 @@ export function useERPStore(): ERPStoreType {
       const existingStr = localStorage.getItem('erp_data');
       const existing = existingStr ? JSON.parse(existingStr) : {};
       existing[key] = data;
-      localStorage.setItem('erp_data', JSON.stringify(existing));
+      try {
+        localStorage.setItem('erp_data', JSON.stringify(existing));
+      } catch (e) {
+        console.warn("localStorage quota exceeded, skipping local cache.");
+      }
       
       // Async sync to Supabase
       setTimeout(async () => {
@@ -362,7 +366,7 @@ export function useERPStore(): ERPStoreType {
                  const step = 1000;
                  let hasMore = true;
                  while(hasMore) {
-                   const { data } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id).range(from, from + step - 1);
+                   const { data } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id).order('id').range(from, from + step - 1);
                    if (!data || data.length === 0) {
                      hasMore = false;
                    } else {
@@ -751,15 +755,15 @@ export function useERPStore(): ERPStoreType {
       const startCount = shift.startCounters[noz.id];
 
       if (endCount && startCount) {
-        const endElecNum = parseFloat(endCount.elec) || parseFloat(startCount.elec) || 0;
-        const startElecNum = parseFloat(startCount.elec) || 0;
+        const endElecNum = endCount.elec || startCount.elec || 0;
+        const startElecNum = startCount.elec || 0;
         const diffLiters = endElecNum - startElecNum;
         let roundedDiff = Math.max(0, parseFloat(diffLiters.toFixed(2)));
         
         // Fallback to mechanical if electronic is 0
         if (roundedDiff === 0 && endCount.mech && startCount.mech) {
-           const endMechNum = parseFloat(endCount.mech) || parseFloat(startCount.mech) || 0;
-           const startMechNum = parseFloat(startCount.mech) || 0;
+           const endMechNum = endCount.mech || startCount.mech || 0;
+           const startMechNum = startCount.mech || 0;
            roundedDiff = Math.max(0, parseFloat((endMechNum - startMechNum).toFixed(2)));
         }
         
@@ -808,8 +812,8 @@ export function useERPStore(): ERPStoreType {
     // Save updated nozzles to state/localstorage
     saveState('nozzles', updatedNozzles, setNozzles);
 
-    const roundedTotalAmount = parseFloat(totalAmount.toFixed(2));
-    const roundedTotalLiters = parseFloat(totalLiters.toFixed(2));
+    const roundedTotalAmount = totalAmount.toFixed(2);
+    const roundedTotalLiters = totalLiters.toFixed(2);
     // Automatically record sales for each nozzle to populate general sales log
     const newSales: Sale[] = [];
     Object.keys(litersSold).forEach((nozId, idx) => {
@@ -922,7 +926,7 @@ export function useERPStore(): ERPStoreType {
   // MODULE 15: CONFIGURATION
   
   const addCompletedShift = (
-    shiftData: Omit<Shift, 'id' | 'status' | 'discrepancy' | 'totalLiters' | 'totalAmount' | 'litersSold' | 'amountSold' | 'theoreticalCash' | 'realCashReceived' | 'notes'> & {
+    shiftData: Omit<Shift,  'status' | 'discrepancy' | 'totalLiters' | 'totalAmount' | 'litersSold' | 'amountSold' | 'theoreticalCash' | 'realCashReceived' | 'notes'> & {
       realCashReceived: number;
       theoreticalCash: number;
       discrepancy: number;
@@ -1331,7 +1335,7 @@ return {
           const noz = nozzles.find(n => n.id === nozId);
           if (noz) {
             // Check if current counters have advanced beyond this shift's end counters
-            if (parseFloat(noz.currentElecCounter as any) > parseFloat(shift.endCounters[nozId].elec as any) || parseFloat(noz.currentMechCounter as any) > parseFloat(shift.endCounters[nozId].mech as any)) {
+            if ((noz.currentElecCounter as any > shift.endCounters[nozId].elec as any) || (noz.currentMechCounter as any > shift.endCounters[nozId].mech as any)) {
               hasDependentShift = true;
               break;
             }
@@ -1360,8 +1364,8 @@ return {
           if (nozIndex !== -1) {
             nextNozzles[nozIndex] = {
               ...nextNozzles[nozIndex],
-              currentElecCounter: parseFloat((startCount as any).elec) || 0,
-              currentMechCounter: parseFloat((startCount as any).mech) || 0
+              currentElecCounter: (startCount as any).elec || 0,
+              currentMechCounter: (startCount as any).mech || 0
             };
           }
         });
@@ -1374,8 +1378,8 @@ return {
             const qty = shift.litersSold[nozId] || 0;
             nextNozzles[nozIndex] = {
               ...nextNozzles[nozIndex],
-              currentElecCounter: Math.max(0, parseFloat((nextNozzles[nozIndex].currentElecCounter as any)) - qty),
-              currentMechCounter: Math.max(0, parseFloat((nextNozzles[nozIndex].currentMechCounter as any)) - qty)
+              currentElecCounter: Math.max(0, (nextNozzles[nozIndex].currentElecCounter as any) - qty),
+              currentMechCounter: Math.max(0, (nextNozzles[nozIndex].currentMechCounter as any) - qty)
             };
           }
         });
@@ -1393,7 +1397,7 @@ return {
             if (tankIndex !== -1) {
               nextTanks[tankIndex] = {
                 ...nextTanks[tankIndex],
-                currentLevel: parseFloat((nextTanks[tankIndex].currentLevel + sale.qty).toFixed(2))
+                currentLevel: (nextTanks[tankIndex].currentLevel + sale.qty).toFixed(2)
               };
             }
           }
