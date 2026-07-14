@@ -31,7 +31,9 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   const [selectedPumps, setSelectedPumps] = useState<string[]>(editingShift?.pumpIds || draft?.selectedPumps || []);
   const [draggedPumpId, setDraggedPumpId] = useState<string | null>(null);
 
-  const orderedSelectedPumps = store.pumps.filter(p => selectedPumps.includes(p.id)).map(p => p.id);
+  const orderedSelectedPumps = useMemo(() => {
+    return store.pumps.filter(p => selectedPumps.includes(p.id)).map(p => p.id);
+  }, [store.pumps, selectedPumps]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id);

@@ -303,6 +303,9 @@ export function useERPStore(): ERPStoreType {
 
 // Migration to reconstruct missing price changes from past sales and supplies
   React.useEffect(() => {
+    if (localStorage.getItem('erp_reconstruct_price_changes_fixed_v12')) {
+      return;
+    }
     if (products.length > 0 && (sales.length > 0 || supplies.length > 0)) {
       const generatedChanges: PriceChange[] = [];
       const now = new Date().getTime();
@@ -403,6 +406,7 @@ export function useERPStore(): ERPStoreType {
            saveState('price_changes', [...priceChanges, ...newChangesToSave], setPriceChanges);
         }
       }
+      localStorage.setItem('erp_reconstruct_price_changes_fixed_v12', 'true');
     }
   }, [sales, supplies, products, priceChanges]);
   
