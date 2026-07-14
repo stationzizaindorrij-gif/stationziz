@@ -167,46 +167,88 @@ export function useERPStore(): ERPStoreType {
              const user_id = session.user.id;
              
              if (key === 'price_changes') {
-                 // Intercept price_changes and backup to database under erp_config.printerIp
-                 const stringified = JSON.stringify(data);
-                 const configToSave = {
-                     user_id,
-                     name: config.name,
-                     logo: config.logo,
-                     address: config.address,
-                     phone: config.phone,
-                     taxId: config.taxId,
-                     autoBackup: config.autoBackup,
-                     language: config.language,
-                     theme: config.theme,
-                     printerIp: stringified,
-                     iotConfigured: config.iotConfigured
-                 };
-                 await supabase.from('erp_config').delete().eq('user_id', user_id);
-                 await supabase.from('erp_config').insert(configToSave);
-                 return;
-             }
+                  // Intercept price_changes and backup to database under erp_config.printerIp
+                  const stringified = JSON.stringify({
+                      priceChanges: data,
+                      documentLogo: config.documentLogo || '',
+                      documentColor: config.documentColor || '',
+                      documentFooter: config.documentFooter || '',
+                      documentNumbering: config.documentNumbering || null,
+                      documentColumnsOrder: config.documentColumnsOrder || null,
+                      documentCompanyDetails: config.documentCompanyDetails || ''
+                  });
+                  const configToSave = {
+                      user_id,
+                      name: config.name,
+                      logo: config.logo,
+                      address: config.address,
+                      phone: config.phone,
+                      taxId: config.taxId,
+                      autoBackup: config.autoBackup,
+                      language: config.language,
+                      theme: config.theme,
+                      printerIp: stringified,
+                      iotConfigured: config.iotConfigured
+                  };
+                  await supabase.from('erp_config').delete().eq('user_id', user_id);
+                  const { error } = await supabase.from('erp_config').insert(configToSave);
+                  if (error) {
+                      console.warn("Full config insert failed, trying simpler payload:", error);
+                      const simplerConfig = {
+                          user_id,
+                          name: configToSave.name,
+                          logo: configToSave.logo,
+                          address: configToSave.address,
+                          phone: configToSave.phone,
+                          taxId: configToSave.taxId,
+                          printerIp: stringified
+                      };
+                      await supabase.from('erp_config').insert(simplerConfig);
+                  }
+                  return;
+              }
              
              if (key === 'config') {
-                 // Intercept config saving and always preserve current priceChanges inside printerIp
-                 const stringifiedPriceChanges = JSON.stringify(priceChanges);
-                 const configToSave = {
-                     user_id,
-                     name: data.name,
-                     logo: data.logo,
-                     address: data.address,
-                     phone: data.phone,
-                     taxId: data.taxId,
-                     autoBackup: data.autoBackup,
-                     language: data.language,
-                     theme: data.theme,
-                     printerIp: stringifiedPriceChanges,
-                     iotConfigured: data.iotConfigured
-                 };
-                 await supabase.from('erp_config').delete().eq('user_id', user_id);
-                 await supabase.from('erp_config').insert(configToSave);
-                 return;
-             }
+                  // Intercept config saving and always preserve current priceChanges inside printerIp
+                  const stringifiedPriceChanges = JSON.stringify({
+                      priceChanges: priceChanges,
+                      documentLogo: data.documentLogo || '',
+                      documentColor: data.documentColor || '',
+                      documentFooter: data.documentFooter || '',
+                      documentNumbering: data.documentNumbering || null,
+                      documentColumnsOrder: data.documentColumnsOrder || null,
+                      documentCompanyDetails: data.documentCompanyDetails || ''
+                  });
+                  const configToSave = {
+                      user_id,
+                      name: data.name,
+                      logo: data.logo,
+                      address: data.address,
+                      phone: data.phone,
+                      taxId: data.taxId,
+                      autoBackup: data.autoBackup,
+                      language: data.language,
+                      theme: data.theme,
+                      printerIp: stringifiedPriceChanges,
+                      iotConfigured: data.iotConfigured
+                  };
+                  await supabase.from('erp_config').delete().eq('user_id', user_id);
+                  const { error } = await supabase.from('erp_config').insert(configToSave);
+                  if (error) {
+                      console.warn("Full config insert failed, trying simpler payload:", error);
+                      const simplerConfig = {
+                          user_id,
+                          name: configToSave.name,
+                          logo: configToSave.logo,
+                          address: configToSave.address,
+                          phone: configToSave.phone,
+                          taxId: configToSave.taxId,
+                          printerIp: stringifiedPriceChanges
+                      };
+                      await supabase.from('erp_config').insert(simplerConfig);
+                  }
+                  return;
+              }
 
              if (Array.isArray(data)) {
                  let items = data.map(item => ({ ...item, user_id }));
@@ -478,10 +520,23 @@ export function useERPStore(): ERPStoreType {
 
 
 
-  const loadInitialData = (externalData?: any) => {
+   const loadInitialData = (externalData?: any) => {
     try {
       const dataStr = localStorage.getItem('erp_data');
-      const data = externalData || (dataStr ? JSON.parse(dataStr) : null);
+      const localData = dataStr ? JSON.parse(dataStr) : null;
+      
+      let data = externalData || localData;
+      if (externalData && localData) {
+        // Safe-merge: if a key is missing or empty in externalData (fetched from Supabase),
+        // keep the value from localData (from localStorage) instead of resetting it to defaults.
+        data = { ...localData };
+        Object.keys(externalData).forEach(key => {
+          if (externalData[key] !== undefined && externalData[key] !== null) {
+            data[key] = externalData[key];
+          }
+        });
+      }
+
       if (data) {
         if (!data.products || !data.products.some((p: any) => p.id === 'prod_gazoil')) {
           localStorage.setItem('erp_prices_aligned_v22', 'true');
@@ -505,14 +560,33 @@ export function useERPStore(): ERPStoreType {
         setUsers(data.users || []);
         if (data.config) {
           let loadedConfig = data.config;
-          if (loadedConfig.printerIp && loadedConfig.printerIp.startsWith('[')) {
-            try {
-              const parsedChanges = JSON.parse(loadedConfig.printerIp);
-              if (Array.isArray(parsedChanges) && parsedChanges.length > 0) {
-                data.price_changes = parsedChanges;
+          if (loadedConfig.printerIp) {
+            const trimmed = loadedConfig.printerIp.trim();
+            if (trimmed.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (parsed.priceChanges) {
+                  data.price_changes = parsed.priceChanges;
+                }
+                // Hydrate extra document settings back into loadedConfig
+                if (parsed.documentLogo) loadedConfig.documentLogo = parsed.documentLogo;
+                if (parsed.documentColor) loadedConfig.documentColor = parsed.documentColor;
+                if (parsed.documentFooter) loadedConfig.documentFooter = parsed.documentFooter;
+                if (parsed.documentNumbering) loadedConfig.documentNumbering = parsed.documentNumbering;
+                if (parsed.documentColumnsOrder) loadedConfig.documentColumnsOrder = parsed.documentColumnsOrder;
+                if (parsed.documentCompanyDetails) loadedConfig.documentCompanyDetails = parsed.documentCompanyDetails;
+              } catch (e) {
+                console.error("Failed to parse complex printerIp JSON", e);
               }
-            } catch (e) {
-              console.error("Failed to parse price changes from printerIp", e);
+            } else if (trimmed.startsWith('[')) {
+              try {
+                const parsedChanges = JSON.parse(trimmed);
+                if (Array.isArray(parsedChanges) && parsedChanges.length > 0) {
+                  data.price_changes = parsedChanges;
+                }
+              } catch (e) {
+                console.error("Failed to parse price changes from printerIp", e);
+              }
             }
             loadedConfig = { ...loadedConfig, printerIp: '' };
           }

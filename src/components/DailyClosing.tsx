@@ -10,6 +10,104 @@ import { useRef } from 'react';
 import { ERPStoreType } from '../store';
 import { Shift, Product, Nozzle, Sale } from '../types';
 
+function parseOklch(l: number, c: number, h: number, a: number = 1): string {
+  if (c < 0.015) {
+    const val = Math.round(l * 255);
+    return `rgba(${val}, ${val}, ${val}, ${a})`;
+  }
+  let r = 0, g = 0, b = 0;
+  if (h >= 340 || h < 20) {
+    r = 239; g = 68; b = 68;
+  } else if (h >= 20 && h < 50) {
+    r = 249; g = 115; b = 22;
+  } else if (h >= 50 && h < 90) {
+    r = 245; g = 158; b = 11;
+  } else if (h >= 90 && h < 165) {
+    r = 34; g = 197; b = 94;
+  } else if (h >= 165 && h < 200) {
+    r = 20; g = 184; b = 166;
+  } else if (h >= 200 && h < 280) {
+    r = 59; g = 130; b = 246;
+  } else {
+    r = 168; g = 85; b = 247;
+  }
+  if (l > 0.5) {
+    const factor = (l - 0.5) * 2;
+    r = Math.round(r + (255 - r) * factor);
+    g = Math.round(g + (255 - g) * factor);
+    b = Math.round(b + (255 - b) * factor);
+  } else {
+    const factor = l * 2;
+    r = Math.round(r * factor);
+    g = Math.round(g * factor);
+    b = Math.round(b * factor);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function parseOklab(l: number, a: number, b: number, alpha: number = 1): string {
+  const c = Math.sqrt(a * a + b * b);
+  let h = (Math.atan2(b, a) * 180) / Math.PI;
+  if (h < 0) h += 360;
+  return parseOklch(l, c, h, alpha);
+}
+
+function safeParseFloat(val: string, fallback = 0): number {
+  if (!val || val.trim().toLowerCase() === 'none') return 0;
+  const num = parseFloat(val);
+  return isNaN(num) ? fallback : num;
+}
+
+function convertOklchOklabToRgb(val: string): string {
+  let result = val.replace(/oklch\(([^)]+)\)/gi, (_, inner) => {
+    try {
+      const parts = inner.trim().split(/[\s,/]+/);
+      if (parts.length >= 3) {
+        const lVal = parts[0];
+        const cVal = parts[1];
+        const hVal = parts[2];
+        const aVal = parts[3];
+
+        const l = lVal.endsWith('%') ? safeParseFloat(lVal) / 100 : safeParseFloat(lVal);
+        const c = cVal.endsWith('%') ? (safeParseFloat(cVal) / 100) * 0.4 : safeParseFloat(cVal);
+        const h = hVal.endsWith('deg') ? safeParseFloat(hVal.slice(0, -3)) : safeParseFloat(hVal);
+        
+        let alpha = 1;
+        if (aVal) {
+          alpha = aVal.endsWith('%') ? safeParseFloat(aVal) / 100 : safeParseFloat(aVal);
+        }
+        return parseOklch(l, c, h, alpha);
+      }
+    } catch (e) {}
+    return 'rgba(100, 116, 139, 1)';
+  });
+
+  result = result.replace(/oklab\(([^)]+)\)/gi, (_, inner) => {
+    try {
+      const parts = inner.trim().split(/[\s,/]+/);
+      if (parts.length >= 3) {
+        const lVal = parts[0];
+        const aVal = parts[1];
+        const bVal = parts[2];
+        const alphaVal = parts[3];
+
+        const l = lVal.endsWith('%') ? safeParseFloat(lVal) / 100 : safeParseFloat(lVal);
+        const a = aVal.endsWith('%') ? (safeParseFloat(aVal) / 100) * 0.4 : safeParseFloat(aVal);
+        const b = bVal.endsWith('%') ? (safeParseFloat(bVal) / 100) * 0.4 : safeParseFloat(bVal);
+        
+        let alpha = 1;
+        if (alphaVal) {
+          alpha = alphaVal.endsWith('%') ? safeParseFloat(alphaVal) / 100 : safeParseFloat(alphaVal);
+        }
+        return parseOklab(l, a, b, alpha);
+      }
+    } catch (e) {}
+    return 'rgba(100, 116, 139, 1)';
+  });
+
+  return result;
+}
+
 interface DailyClosingProps {
   store: ERPStoreType;
   shiftId: string;
@@ -53,14 +151,111 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
   const handlePrint = () => {
     const element = contentRef.current;
     if (!element) return;
+
+    // Override global window.getComputedStyle to translate any oklch/oklab styles to rgb/rgba
+    const originalGlobalGetComputedStyle = window.getComputedStyle;
+    window.getComputedStyle = function (el: Element, pseudoElt?: string | null) {
+      const style = originalGlobalGetComputedStyle(el, pseudoElt);
+      return new Proxy(style, {
+        get(target, prop) {
+          if (prop === 'getPropertyValue') {
+            return function (propertyName: string) {
+              const val = target.getPropertyValue(propertyName);
+              if (typeof val === 'string' && (/oklch/i.test(val) || /oklab/i.test(val))) {
+                return convertOklchOklabToRgb(val);
+              }
+              return val;
+            };
+          }
+          if (typeof prop === 'string') {
+            const val = target[prop as any];
+            if (typeof val === 'string' && (/oklch/i.test(val) || /oklab/i.test(val))) {
+              return convertOklchOklabToRgb(val);
+            }
+          }
+          const val = Reflect.get(target, prop);
+          if (typeof val === 'function') {
+            return val.bind(target);
+          }
+          return val;
+        }
+      });
+    };
+
     const opt = {
       margin: 10,
       filename: `Cloture-${activeShift?.date || 'Journaliere'}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2 },
+      html2canvas: { 
+        scale: 2,
+        onclone: (clonedDoc: Document) => {
+          const clonedWindow = clonedDoc.defaultView;
+          if (clonedWindow) {
+            try {
+              const originalGetComputedStyle = clonedWindow.getComputedStyle;
+              clonedWindow.getComputedStyle = function (el: Element, pseudoElt?: string | null) {
+                const style = originalGetComputedStyle(el, pseudoElt);
+                return new Proxy(style, {
+                  get(target, prop) {
+                    if (prop === 'getPropertyValue') {
+                      return function (propertyName: string) {
+                        const val = target.getPropertyValue(propertyName);
+                        if (typeof val === 'string' && (/oklch/i.test(val) || /oklab/i.test(val))) {
+                          return convertOklchOklabToRgb(val);
+                        }
+                        return val;
+                      };
+                    }
+                    if (typeof prop === 'string') {
+                      const val = target[prop as any];
+                      if (typeof val === 'string' && (/oklch/i.test(val) || /oklab/i.test(val))) {
+                        return convertOklchOklabToRgb(val);
+                      }
+                    }
+                    const val = Reflect.get(target, prop);
+                    if (typeof val === 'function') {
+                      return val.bind(target);
+                    }
+                    return val;
+                  }
+                });
+              };
+            } catch (e) {
+              console.warn("getComputedStyle override failed", e);
+            }
+          }
+
+          const styleElements = clonedDoc.querySelectorAll('style');
+          styleElements.forEach((style) => {
+            if (style.textContent) {
+              style.textContent = convertOklchOklabToRgb(style.textContent);
+            }
+          });
+          const allElements = clonedDoc.querySelectorAll('*');
+          allElements.forEach((el) => {
+            const styleAttr = el.getAttribute('style');
+            if (styleAttr && (/oklch/i.test(styleAttr) || /oklab/i.test(styleAttr))) {
+              el.setAttribute('style', convertOklchOklabToRgb(styleAttr));
+            }
+          });
+        }
+      },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
     };
-    html2pdf().from(element).set(opt).save();
+
+    try {
+      html2pdf().from(element).set(opt).save()
+        .then(() => {
+          window.getComputedStyle = originalGlobalGetComputedStyle;
+        })
+        .catch((err: any) => {
+          console.error("PDF generation failed:", err);
+          window.getComputedStyle = originalGlobalGetComputedStyle;
+        });
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      window.getComputedStyle = originalGlobalGetComputedStyle;
+    }
   };
   const [currentStep, setCurrentStep] = useState(1);
   const activeShift = store.shifts.find(s => s.id === shiftId);
@@ -267,8 +462,8 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
           <p className="text-slate-500 mt-2 text-lg">La journée a été clôturée et archivée avec succès.</p>
         </div>
         
-        {/* HIDDEN PRINTABLE DIV */}
-        <div style={{ display: 'none' }}>
+        {/* HIDDEN PRINTABLE DIV - Off-screen rendering to allow html2pdf to capture layout and dimensions correctly */}
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: '800px' }}>
           <div id="daily-closing-print" ref={contentRef} className="p-8 bg-white text-slate-800 text-sm">
             <div className="flex justify-between items-center border-b border-slate-200 pb-4 mb-6">
               <div>
