@@ -16,22 +16,25 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
 
   // Determine the prices of each product on the selected date
   const pricesAtDate = useMemo(() => {
-    console.log("selectedDate", selectedDate);
-    console.log("sortedChanges", sortedChanges);
     const prices: Record<string, { purchasePrice: number, salePrice: number }> = {};
     
     store.products.forEach(p => {
       // Find the most recent price change for this product that is ON or BEFORE the selected date
-      const changesForProduct = sortedChanges.filter(c => c.productId === p.id && c.date.split('T')[0] <= selectedDate);
+      const changesOnOrBefore = sortedChanges.filter(c => {
+        const localDate = new Date(c.date);
+        const localDateString = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        return c.productId === p.id && localDateString <= selectedDate;
+      });
       
-      if (changesForProduct.length > 0) {
-        // Since sortedChanges is descending, the first one is the most recent
+      if (changesOnOrBefore.length > 0) {
+        // The most recent change on or before this date is the FIRST one in the descending array
         prices[p.id] = {
-          purchasePrice: changesForProduct[0].purchasePrice,
-          salePrice: changesForProduct[0].salePrice
+          purchasePrice: changesOnOrBefore[0].purchasePrice,
+          salePrice: changesOnOrBefore[0].salePrice
         };
       } else {
-        // Fallback if no history exists BEFORE this date
+        // If there are no changes on or before the selected date,
+        // we take the old price of the oldest recorded change for this product.
         const allChangesForProduct = sortedChanges.filter(c => c.productId === p.id);
         if (allChangesForProduct.length > 0) {
           const oldestChange = allChangesForProduct[allChangesForProduct.length - 1];
@@ -40,6 +43,7 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
             salePrice: oldestChange.oldSalePrice !== undefined ? oldestChange.oldSalePrice : p.salePrice
           };
         } else {
+          // No history at all, just return the current price
           prices[p.id] = {
             purchasePrice: p.purchasePrice,
             salePrice: p.salePrice
@@ -50,25 +54,7 @@ export default function PriceHistory({ store }: PriceHistoryProps) {
     
     return prices;
   }, [store.products, sortedChanges, selectedDate]);
-
   
-  const getPriceDifference = (oldPrice: number, newPrice: number, type: 'purchase' | 'sale') => {
-    const diff = newPrice - oldPrice;
-    if (diff === 0) return null;
-    
-    const isIncrease = diff > 0;
-    const colorClass = type === 'purchase' 
-      ? (isIncrease ? 'text-rose-500' : 'text-emerald-500') 
-      : (isIncrease ? 'text-emerald-500' : 'text-rose-500');
-
-    return (
-      <span className={`flex items-center text-xs font-bold ${colorClass}`}>
-        {isIncrease ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-        {isIncrease ? '+' : '-'}{Math.abs(diff).toFixed(2)} Dh
-      </span>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6">

@@ -14,6 +14,37 @@ interface ShiftWizardProps {
   editingShift?: Shift;
 }
 
+const PriceInput = ({ value, onChange, label }: { value: number, onChange: (val: number) => void, label: string }) => {
+  const [localVal, setLocalVal] = useState(value ? value.toFixed(2) : '');
+  
+  useEffect(() => {
+    if (parseFloat(localVal) !== value) {
+      setLocalVal(value ? value.toFixed(2) : '');
+    }
+  }, [value]);
+
+  return (
+    <div>
+      <span className="text-[10px] text-slate-400 font-medium block mb-1">{label}</span>
+      <input 
+        type="number" 
+        step="any"
+        value={localVal}
+        onChange={(e) => {
+          setLocalVal(e.target.value);
+        }}
+        onBlur={(e) => {
+          const parsed = parseFloat(e.target.value);
+          if (!isNaN(parsed) && parsed !== value) onChange(parsed);
+          if (e.target.value === '' && value !== 0) onChange(0);
+          setLocalVal(parsed ? parsed.toFixed(2) : '');
+        }}
+        className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-mono shadow-sm"
+      />
+    </div>
+  );
+};
+
 export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizardProps) {
   const draftStr = !editingShift ? localStorage.getItem('erp_shift_draft') : null;
   const draft = draftStr ? JSON.parse(draftStr) : null;
@@ -442,36 +473,24 @@ useEffect(() => {
                       .map(product => (
                         <div key={product.id} className="grid grid-cols-[120px_1fr_1fr] md:grid-cols-[140px_1fr_1fr] gap-4 items-center">
                           <span className="text-xs font-bold text-slate-700 uppercase" title={product.name}>{product.name}</span>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-medium block mb-1">Achat</span>
-                            <input 
-                              type="number" 
-                              step="any"
-                              value={product.purchasePrice || 0}
-                              onChange={(e) => {
-                                const newPrice = parseFloat(e.target.value) || 0;
-                                if (store.updateProduct) {
-                                  store.updateProduct(product.id, { purchasePrice: newPrice }, 'Directeur ERP');
-                                }
-                              }}
-                              className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-mono shadow-sm"
-                            />
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-medium block mb-1">Vente</span>
-                            <input 
-                              type="number" 
-                              step="any"
-                              value={product.salePrice || 0}
-                              onChange={(e) => {
-                                const newPrice = parseFloat(e.target.value) || 0;
-                                if (store.updateProduct) {
-                                  store.updateProduct(product.id, { salePrice: newPrice }, 'Directeur ERP');
-                                }
-                              }}
-                              className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-mono shadow-sm"
-                            />
-                          </div>
+                          <PriceInput 
+                            label="Achat"
+                            value={product.purchasePrice || 0}
+                            onChange={(newPrice) => {
+                              if (store.updateProduct) {
+                                store.updateProduct(product.id, { purchasePrice: newPrice }, 'Directeur ERP');
+                              }
+                            }}
+                          />
+                          <PriceInput 
+                            label="Vente"
+                            value={product.salePrice || 0}
+                            onChange={(newPrice) => {
+                              if (store.updateProduct) {
+                                store.updateProduct(product.id, { salePrice: newPrice }, 'Directeur ERP');
+                              }
+                            }}
+                          />
                         </div>
                     ))}
                   </div>

@@ -68,6 +68,7 @@ export interface ERPStoreType {
   deleteNozzle: (id: string, author: string) => void;
 
   addSupply: (supply: Omit<Supply, 'id'>, author: string) => void;
+  updateSupply: (id: string, updates: Partial<Supply>, author: string) => void;
   deleteSupply: (id: string, author: string) => void;
 
   addSupplier: (supplier: Omit<Supplier, 'id'>, author: string) => void;
@@ -968,6 +969,46 @@ export function useERPStore(): ERPStoreType {
     logAction(author, 'Réception Livraison', 'Approvisionnement', `Livraison de ${newSupply.qtyDelivered} L de ${newSupply.productName} (Facture: ${newSupply.invoiceNumber}) de ${newSupply.supplier}`);
   };
 
+  const updateSupply = (id: string, updates: Partial<Supply>, author: string) => {
+    const supplyIndex = supplies.findIndex(s => s.id === id);
+    if (supplyIndex === -1) return;
+
+    const oldSupply = supplies[supplyIndex];
+    const newSupply = { ...oldSupply, ...updates };
+
+    const updatedSupplies = [...supplies];
+    updatedSupplies[supplyIndex] = newSupply;
+    saveState('supplies', updatedSupplies, setSupplies);
+
+    // If quantity or tank changed, update tank levels
+    if (updates.qtyDelivered !== undefined || updates.tankId !== undefined) {
+      if (oldSupply.tankId === newSupply.tankId && updates.qtyDelivered !== undefined) {
+        // Same tank, just update level difference
+        const tank = tanks.find(t => t.id === oldSupply.tankId);
+        if (tank) {
+          const qtyDiff = newSupply.qtyDelivered - oldSupply.qtyDelivered;
+          const newLevel = Math.max(0, Math.min(tank.capacity, tank.currentLevel + qtyDiff));
+          updateTank(tank.id, { currentLevel: newLevel }, author);
+        }
+      } else if (oldSupply.tankId !== newSupply.tankId) {
+        // Tank changed, revert old tank and apply to new tank
+        const oldTank = tanks.find(t => t.id === oldSupply.tankId);
+        if (oldTank) {
+          const newOldTankLevel = Math.max(0, oldTank.currentLevel - oldSupply.qtyDelivered);
+          updateTank(oldTank.id, { currentLevel: newOldTankLevel }, author);
+        }
+
+        const newTank = tanks.find(t => t.id === newSupply.tankId);
+        if (newTank) {
+          const newNewTankLevel = Math.min(newTank.capacity, newTank.currentLevel + newSupply.qtyDelivered);
+          updateTank(newTank.id, { currentLevel: newNewTankLevel }, author);
+        }
+      }
+    }
+
+    logAction(author, 'Modification Livraison', 'Approvisionnement', `Modification de livraison ${newSupply.invoiceNumber}`);
+  };
+
   const deleteSupply = (id: string, author: string) => {
     const supplyToDelete = supplies.find(s => s.id === id);
     if (!supplyToDelete) return;
@@ -1680,6 +1721,7 @@ return {
 
     // Deliveries (Supply)
     addSupply,
+    updateSupply,
     deleteSupply,
 
     // Billing
@@ -1714,33 +1756,6 @@ return {
     deleteShift: (id: string, author: string) => {
       const shift = shifts.find(s => s.id === id);
       if (!shift) return;
-
-      // 1. Constraint: check if any newer shift uses the same pumps.
-      let hasDependentShift = false;
-      if (shift.status === 'completed' && shift.endCounters) {
-        const nozzlesModified = Object.keys(shift.endCounters);
-        for (const nozId of nozzlesModified) {
-          const noz = nozzles.find(n => n.id === nozId);
-          if (noz) {
-            // Check if current counters have advanced beyond this shift's end counters
-            if ((noz.currentElecCounter as any > shift.endCounters[nozId].elec as any) || (noz.currentMechCounter as any > shift.endCounters[nozId].mech as any)) {
-              hasDependentShift = true;
-              break;
-            }
-          }
-        }
-      } else if (shift.status !== 'completed' && shift.startCounters) {
-         // Active shift check
-         const newerCompletedShifts = shifts.filter(s => s.id !== id && s.status === 'completed' && new Date(s.startTime).getTime() > new Date(shift.startTime).getTime());
-         if (newerCompletedShifts.some(s => s.pumpIds.some(pid => shift.pumpIds.includes(pid)))) {
-           hasDependentShift = true;
-         }
-      }
-
-      if (hasDependentShift) {
-        window.alert("Impossible de supprimer ce shift car un shift plus récent dépend de ses données.");
-        return;
-      }
 
       // Rollback Transaction
 

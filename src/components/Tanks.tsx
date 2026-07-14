@@ -147,6 +147,7 @@ export default function Tanks({ store }: TanksProps) {
 
   const [isSupplyFormOpen, setIsSupplyFormOpen] = useState(false);
   const [supplyToDelete, setSupplyToDelete] = useState<string | null>(null);
+  const [editingSupply, setEditingSupply] = useState<Supply | null>(null);
   const [isCorrectionFormOpen, setIsCorrectionFormOpen] = useState(false);
   const [correctionToDelete, setCorrectionToDelete] = useState<string | null>(null);
 
@@ -167,19 +168,30 @@ export default function Tanks({ store }: TanksProps) {
 
   const hasWriteAccess = currentRole === 'admin' || currentRole === 'manager';
 
-  const handleOpenSupplyForm = (tankId?: string) => {
-    setSupplier('TotalEnergies Distribution');
-    setSupplyTankId(tankId || (tanks[0]?.id || ''));
-    setQtyDelivered('5000');
-    setPurchasePrice('');
-    setInvoiceNumber(`INV-2026-${Math.floor(1000 + Math.random() * 9000)}`);
-    setSupplyDate((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
-    
-    // Autofill purchase price from products price
-    const initialTank = tanks.find(t => t.id === (tankId || tanks[0]?.id));
-    if (initialTank) {
-      const prod = products.find(p => p.id === initialTank.productId);
-      if (prod) setPurchasePrice(prod.purchasePrice.toString());
+  const handleOpenSupplyForm = (tankId?: string, supply?: Supply) => {
+    if (supply) {
+      setEditingSupply(supply);
+      setSupplier(supply.supplier);
+      setSupplyTankId(supply.tankId);
+      setQtyDelivered(supply.qtyDelivered.toString());
+      setPurchasePrice(supply.purchasePrice.toString());
+      setInvoiceNumber(supply.invoiceNumber);
+      setSupplyDate(supply.date ? new Date(supply.date).toISOString().split('T')[0] : (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
+    } else {
+      setEditingSupply(null);
+      setSupplier('TotalEnergies Distribution');
+      setSupplyTankId(tankId || (tanks[0]?.id || ''));
+      setQtyDelivered('5000');
+      setPurchasePrice('');
+      setInvoiceNumber(`INV-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+      setSupplyDate((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
+      
+      // Autofill purchase price from products price
+      const initialTank = tanks.find(t => t.id === (tankId || tanks[0]?.id));
+      if (initialTank) {
+        const prod = products.find(p => p.id === initialTank.productId);
+        if (prod) setPurchasePrice(prod.purchasePrice.toString());
+      }
     }
 
     setIsSupplyFormOpen(true);
@@ -218,31 +230,44 @@ export default function Tanks({ store }: TanksProps) {
     }
 
     const executeSupply = () => {
-      addSupply({
-        supplier,
-        productId: tank.productId,
-        productName: tank.productName,
-        tankId: tank.id,
-        tankNumber: tank.number,
-        qtyDelivered: qty,
-        purchasePrice: price,
-        invoiceNumber,
-        date: supplyDate ? new Date(supplyDate).toISOString() : new Date().toISOString()
-      }, currentRole);
-      
-      const newLevel = Math.min(tank.capacity, tank.currentLevel + qty);
-      store.updateTank(tank.id, { currentLevel: newLevel }, currentRole);
+      if (editingSupply) {
+        store.updateSupply(editingSupply.id, {
+          supplier,
+          productId: tank.productId,
+          productName: tank.productName,
+          tankId: tank.id,
+          tankNumber: tank.number,
+          qtyDelivered: qty,
+          purchasePrice: price,
+          invoiceNumber,
+          date: supplyDate ? new Date(supplyDate).toISOString() : new Date().toISOString()
+        }, currentRole);
+      } else {
+        addSupply({
+          supplier,
+          productId: tank.productId,
+          productName: tank.productName,
+          tankId: tank.id,
+          tankNumber: tank.number,
+          qtyDelivered: qty,
+          purchasePrice: price,
+          invoiceNumber,
+          date: supplyDate ? new Date(supplyDate).toISOString() : new Date().toISOString()
+        }, currentRole);
+      }
 
       setSupplier('');
       setSupplyTankId('');
       setQtyDelivered('');
       setPurchasePrice('');
       setInvoiceNumber('');
+      setEditingSupply(null);
       setIsSupplyFormOpen(false);
     };
 
     // Check if delivery overflows tank
-    if (tank.currentLevel + qty > tank.capacity) {
+    const currentQty = editingSupply && editingSupply.tankId === tank.id ? editingSupply.qtyDelivered : 0;
+    if (tank.currentLevel - currentQty + qty > tank.capacity) {
       setConfirmModalConfig({
         isOpen: true,
         title: 'Risque de débordement',
@@ -253,7 +278,6 @@ export default function Tanks({ store }: TanksProps) {
     }
 
     executeSupply();
-    setIsSupplyFormOpen(false);
   };
 
   const handleOpenCorrectionForm = (tankId?: string) => {
@@ -1368,12 +1392,20 @@ export default function Tanks({ store }: TanksProps) {
                     <td className="p-3 font-sans text-slate-500">{new Date(sup.date).toLocaleDateString('fr-FR')}</td>
                     <td className="p-3 text-right">
                       {hasWriteAccess && (
-                        <button 
-                          onClick={() => setSupplyToDelete(sup.id)}
-                          className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button 
+                            onClick={() => handleOpenSupplyForm(sup.tankId, sup)}
+                            className="p-1.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded transition-colors"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            onClick={() => setSupplyToDelete(sup.id)}
+                            className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -1559,8 +1591,8 @@ export default function Tanks({ store }: TanksProps) {
         <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
             <div className="flex justify-between items-center bg-slate-900 text-white px-5 py-4">
-              <h3 className="font-bold font-display">Réceptionner une Livraison</h3>
-              <button onClick={() => setIsSupplyFormOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+              <h3 className="font-bold font-display">{editingSupply ? 'Modifier une Livraison' : 'Réceptionner une Livraison'}</h3>
+              <button onClick={() => { setIsSupplyFormOpen(false); setEditingSupply(null); }} className="text-slate-400 hover:text-white transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
