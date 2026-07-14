@@ -213,8 +213,8 @@ export function useERPStore(): ERPStoreType {
         
         // Reverse chronological order to find when prices changed
         const allEvents = [
-          ...pSales.map(s => ({ type: 'sale', date: s.date, time: s.time || '00:00:00', price: s.price })),
-          ...pSupplies.map(s => ({ type: 'supply', date: s.date, time: '00:00:00', price: s.purchasePrice }))
+          ...pSales.map(s => ({ type: 'sale', date: s.date.includes('T') ? s.date.split('T')[0] : s.date, time: s.time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), price: s.price })),
+          ...pSupplies.map(s => ({ type: 'supply', date: s.date.includes('T') ? s.date.split('T')[0] : s.date, time: s.time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), price: s.purchasePrice }))
         ].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
         
         allEvents.forEach((ev, idx) => {
@@ -290,7 +290,9 @@ export function useERPStore(): ERPStoreType {
             
             // If the generated change is strictly older than the OLDEST recorded change
             const oldestRecorded = Math.min(...existingForProduct.map(pc => new Date(pc.date).getTime()));
-            return new Date(gc.date).getTime() < oldestRecorded;
+            const newestRecorded = Math.max(...existingForProduct.map(pc => new Date(pc.date).getTime()));
+            const gcTime = new Date(gc.date).getTime();
+            return gcTime < oldestRecorded || gcTime > newestRecorded;
         });
         
         if (newChangesToSave.length > 0) {
@@ -323,7 +325,18 @@ export function useERPStore(): ERPStoreType {
         if (data.alerts) setAlerts(data.alerts);
         if (data.users) setUsers(data.users);
         if (data.config) setConfig(data.config);
-        if (data.price_changes) setPriceChanges(data.price_changes);
+        if (data.price_changes) {
+          const sanitizedChanges = data.price_changes.map(pc => {
+            if (pc.date.includes('T') && pc.date.split('T').length > 2) {
+               return { ...pc, date: pc.date.replace(/T.*T/, 'T') }; // just a quick fix
+            }
+            if (pc.date.match(/T\d{2}:\d{2}:\d{2}$/)) {
+               return { ...pc, date: pc.date + '.000Z' }; // ensure valid JS date if it misses timezone
+            }
+            return pc;
+          });
+          setPriceChanges(sanitizedChanges);
+        }
         if (data.suppliers) setSuppliers(data.suppliers);
         if (data.clients) setClients(data.clients);
         if (data.purchase_invoices) setPurchaseInvoices(data.purchase_invoices);
