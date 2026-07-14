@@ -808,7 +808,7 @@ export function BillingDocumentView({
           {/* Document Footer */}
           <div className="text-[8px] text-slate-400 font-bold border-t pt-4 text-center">
             {settings.footerText || "Merci de votre confiance."}
-            <p className="text-[7px] text-slate-300 font-medium mt-1">ATLAS ERP - Pièce comptable éditée numériquement</p>
+            <p className="text-[7px] text-slate-300 font-medium mt-1">ERP - Pièce comptable éditée numériquement</p>
           </div>
 
         </div>

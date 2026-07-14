@@ -30,12 +30,13 @@ export function Billing({ store }: { store: ERPStoreType }) {
       }
     }
     // Fallback to defaults or store config if available
+    const initialName = (store.config.name && store.config.name !== 'Station ERP') ? store.config.name : '';
     return {
       ...DEFAULT_SETTINGS,
-      companyName: store.config.name || DEFAULT_SETTINGS.companyName,
-      address: store.config.address || DEFAULT_SETTINGS.address,
-      phone: store.config.phone || DEFAULT_SETTINGS.phone,
-      ice: store.config.taxId || DEFAULT_SETTINGS.ice,
+      companyName: initialName,
+      address: store.config.address || '',
+      phone: store.config.phone || '',
+      ice: store.config.taxId || '',
     };
   });
 
@@ -45,7 +46,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
       setDocSettings(prev => {
         const nextSettings = {
           ...prev,
-          companyName: store.config.name || prev.companyName,
+          companyName: (store.config.name && store.config.name !== 'Station ERP') ? store.config.name : prev.companyName,
           address: store.config.address || prev.address,
           phone: store.config.phone || prev.phone,
           ice: store.config.taxId || prev.ice,
