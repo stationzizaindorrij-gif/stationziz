@@ -173,17 +173,11 @@ export default function Dashboard({ store, setView }: DashboardProps) {
     
     let result = Object.values(aggregated);
     
-    // To bring bars closer together when there are very few of them, we pad the array
-    if (result.length > 0 && result.length < 7) {
-      const paddingNeeded = 7 - result.length;
-      const leftPad = Math.floor(paddingNeeded / 2);
-      const rightPad = paddingNeeded - leftPad;
-      
-      for (let i = 0; i < leftPad; i++) {
-        result.unshift({ label: ' '.repeat(i + 1), ventes: 0, litres: 0 }); // Spaces to keep label unique
-      }
-      for (let i = 0; i < rightPad; i++) {
-        result.push({ label: ' '.repeat(leftPad + i + 1), ventes: 0, litres: 0 });
+    // To bring bars closer together when there are very few of them, we pad on the right to align them to the left
+    if (result.length > 0 && result.length < 10) {
+      const paddingNeeded = 10 - result.length;
+      for (let i = 0; i < paddingNeeded; i++) {
+        result.push({ label: ' '.repeat(i + 1), ventes: 0, litres: 0 }); // Spaces to keep label unique
       }
     }
     

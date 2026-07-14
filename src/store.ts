@@ -1544,7 +1544,7 @@ return {
             if (tankIndex !== -1) {
               nextTanks[tankIndex] = {
                 ...nextTanks[tankIndex],
-                currentLevel: (nextTanks[tankIndex].currentLevel + sale.qty).toFixed(2)
+                currentLevel: Number((Number(nextTanks[tankIndex].currentLevel || 0) + Number(sale.qty || 0)).toFixed(2))
               };
             }
           }
@@ -1616,7 +1616,7 @@ return {
              if (noz && qty > 0) {
                const tankIndex = currentTanks.findIndex(t => t.id === noz.tankId);
                if (tankIndex !== -1) {
-                 currentTanks[tankIndex] = { ...currentTanks[tankIndex], currentLevel: currentTanks[tankIndex].currentLevel + qty };
+                 currentTanks[tankIndex] = { ...currentTanks[tankIndex], currentLevel: Number((Number(currentTanks[tankIndex].currentLevel || 0) + Number(qty || 0)).toFixed(2)) };
                  tanksChanged = true;
                }
              }
@@ -1630,7 +1630,7 @@ return {
              if (noz && qty > 0) {
                const tankIndex = currentTanks.findIndex(t => t.id === noz.tankId);
                if (tankIndex !== -1) {
-                 currentTanks[tankIndex] = { ...currentTanks[tankIndex], currentLevel: Math.max(0, currentTanks[tankIndex].currentLevel - qty) };
+                 currentTanks[tankIndex] = { ...currentTanks[tankIndex], currentLevel: Number(Math.max(0, Number(currentTanks[tankIndex].currentLevel || 0) - Number(qty || 0)).toFixed(2)) };
                  tanksChanged = true;
                }
              }
