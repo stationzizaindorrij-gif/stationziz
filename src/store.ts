@@ -483,6 +483,10 @@ export function useERPStore(): ERPStoreType {
       const dataStr = localStorage.getItem('erp_data');
       const data = externalData || (dataStr ? JSON.parse(dataStr) : null);
       if (data) {
+        if (!data.products || !data.products.some((p: any) => p.id === 'prod_gazoil')) {
+          localStorage.setItem('erp_prices_aligned_v22', 'true');
+          localStorage.setItem('erp_reconstruct_price_changes_fixed_v12', 'true');
+        }
         setProducts(data.products || []);
         setShopProducts(data.shop_products || []);
         setTanks(data.tanks || []);
@@ -538,6 +542,8 @@ export function useERPStore(): ERPStoreType {
         setSalesInvoices(data.sales_invoices || []);
         setDeliveryInvoices(data.delivery_invoices || []);
       } else {
+        localStorage.setItem('erp_prices_aligned_v22', 'true');
+        localStorage.setItem('erp_reconstruct_price_changes_fixed_v12', 'true');
         setProducts([]);
         setShopProducts([]);
         setTanks([]);
