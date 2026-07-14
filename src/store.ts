@@ -311,6 +311,12 @@ export function useERPStore(): ERPStoreType {
                          return rest;
                      });
                  }
+                 if (key === 'products') {
+                     items = items.map(p => {
+                         const { stock, unit, ...rest } = p;
+                         return rest;
+                     });
+                 }
 
                  // Smart sync: Upsert existing/new, delete removed
                  let currentItems = [];
@@ -866,26 +872,60 @@ export function useERPStore(): ERPStoreType {
   };
 
   const updateProduct = (id: string, updates: Partial<Product>, author: string) => {
-    const existingProduct = products.find(p => p.id === id);
+    // Use latest products to prevent closure staleness
+    const currentLocalStr = localStorage.getItem('erp_data');
+    const currentLocal = currentLocalStr ? JSON.parse(currentLocalStr) : {};
+    const latestProducts = currentLocal.products || products;
+    
+    const existingProduct = latestProducts.find((p: Product) => p.id === id);
     if (existingProduct) {
       const purchaseChanged = updates.purchasePrice !== undefined && updates.purchasePrice !== existingProduct.purchasePrice;
       const saleChanged = updates.salePrice !== undefined && updates.salePrice !== existingProduct.salePrice;
       
       if (purchaseChanged || saleChanged) {
-        const newChange: PriceChange = {
-          id: `price_change_${Date.now()}`,
-          date: new Date().toISOString(),
-          productId: id,
-          productType: existingProduct.type,
-          purchasePrice: updates.purchasePrice !== undefined ? updates.purchasePrice : existingProduct.purchasePrice,
-          salePrice: updates.salePrice !== undefined ? updates.salePrice : existingProduct.salePrice,
-          oldPurchasePrice: existingProduct.purchasePrice,
-          oldSalePrice: existingProduct.salePrice
-        };
-        saveState('price_changes', [...priceChanges, newChange], setPriceChanges);
+        const latestPriceChanges = currentLocal.price_changes || priceChanges;
+        const now = new Date();
+        
+        // Find if there's a very recent change (within 5 seconds) for this same product
+        // If so, we merge into it to avoid race conditions and double-entries when user edits Achat then Vente
+        const recentChangeIndex = latestPriceChanges.findIndex((c: PriceChange) => 
+            c.productId === id && 
+            (now.getTime() - new Date(c.date).getTime() < 5000)
+        );
+        
+        let updatedPriceChanges;
+        
+        if (recentChangeIndex >= 0) {
+            // Merge into existing recent change
+            const existingChange = latestPriceChanges[recentChangeIndex];
+            const mergedChange = {
+                ...existingChange,
+                date: now.toISOString(), // bump date to latest
+                purchasePrice: updates.purchasePrice !== undefined ? updates.purchasePrice : existingChange.purchasePrice,
+                salePrice: updates.salePrice !== undefined ? updates.salePrice : existingChange.salePrice,
+            };
+            updatedPriceChanges = [...latestPriceChanges];
+            updatedPriceChanges[recentChangeIndex] = mergedChange;
+        } else {
+            // Create a new change
+            const newChange: PriceChange = {
+              id: `price_change_${Date.now()}`,
+              date: now.toISOString(),
+              productId: id,
+              productType: existingProduct.type,
+              purchasePrice: updates.purchasePrice !== undefined ? updates.purchasePrice : existingProduct.purchasePrice,
+              salePrice: updates.salePrice !== undefined ? updates.salePrice : existingProduct.salePrice,
+              oldPurchasePrice: existingProduct.purchasePrice,
+              oldSalePrice: existingProduct.salePrice
+            };
+            updatedPriceChanges = [...latestPriceChanges, newChange];
+        }
+        
+        saveState('price_changes', updatedPriceChanges, setPriceChanges);
       }
     }
-    saveState('products', products.map(p => p.id === id ? { ...p, ...updates } : p), setProducts);
+    
+    saveState('products', latestProducts.map((p: Product) => p.id === id ? { ...p, ...updates } : p), setProducts);
   };
 
   const deleteProduct = (id: string, author: string) => {
