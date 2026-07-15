@@ -1362,6 +1362,11 @@ return {
 
   // RESET SYSTEM
   const resetAllData = async () => {
+    // Clear custom billing and rich documents from localStorage
+    localStorage.removeItem('erp_billing_settings_v1');
+    localStorage.removeItem('erp_rich_documents_v1');
+    localStorage.removeItem('erp_shift_draft');
+
     const promises = [
       saveState('products', [], setProducts),
       saveState('shop_products', [], setShopProducts),
@@ -1384,8 +1389,22 @@ return {
       saveState('users', [], setUsers)
     ];
 
-    const emptyConfig = {
-      name: '', logo: '', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
+    const emptyConfig: StationConfig = {
+      name: '',
+      logo: '',
+      address: '',
+      phone: '',
+      taxId: '',
+      autoBackup: true,
+      language: 'fr',
+      theme: 'light',
+      printerIp: '',
+      iotConfigured: false,
+      documentLogo: '',
+      documentColor: '',
+      documentFooter: '',
+      documentCompanyDetails: '',
+      documentSettings: null
     };
     promises.push(saveState('config', emptyConfig, setConfig));
 
