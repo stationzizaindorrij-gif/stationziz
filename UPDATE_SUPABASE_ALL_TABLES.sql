@@ -1,5 +1,17 @@
 -- Run this script in your Supabase SQL Editor to make the database fully compatible with the application.
--- This script is completely safe and will automatically skip any tables or columns that do not exist yet.
+-- This script is completely safe and will automatically create or skip tables or columns.
+
+-- 0. CREATE CARBURANTS TABLE IF NOT EXISTS
+CREATE TABLE IF NOT EXISTS public.erp_products (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  purchase_price NUMERIC NOT NULL DEFAULT 0.00,
+  sale_price NUMERIC NOT NULL DEFAULT 0.00,
+  vat_rate NUMERIC NOT NULL DEFAULT 20.00,
+  status TEXT NOT NULL DEFAULT 'active'
+);
 
 -- 1. DATABASE MIGRATIONS (ADD MISSING COLUMNS IF THE TABLES EXIST)
 DO $$

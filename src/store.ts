@@ -245,6 +245,20 @@ export function useERPStore(): ERPStoreType {
                  let items = data.map(item => ({ ...item, user_id }));
                  
                  // Strip fields that might not be in Supabase schema
+                 if (key === 'products') {
+                     items = items.map(p => {
+                         return {
+                             id: p.id,
+                             user_id,
+                             name: p.name,
+                             type: p.type,
+                             purchase_price: p.purchasePrice !== undefined ? p.purchasePrice : 0.00,
+                             sale_price: p.salePrice !== undefined ? p.salePrice : 0.00,
+                             vat_rate: p.vatRate !== undefined ? p.vatRate : 20.00,
+                             status: p.status || 'active'
+                         };
+                     });
+                 }
                  if (key === 'rich_documents') {
                      items = items.map(doc => {
                          return {
@@ -360,7 +374,17 @@ export function useERPStore(): ERPStoreType {
         }
 
 
-        setProducts(data.products || INITIAL_PRODUCTS);
+        let loadedProducts = data.products || [];
+        loadedProducts = loadedProducts.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          type: p.type,
+          purchasePrice: p.purchase_price !== undefined ? Number(p.purchase_price) : (p.purchasePrice !== undefined ? Number(p.purchasePrice) : 0),
+          salePrice: p.sale_price !== undefined ? Number(p.sale_price) : (p.salePrice !== undefined ? Number(p.salePrice) : 0),
+          vatRate: p.vat_rate !== undefined ? Number(p.vat_rate) : (p.vatRate !== undefined ? Number(p.vatRate) : 20),
+          status: p.status || 'active'
+        }));
+        setProducts(loadedProducts.length > 0 ? loadedProducts : INITIAL_PRODUCTS);
         setShopProducts(data.shop_products || []);
         setTanks(data.tanks || []);
         setPumps(data.pumps || []);
