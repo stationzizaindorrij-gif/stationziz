@@ -43,6 +43,7 @@ export interface ERPStoreType {
   markAlertAsRead: (id: string) => void;
   clearAllAlerts: () => void;
   resetAllData: () => Promise<void>;
+  loadDemoData: () => Promise<void>;
 
   addAttendant: (attendant: Omit<Attendant, 'id'>, author: string) => void;
   updateAttendant: (id: string, updates: Partial<Attendant>, author: string) => void;
@@ -167,7 +168,7 @@ export function useERPStore(): ERPStoreType {
     }
     
     // Append the sync task to the queue
-    syncQueues[key] = syncQueues[key].then(async () => {
+    const promise = syncQueues[key].then(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session && session.user) {
@@ -354,6 +355,8 @@ export function useERPStore(): ERPStoreType {
          console.error('Supabase sync error', err);
        }
     });
+    syncQueues[key] = promise;
+    return promise;
   };
 
 
@@ -364,39 +367,6 @@ export function useERPStore(): ERPStoreType {
       let data = externalData;
 
       if (data) {
-        if ((!data.pumps || data.pumps.length === 0) && (!data.tanks || data.tanks.length === 0)) {
-          localStorage.setItem('erp_prices_aligned_v22', 'true');
-          console.log("Seeding initial template data to database...");
-          
-          setProducts(INITIAL_PRODUCTS);
-          setTanks(INITIAL_TANKS);
-          setPumps(INITIAL_PUMPS);
-          setNozzles(INITIAL_NOZZLES);
-          setAttendants(INITIAL_ATTENDANTS);
-          setSuppliers(INITIAL_SUPPLIERS);
-          setClients(INITIAL_CLIENTS);
-          setShifts(INITIAL_SHIFTS);
-          setSales(INITIAL_SALES);
-          setSupplies(INITIAL_SUPPLIES);
-          setCashRegistry(INITIAL_CASH_REGISTRY);
-          setConfig(INITIAL_CONFIG);
-
-          saveState('products', INITIAL_PRODUCTS, setProducts);
-          saveState('tanks', INITIAL_TANKS, setTanks);
-          saveState('pumps', INITIAL_PUMPS, setPumps);
-          saveState('nozzles', INITIAL_NOZZLES, setNozzles);
-          saveState('attendants', INITIAL_ATTENDANTS, setAttendants);
-          saveState('suppliers', INITIAL_SUPPLIERS, setSuppliers);
-          saveState('clients', INITIAL_CLIENTS, setClients);
-          saveState('shifts', INITIAL_SHIFTS, setShifts);
-          saveState('sales', INITIAL_SALES, setSales);
-          saveState('supplies', INITIAL_SUPPLIES, setSupplies);
-          saveState('cash_registry', INITIAL_CASH_REGISTRY, setCashRegistry);
-          saveState('config', INITIAL_CONFIG, setConfig);
-          return;
-        }
-
-
         let loadedProducts = data.products || [];
         loadedProducts = loadedProducts.map((p: any) => ({
           id: p.id,
@@ -407,7 +377,7 @@ export function useERPStore(): ERPStoreType {
           vatRate: p.vat_rate !== undefined ? Number(p.vat_rate) : (p.vatRate !== undefined ? Number(p.vatRate) : 20),
           status: p.status || 'active'
         }));
-        setProducts(loadedProducts.length > 0 ? loadedProducts : INITIAL_PRODUCTS);
+        setProducts(loadedProducts);
         setShopProducts(data.shop_products || []);
         setTanks(data.tanks || []);
         setPumps(data.pumps || []);
@@ -632,24 +602,28 @@ export function useERPStore(): ERPStoreType {
         }
       } else {
         localStorage.setItem('erp_prices_aligned_v22', 'true');
-        setProducts(INITIAL_PRODUCTS);
+        setProducts([]);
         setShopProducts([]);
-        setTanks(INITIAL_TANKS);
-        setPumps(INITIAL_PUMPS);
-        setNozzles(INITIAL_NOZZLES);
-        setAttendants(INITIAL_ATTENDANTS);
-        setShifts(INITIAL_SHIFTS);
-        setSales(INITIAL_SALES);
-        setSupplies(INITIAL_SUPPLIES);
-        setCashRegistry(INITIAL_CASH_REGISTRY);
+        setTanks([]);
+        setPumps([]);
+        setNozzles([]);
+        setAttendants([]);
+        setShifts([]);
+        setSales([]);
+        setSupplies([]);
+        setCashRegistry({
+          id: 'cash_session_current', isOpen: false, openedAt: '', openedBy: '', openingCash: 0, inputs: [], outputs: [], theoreticalCash: 0
+        });
         setStockCorrections([]);
         setAuditLogs([]);
         setAlerts([]);
         setUsers([]);
         setRichDocuments([]);
-        setConfig(INITIAL_CONFIG);
-        setSuppliers(INITIAL_SUPPLIERS);
-        setClients(INITIAL_CLIENTS);
+        setConfig({
+          name: '', logo: '', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
+        });
+        setSuppliers([]);
+        setClients([]);
         setPurchaseInvoices([]);
         setSalesInvoices([]);
         setDeliveryInvoices([]);
@@ -1388,26 +1362,58 @@ return {
 
   // RESET SYSTEM
   const resetAllData = async () => {
-    setProducts([]);
-    setShopProducts([]);
-    setTanks([]);
-    setPumps([]);
-    setNozzles([]);
-    setAttendants([]);
-    setShifts([]);
-    setSales([]);
-    setSupplies([]);
-    setCashRegistry({
+    const promises = [
+      saveState('products', [], setProducts),
+      saveState('shop_products', [], setShopProducts),
+      saveState('tanks', [], setTanks),
+      saveState('pumps', [], setPumps),
+      saveState('nozzles', [], setNozzles),
+      saveState('attendants', [], setAttendants),
+      saveState('shifts', [], setShifts),
+      saveState('sales', [], setSales),
+      saveState('supplies', [], setSupplies),
+      saveState('suppliers', [], setSuppliers),
+      saveState('clients', [], setClients),
+      saveState('purchase_invoices', [], setPurchaseInvoices),
+      saveState('sales_invoices', [], setSalesInvoices),
+      saveState('delivery_invoices', [], setDeliveryInvoices),
+      saveState('rich_documents', [], setRichDocuments),
+      saveState('stock_corrections', [], setStockCorrections),
+      saveState('audit_logs', [], setAuditLogs),
+      saveState('alerts', [], setAlerts),
+      saveState('users', [], setUsers)
+    ];
+
+    const emptyConfig = {
+      name: '', logo: '', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
+    };
+    promises.push(saveState('config', emptyConfig, setConfig));
+
+    const emptyCashRegistry = {
       id: 'cash_session_current', isOpen: false, openedAt: '', openedBy: '', openingCash: 0, inputs: [], outputs: [], theoreticalCash: 0
-    });
-    setStockCorrections([]);
-    setAuditLogs([]);
-    setAlerts([]);
-    setUsers([]);
-    setConfig({
-      name: 'Station ERP', logo: '⛽', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
-    });
+    };
+    promises.push(saveState('cash_registry', emptyCashRegistry, setCashRegistry));
+
+    await Promise.all(promises);
     setCurrentRole('admin');
+  };
+
+  const loadDemoData = async () => {
+    const promises = [
+      saveState('products', INITIAL_PRODUCTS, setProducts),
+      saveState('tanks', INITIAL_TANKS, setTanks),
+      saveState('pumps', INITIAL_PUMPS, setPumps),
+      saveState('nozzles', INITIAL_NOZZLES, setNozzles),
+      saveState('attendants', INITIAL_ATTENDANTS, setAttendants),
+      saveState('suppliers', INITIAL_SUPPLIERS, setSuppliers),
+      saveState('clients', INITIAL_CLIENTS, setClients),
+      saveState('shifts', INITIAL_SHIFTS, setShifts),
+      saveState('sales', INITIAL_SALES, setSales),
+      saveState('supplies', INITIAL_SUPPLIES, setSupplies),
+      saveState('cash_registry', INITIAL_CASH_REGISTRY, setCashRegistry),
+      saveState('config', INITIAL_CONFIG, setConfig)
+    ];
+    await Promise.all(promises);
   };
 
   const addSupplier = (supplier: Omit<Supplier, 'id'>, author: string) => {
@@ -1556,6 +1562,7 @@ return {
     markAlertAsRead,
     clearAllAlerts,
     resetAllData,
+    loadDemoData,
 
     // Attendant CRUD
     addAttendant,

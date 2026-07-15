@@ -14,10 +14,11 @@ interface SettingsProps {
 }
 
 export default function Settings({ store }: SettingsProps) {
-  const { config, updateConfig, resetAllData, currentRole } = store;
+  const { config, updateConfig, resetAllData, loadDemoData, currentRole } = store;
   const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showDemoLoadConfirm, setShowDemoLoadConfirm] = useState(false);
   const [name, setName] = useState(config.name || '');
   const [logo, setLogo] = useState(config.logo || '');
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -350,38 +351,65 @@ export default function Settings({ store }: SettingsProps) {
 
           {/* Section de sécurité critique / Maintenance base de données */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-          <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wider border-b border-rose-100 pb-2 flex items-center gap-2">
-            <RotateCcw className="w-4.5 h-4.5 text-rose-500" />
-            Zone de Maintenance & Sécurité
-          </h3>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Pour les démonstrations ou audits système, vous pouvez réinitialiser l'ensemble de la base de données ERP locale (localStorage) afin de retrouver les valeurs de test d'usine.
-          </p>
+            <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wider border-b border-rose-100 pb-2 flex items-center gap-2">
+              <RotateCcw className="w-4.5 h-4.5 text-rose-500" />
+              Zone de Maintenance & Données
+            </h3>
+            
+            <div className="space-y-4">
+              {/* Option 1: Vider la base de données (Démarrer à blanc) */}
+              <div className="p-4 bg-rose-50 border border-rose-100 rounded-lg space-y-2">
+                <h4 className="text-xs font-bold text-rose-800 flex items-center gap-1.5">
+                  <Trash2 className="w-4 h-4 text-rose-600" />
+                  Option 1 : Vider complètement ma base de données (À Blanc)
+                </h4>
+                <p className="text-[11px] text-rose-700 leading-relaxed">
+                  Cette action va effacer définitivement toutes les données par défaut, les pompistes fictifs, les cuves, les pistolets, les shifts et l'historique de ventes de votre compte afin de vous laisser configurer votre propre station avec vos propres données réelles.
+                </p>
+                <button 
+                  onClick={() => setShowResetConfirm(true)}
+                  className="w-full mt-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Effacer toutes les données fictives & Démarrer à blanc
+                </button>
+              </div>
 
-          <button 
-            onClick={handleReset}
-            className="w-full px-4 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Réinitialiser l'ERP aux données d'usine
-          </button>
+              {/* Option 2: Charger les données de démonstration */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <HardDriveDownload className="w-4 h-4 text-slate-600" />
+                  Option 2 : Charger les données de démonstration d'usine
+                </h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Si vous souhaitez uniquement tester l'application ou faire une démonstration, cliquez ici pour charger les données d'usine pré-configurées (pompistes Amine/Youssef, cuves de test, etc.).
+                </p>
+                <button 
+                  onClick={() => setShowDemoLoadConfirm(true)}
+                  className="w-full mt-1 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <HardDriveDownload className="w-3.5 h-3.5" />
+                  Charger les données de démonstration d'usine
+                </button>
+              </div>
+            </div>
 
-          <div className="pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-2">
-            <h4 className="font-bold">Versions logicielles :</h4>
-            <div className="flex justify-between font-mono text-[10px]">
-              <span>StationERP Suite :</span>
-              <span>v4.1.2-enterprise</span>
-            </div>
-            <div className="flex justify-between font-mono text-[10px]">
-              <span>Contrôleur IoT d'index :</span>
-              <span>Firmware v8.90</span>
-            </div>
-            <div className="flex justify-between font-mono text-[10px]">
-              <span>Dernière sauvegarde :</span>
-              <span>À l'instant</span>
+            <div className="pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-2">
+              <h4 className="font-bold">Versions logicielles :</h4>
+              <div className="flex justify-between font-mono text-[10px]">
+                <span>StationERP Suite :</span>
+                <span>v4.1.2-enterprise</span>
+              </div>
+              <div className="flex justify-between font-mono text-[10px]">
+                <span>Contrôleur IoT d'index :</span>
+                <span>Firmware v8.90</span>
+              </div>
+              <div className="flex justify-between font-mono text-[10px]">
+                <span>Dernière sauvegarde :</span>
+                <span>À l'instant</span>
+              </div>
             </div>
           </div>
-        </div>
       </div>
     </div>
 
@@ -389,8 +417,11 @@ export default function Settings({ store }: SettingsProps) {
         <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6">
-              <h3 className="text-xl font-bold text-rose-600 mb-2">ATTENTION DANGER</h3>
-              <p className="text-sm text-slate-500 mb-6">Vous êtes sur le point de réinitialiser l'intégralité de la base de données ERP aux valeurs par défaut d'usine (réinitialisation des cuves, des pompistes, des ventes et des shifts). Souhaitez-vous continuer ?</p>
+              <h3 className="text-xl font-bold text-rose-600 mb-2">EFFACER TOUTES LES DONNÉES</h3>
+              <p className="text-sm text-slate-500 mb-6">
+                Êtes-vous sûr de vouloir vider complètement votre compte ? <br/><br/>
+                Cette action supprimera tous les pompistes fictifs, les cuves, les pistolets, les shifts et les ventes. Votre compte sera entièrement vide pour vous permettre de configurer votre station réelle.
+              </p>
               <div className="flex gap-3 justify-end">
                 <button 
                   onClick={() => setShowResetConfirm(false)}
@@ -399,15 +430,45 @@ export default function Settings({ store }: SettingsProps) {
                   Annuler
                 </button>
                 <button 
-                  onClick={() => {
-                    resetAllData();
+                  onClick={async () => {
+                    await resetAllData();
                     setShowResetConfirm(false);
-                    // Instead of alert, we just reload
                     window.location.reload();
                   }}
                   className="px-4 py-2 text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors"
                 >
-                  Oui, Réinitialiser
+                  Oui, vider mon compte à blanc
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDemoLoadConfirm && (
+        <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-slate-800 mb-2">CHARGER LES DONNÉES DE DÉMO</h3>
+              <p className="text-sm text-slate-500 mb-6">
+                Voulez-vous charger l'ensemble des données de test d'usine (pompistes Amine & Youssef, cuves, pistolets, et ventes fictives) ? Cela remplacera vos données actuelles.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setShowDemoLoadConfirm(false)}
+                  className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={async () => {
+                    await loadDemoData();
+                    setShowDemoLoadConfirm(false);
+                    window.location.reload();
+                  }}
+                  className="px-4 py-2 text-sm font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors"
+                >
+                  Oui, charger la démo
                 </button>
               </div>
             </div>
