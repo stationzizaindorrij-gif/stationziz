@@ -174,8 +174,7 @@ export function useERPStore(): ERPStoreType {
            const user_id = session.user.id;
              
              
-             
-             if (key === 'config') {
+                         if (key === 'config') {
                   const stringifiedConfig = JSON.stringify({
                       documentLogo: data.documentLogo || '',
                       documentColor: data.documentColor || '',
@@ -197,22 +196,46 @@ export function useERPStore(): ERPStoreType {
                       language: data.language,
                       theme: data.theme,
                       printerip: stringifiedConfig,
-                      iotconfigured: data.iotConfigured
+                      iotconfigured: data.iotConfigured,
+                      document_logo: data.documentLogo || '',
+                      document_color: data.documentColor || '',
+                      document_footer: data.documentFooter || '',
+                      document_settings: data.documentSettings || null
                   };
+                  
+                  // Try to upsert with all native columns first
                   const { error: insertErr } = await supabase.from('erp_config').upsert(configToSave);
                   if (insertErr) {
-                      console.warn("Full upsert failed, trying simpler payload:", insertErr);
-                      const simplerConfig = {
+                      console.warn("Native config upsert failed, trying compatibility payload:", insertErr);
+                      const compatConfig = {
                           id: user_id,
                           user_id,
-                          name: configToSave.name,
-                          logo: configToSave.logo,
-                          address: configToSave.address,
-                          phone: configToSave.phone,
-                          taxid: configToSave.taxid,
-                          printerip: stringifiedConfig
+                          name: data.name,
+                          logo: data.logo,
+                          address: data.address,
+                          phone: data.phone,
+                          taxid: data.taxId,
+                          autobackup: data.autoBackup,
+                          language: data.language,
+                          theme: data.theme,
+                          printerip: stringifiedConfig,
+                          iotconfigured: data.iotConfigured
                       };
-                      await supabase.from('erp_config').upsert(simplerConfig);
+                      const { error: compatErr } = await supabase.from('erp_config').upsert(compatConfig);
+                      if (compatErr) {
+                          console.warn("Compatibility upsert failed, trying barebones payload:", compatErr);
+                          const simplerConfig = {
+                              id: user_id,
+                              user_id,
+                              name: configToSave.name,
+                              logo: configToSave.logo,
+                              address: configToSave.address,
+                              phone: configToSave.phone,
+                              taxid: configToSave.taxid,
+                              printerip: stringifiedConfig
+                          };
+                          await supabase.from('erp_config').upsert(simplerConfig);
+                      }
                   }
                   return;
               }
@@ -461,6 +484,20 @@ export function useERPStore(): ERPStoreType {
             loadedConfig.iotConfigured = loadedConfig.iotconfigured;
           }
 
+          // Map native document settings columns if present
+          if (loadedConfig.document_logo !== undefined) {
+            loadedConfig.documentLogo = loadedConfig.document_logo;
+          }
+          if (loadedConfig.document_color !== undefined) {
+            loadedConfig.documentColor = loadedConfig.document_color;
+          }
+          if (loadedConfig.document_footer !== undefined) {
+            loadedConfig.documentFooter = loadedConfig.document_footer;
+          }
+          if (loadedConfig.document_settings !== undefined) {
+            loadedConfig.documentSettings = loadedConfig.document_settings;
+          }
+
           // Sanitize old default Atlas/Station ERP values
           if (loadedConfig.name === 'ATLAS PETROLEUM SARL') loadedConfig.name = '';
           if (loadedConfig.address && (loadedConfig.address === 'Zone Industrielle Sidi Maârouf, N° 14, Casablanca, Maroc' || loadedConfig.address.includes('Sidi Maârouf'))) loadedConfig.address = '';
@@ -488,16 +525,26 @@ export function useERPStore(): ERPStoreType {
                 };
                 const parsed = sanitize(JSON.parse(trimmed));
                 
-                // Hydrate extra document settings back into loadedConfig
-                if (parsed.documentLogo) {
+                // Hydrate extra document settings back into loadedConfig (only if not already set by native columns)
+                if (parsed.documentLogo && !loadedConfig.documentLogo) {
                   loadedConfig.documentLogo = parsed.documentLogo;
                 }
-                if (parsed.documentColor) loadedConfig.documentColor = parsed.documentColor;
-                if (parsed.documentFooter) loadedConfig.documentFooter = parsed.documentFooter;
-                if (parsed.documentNumbering) loadedConfig.documentNumbering = parsed.documentNumbering;
-                if (parsed.documentColumnsOrder) loadedConfig.documentColumnsOrder = parsed.documentColumnsOrder;
-                if (parsed.documentCompanyDetails) loadedConfig.documentCompanyDetails = parsed.documentCompanyDetails;
-                if (parsed.documentSettings) {
+                if (parsed.documentColor && !loadedConfig.documentColor) {
+                  loadedConfig.documentColor = parsed.documentColor;
+                }
+                if (parsed.documentFooter && !loadedConfig.documentFooter) {
+                  loadedConfig.documentFooter = parsed.documentFooter;
+                }
+                if (parsed.documentNumbering && !loadedConfig.documentNumbering) {
+                  loadedConfig.documentNumbering = parsed.documentNumbering;
+                }
+                if (parsed.documentColumnsOrder && !loadedConfig.documentColumnsOrder) {
+                  loadedConfig.documentColumnsOrder = parsed.documentColumnsOrder;
+                }
+                if (parsed.documentCompanyDetails && !loadedConfig.documentCompanyDetails) {
+                  loadedConfig.documentCompanyDetails = parsed.documentCompanyDetails;
+                }
+                if (parsed.documentSettings && !loadedConfig.documentSettings) {
                   loadedConfig.documentSettings = parsed.documentSettings;
                 }
               } catch (e) {

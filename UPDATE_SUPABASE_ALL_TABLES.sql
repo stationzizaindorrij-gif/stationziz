@@ -63,6 +63,26 @@ BEGIN
       RAISE NOTICE 'Added payments column to erp_suppliers';
     END IF;
   END IF;
+
+  -- erp_config -> document settings columns
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'erp_config') THEN
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_config' AND column_name = 'document_settings') THEN
+      EXECUTE 'ALTER TABLE erp_config ADD COLUMN "document_settings" JSONB';
+      RAISE NOTICE 'Added document_settings column to erp_config';
+    END IF;
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_config' AND column_name = 'document_logo') THEN
+      EXECUTE 'ALTER TABLE erp_config ADD COLUMN "document_logo" TEXT';
+      RAISE NOTICE 'Added document_logo column to erp_config';
+    END IF;
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_config' AND column_name = 'document_color') THEN
+      EXECUTE 'ALTER TABLE erp_config ADD COLUMN "document_color" TEXT';
+      RAISE NOTICE 'Added document_color column to erp_config';
+    END IF;
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_config' AND column_name = 'document_footer') THEN
+      EXECUTE 'ALTER TABLE erp_config ADD COLUMN "document_footer" TEXT';
+      RAISE NOTICE 'Added document_footer column to erp_config';
+    END IF;
+  END IF;
 END $$;
 
 
