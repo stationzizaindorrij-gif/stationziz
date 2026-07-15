@@ -23,38 +23,13 @@ export default function Analytics({ store }: AnalyticsProps) {
   }, [store.shifts]);
 
 
-  const getHistoricalPrice = React.useCallback((productId: string, date: string) => {
-    // Sort price changes descending
-    const sortedChanges = [...(store.priceChanges || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const changesBeforeDate = sortedChanges.filter(c => c.productId === productId && c.date.split('T')[0] <= date.split('T')[0]);
-    
-    if (changesBeforeDate.length > 0) {
-      return {
-        purchasePrice: changesBeforeDate[0].purchasePrice,
-        salePrice: changesBeforeDate[0].salePrice
-      };
-    }
-    
-    // Fallback if no history exists BEFORE this date
-    // Look for the OLDEST price change for this product to get the original prices
-    const allChangesForProduct = sortedChanges.filter(c => c.productId === productId);
-    if (allChangesForProduct.length > 0) {
-      // The last element in the descending sorted array is the oldest change
-      const oldestChange = allChangesForProduct[allChangesForProduct.length - 1];
-      if (oldestChange.oldPurchasePrice !== undefined && oldestChange.oldSalePrice !== undefined) {
-        return {
-          purchasePrice: oldestChange.oldPurchasePrice,
-          salePrice: oldestChange.oldSalePrice
-        };
-      }
-    }
-    
+  const getCurrentPrice = React.useCallback((productId: string, date: string) => {
     const currentProd = store.products.find(p => p.id === productId);
     return {
       purchasePrice: currentProd?.purchasePrice || 0,
       salePrice: currentProd?.salePrice || 0
     };
-  }, [store.priceChanges, store.products]);
+  }, [store.products]);
 
   // --- REPORT CALCULATIONS ---
   const selectedEndDateObj = useMemo(() => {
@@ -143,7 +118,7 @@ export default function Analytics({ store }: AnalyticsProps) {
               if (tank) {
                 const product = store.products.find(p => p.id === tank.productId);
                 if (product) {
-                  const prices = getHistoricalPrice(product.id, shift.date);
+                  const prices = getCurrentPrice(product.id, shift.date);
                   
                   if (!mechStats[product.id]) mechStats[product.id] = { liters: 0, purchase: 0, sale: 0 };
                   const mechSale = qtyMech * prices.salePrice;
@@ -170,7 +145,7 @@ export default function Analytics({ store }: AnalyticsProps) {
 
     const getProductInfo = (type: string) => {
       const prod = store.products.find(p => p.type === type);
-      return { pAchat: prod ? getHistoricalPrice(prod.id, selectedEndDateObj).purchasePrice : 0, pVente: prod ? getHistoricalPrice(prod.id, selectedEndDateObj).salePrice : 0 };
+      return { pAchat: prod ? getCurrentPrice(prod.id, selectedEndDateObj).purchasePrice : 0, pVente: prod ? getCurrentPrice(prod.id, selectedEndDateObj).salePrice : 0 };
     };
 
     let totalMechBenefice = 0;
@@ -207,11 +182,10 @@ export default function Analytics({ store }: AnalyticsProps) {
       const allEvents = [...pSales, ...pSupplies, ...pCorrections].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
       
       // Determine the very first purchase price in the system for this product
-      // We will look at priceChanges for the oldest entry
-      const priceChangesForP = (store.priceChanges || []).filter(pc => pc.productId === p.id).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
       
       // The user specified that the system starts on the 3rd with an initial price
-      const initialPrice = priceChangesForP.length > 0 ? priceChangesForP[0].oldPurchasePrice ?? priceChangesForP[0].purchasePrice : p.purchasePrice;
+      const initialPrice = p.purchasePrice;
       
       // To find the initial stock at the beginning of time, we do:
       // Initial Stock = Current Stock (now) - Net Change (from all time)
@@ -266,7 +240,7 @@ export default function Analytics({ store }: AnalyticsProps) {
       const product = store.products.find(p => p.id === tank.productId);
       if (product) {
         if (!stockReste[product.id]) {
-          stockReste[product.id] = { liters: 0, purchase: getHistoricalPrice(product.id, selectedEndDateObj).purchasePrice, montant: 0, historyPump: [] };
+          stockReste[product.id] = { liters: 0, purchase: getCurrentPrice(product.id, selectedEndDateObj).purchasePrice, montant: 0, historyPump: [] };
         }
         stockReste[product.id].liters += tank.currentLevel;
         totalStockLiters += tank.currentLevel;
@@ -396,8 +370,8 @@ export default function Analytics({ store }: AnalyticsProps) {
         </div>
         
         <div className="bg-slate-50 px-4 py-2 border-t border-slate-100 flex justify-between text-[10px] text-slate-500">
-          <span>Achat: {getHistoricalPrice(info.id, selectedEndDateObj).purchasePrice.toFixed(2)} Dh/L</span>
-          <span>Vente: {getHistoricalPrice(info.id, selectedEndDateObj).salePrice.toFixed(2)} Dh/L</span>
+          <span>Achat: {getCurrentPrice(info.id, selectedEndDateObj).purchasePrice.toFixed(2)} Dh/L</span>
+          <span>Vente: {getCurrentPrice(info.id, selectedEndDateObj).salePrice.toFixed(2)} Dh/L</span>
         </div>
       </div>
     );

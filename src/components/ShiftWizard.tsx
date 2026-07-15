@@ -109,6 +109,44 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   });
   const [realCashInput, setRealCashInput] = useState(editingShift?.realCashReceived?.toString() || draft?.realCashInput || '');
 
+  const [localPrices, setLocalPrices] = useState<{ [id: string]: { purchase: number, sale: number } }>({});
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    const prices: { [id: string]: { purchase: number, sale: number } } = {};
+    store.products.forEach(p => {
+      if (['gazoil', 'sans_plomb', 'melange'].includes(p.type)) {
+        prices[p.id] = { purchase: p.purchasePrice, sale: p.salePrice };
+      }
+    });
+    setLocalPrices(prev => {
+      if (Object.keys(prev).length === 0) {
+        return prices;
+      }
+      return prev;
+    });
+  }, [store.products]);
+
+  const handleSavePrices = () => {
+    const bulkUpdates = Object.keys(localPrices).map(id => {
+      const { purchase, sale } = localPrices[id];
+      return { id, updates: { purchasePrice: purchase, salePrice: sale } };
+    });
+    
+    if (store.updateProductsBulk) {
+      store.updateProductsBulk(bulkUpdates, 'Directeur ERP');
+    } else {
+      // Fallback
+      bulkUpdates.forEach(({ id, updates }) => {
+        if (store.updateProduct) {
+          store.updateProduct(id, updates, 'Directeur ERP');
+        }
+      });
+    }
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
 useEffect(() => {
     if (!editingShift && !isCompleted) {
         localStorage.setItem('erp_shift_draft', JSON.stringify({
@@ -397,13 +435,13 @@ useEffect(() => {
           {/* STEP 1: Infos */}
           {currentStep === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Pompiste</label>
                   <select 
                     value={attendantId}
                     onChange={e => setAttendantId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
                   >
                     <option value="">Sélectionner un pompiste</option>
                     {store.attendants.map(a => (
@@ -416,7 +454,7 @@ useEffect(() => {
                   <select 
                     value={shiftName}
                     onChange={e => setShiftName(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
                   >
                     <option value="Journée">Journée</option>
                     <option value="Matin">Matin</option>
@@ -424,78 +462,44 @@ useEffect(() => {
                     <option value="Nuit">Nuit</option>
                   </select>
                 </div>
-                
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Date Début</label>
-                    <input 
-                      type="date"
-                      value={date}
-                      onChange={e => setDate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Date Fin</label>
-                    <input 
-                      type="date"
-                      value={endDate}
-                      onChange={e => setEndDate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Heure Début</label>
-                    <input 
-                      type="time"
-                      value={startTime}
-                      onChange={e => setStartTime(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Heure Fin</label>
-                    <input 
-                      type="time"
-                      value={endTime}
-                      onChange={e => setEndTime(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
-                    />
-                  </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Date Début</label>
+                  <input 
+                    type="date"
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Date Fin</label>
+                  <input 
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                  />
                 </div>
 
-                <div className="flex flex-col h-full">
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Prix des Carburants (MAD/L)</label>
-                  <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-5 flex-1 flex flex-col justify-center space-y-5">
-                    {store.products
-                      .filter(p => ['gazoil', 'sans_plomb', 'melange'].includes(p.type))
-                      .map(product => (
-                        <div key={product.id} className="grid grid-cols-[120px_1fr_1fr] md:grid-cols-[140px_1fr_1fr] gap-4 items-center">
-                          <span className="text-xs font-bold text-slate-700 uppercase" title={product.name}>{product.name}</span>
-                          <PriceInput 
-                            label="Achat"
-                            value={product.purchasePrice || 0}
-                            onChange={(newPrice) => {
-                              if (store.updateProduct) {
-                                store.updateProduct(product.id, { purchasePrice: newPrice }, 'Directeur ERP');
-                              }
-                            }}
-                          />
-                          <PriceInput 
-                            label="Vente"
-                            value={product.salePrice || 0}
-                            onChange={(newPrice) => {
-                              if (store.updateProduct) {
-                                store.updateProduct(product.id, { salePrice: newPrice }, 'Directeur ERP');
-                              }
-                            }}
-                          />
-                        </div>
-                    ))}
-                  </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Heure Début</label>
+                  <input 
+                    type="time"
+                    value={startTime}
+                    onChange={e => setStartTime(e.target.value)}
+                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                  />
                 </div>
-
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Heure Fin</label>
+                  <input 
+                    type="time"
+                    value={endTime}
+                    onChange={e => setEndTime(e.target.value)}
+                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                  />
+                </div>
               </div>
 
               <div>

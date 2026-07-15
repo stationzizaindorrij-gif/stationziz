@@ -222,7 +222,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Nom de l'Entreprise (Raison Sociale)</label>
                 <input 
                   type="text" 
-                  value={localSettings.companyName}
+                  value={localSettings.companyName || ''}
                   onChange={(e) => handleFieldChange('companyName', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                   required
@@ -233,7 +233,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Téléphone</label>
                 <input 
                   type="text" 
-                  value={localSettings.phone}
+                  value={localSettings.phone || ''}
                   onChange={(e) => handleFieldChange('phone', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                 />
@@ -243,7 +243,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Adresse Email</label>
                 <input 
                   type="email" 
-                  value={localSettings.email}
+                  value={localSettings.email || ''}
                   onChange={(e) => handleFieldChange('email', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                 />
@@ -253,7 +253,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Adresse Postale / Siège social</label>
                 <textarea 
                   rows={2}
-                  value={localSettings.address}
+                  value={localSettings.address || ''}
                   onChange={(e) => handleFieldChange('address', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                 />
@@ -373,7 +373,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 </label>
                 <input 
                   type="text" 
-                  value={localSettings.ice}
+                  value={localSettings.ice || ''}
                   onChange={(e) => handleFieldChange('ice', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                   placeholder="Ex: 001548..."
@@ -384,7 +384,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Registre de Commerce (R.C.)</label>
                 <input 
                   type="text" 
-                  value={localSettings.rc}
+                  value={localSettings.rc || ''}
                   onChange={(e) => handleFieldChange('rc', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                   placeholder="Ex: 45896"
@@ -395,7 +395,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Identifiant Fiscal (I.F.)</label>
                 <input 
                   type="text" 
-                  value={localSettings.ifNum}
+                  value={localSettings.ifNum || ''}
                   onChange={(e) => handleFieldChange('ifNum', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                   placeholder="Ex: 1524896"
@@ -406,7 +406,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Numéro de Patente</label>
                 <input 
                   type="text" 
-                  value={localSettings.patente}
+                  value={localSettings.patente || ''}
                   onChange={(e) => handleFieldChange('patente', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                   placeholder="Ex: 365214"
@@ -417,7 +417,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Affiliation C.N.S.S.</label>
                 <input 
                   type="text" 
-                  value={localSettings.cnss}
+                  value={localSettings.cnss || ''}
                   onChange={(e) => handleFieldChange('cnss', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                   placeholder="Ex: 8596541"
@@ -428,7 +428,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Capital Social</label>
                 <input 
                   type="text" 
-                  value={localSettings.capital}
+                  value={localSettings.capital || ''}
                   onChange={(e) => handleFieldChange('capital', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                   placeholder="Ex: 100 000 MAD"
@@ -519,21 +519,21 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
-                        value={localSettings.numbering.client_devis.prefix} 
+                        value={localSettings.numbering.client_devis.prefix || ''} 
                         onChange={(e) => handleNumberingChange('client_devis', 'prefix', e.target.value)}
                         placeholder="Prefix" 
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
                       <input 
                         type="number" 
-                        value={localSettings.numbering.client_devis.nextNumber} 
+                        value={localSettings.numbering.client_devis.nextNumber || ''} 
                         onChange={(e) => handleNumberingChange('client_devis', 'nextNumber', parseInt(e.target.value) || 1)}
                         placeholder="Suivant" 
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white font-mono" 
                       />
                       <input 
                         type="text" 
-                        value={localSettings.numbering.client_devis.suffix} 
+                        value={localSettings.numbering.client_devis.suffix || ''} 
                         onChange={(e) => handleNumberingChange('client_devis', 'suffix', e.target.value)}
                         placeholder="Suffix" 
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
@@ -546,19 +546,19 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
-                        value={localSettings.numbering.client_facture.prefix} 
+                        value={localSettings.numbering.client_facture.prefix || ''} 
                         onChange={(e) => handleNumberingChange('client_facture', 'prefix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
                       <input 
                         type="number" 
-                        value={localSettings.numbering.client_facture.nextNumber} 
+                        value={localSettings.numbering.client_facture.nextNumber || ''} 
                         onChange={(e) => handleNumberingChange('client_facture', 'nextNumber', parseInt(e.target.value) || 1)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white font-mono" 
                       />
                       <input 
                         type="text" 
-                        value={localSettings.numbering.client_facture.suffix} 
+                        value={localSettings.numbering.client_facture.suffix || ''} 
                         onChange={(e) => handleNumberingChange('client_facture', 'suffix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
@@ -570,19 +570,19 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
-                        value={localSettings.numbering.client_bl.prefix} 
+                        value={localSettings.numbering.client_bl.prefix || ''} 
                         onChange={(e) => handleNumberingChange('client_bl', 'prefix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
                       <input 
                         type="number" 
-                        value={localSettings.numbering.client_bl.nextNumber} 
+                        value={localSettings.numbering.client_bl.nextNumber || ''} 
                         onChange={(e) => handleNumberingChange('client_bl', 'nextNumber', parseInt(e.target.value) || 1)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white font-mono" 
                       />
                       <input 
                         type="text" 
-                        value={localSettings.numbering.client_bl.suffix} 
+                        value={localSettings.numbering.client_bl.suffix || ''} 
                         onChange={(e) => handleNumberingChange('client_bl', 'suffix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
@@ -601,19 +601,19 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
-                        value={localSettings.numbering.supplier_devis_req.prefix} 
+                        value={localSettings.numbering.supplier_devis_req.prefix || ''} 
                         onChange={(e) => handleNumberingChange('supplier_devis_req', 'prefix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
                       <input 
                         type="number" 
-                        value={localSettings.numbering.supplier_devis_req.nextNumber} 
+                        value={localSettings.numbering.supplier_devis_req.nextNumber || ''} 
                         onChange={(e) => handleNumberingChange('supplier_devis_req', 'nextNumber', parseInt(e.target.value) || 1)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white font-mono" 
                       />
                       <input 
                         type="text" 
-                        value={localSettings.numbering.supplier_devis_req.suffix} 
+                        value={localSettings.numbering.supplier_devis_req.suffix || ''} 
                         onChange={(e) => handleNumberingChange('supplier_devis_req', 'suffix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
@@ -625,19 +625,19 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
-                        value={localSettings.numbering.supplier_br.prefix} 
+                        value={localSettings.numbering.supplier_br.prefix || ''} 
                         onChange={(e) => handleNumberingChange('supplier_br', 'prefix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
                       <input 
                         type="number" 
-                        value={localSettings.numbering.supplier_br.nextNumber} 
+                        value={localSettings.numbering.supplier_br.nextNumber || ''} 
                         onChange={(e) => handleNumberingChange('supplier_br', 'nextNumber', parseInt(e.target.value) || 1)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white font-mono" 
                       />
                       <input 
                         type="text" 
-                        value={localSettings.numbering.supplier_br.suffix} 
+                        value={localSettings.numbering.supplier_br.suffix || ''} 
                         onChange={(e) => handleNumberingChange('supplier_br', 'suffix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
@@ -649,19 +649,19 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
-                        value={localSettings.numbering.supplier_facture.prefix} 
+                        value={localSettings.numbering.supplier_facture.prefix || ''} 
                         onChange={(e) => handleNumberingChange('supplier_facture', 'prefix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
                       <input 
                         type="number" 
-                        value={localSettings.numbering.supplier_facture.nextNumber} 
+                        value={localSettings.numbering.supplier_facture.nextNumber || ''} 
                         onChange={(e) => handleNumberingChange('supplier_facture', 'nextNumber', parseInt(e.target.value) || 1)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white font-mono" 
                       />
                       <input 
                         type="text" 
-                        value={localSettings.numbering.supplier_facture.suffix} 
+                        value={localSettings.numbering.supplier_facture.suffix || ''} 
                         onChange={(e) => handleNumberingChange('supplier_facture', 'suffix', e.target.value)}
                         className="border border-slate-200 rounded p-1.5 text-xs bg-white" 
                       />
@@ -701,13 +701,13 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
               <div className="flex items-center gap-2 pt-1">
                 <input 
                   type="color" 
-                  value={localSettings.primaryColor}
+                  value={localSettings.primaryColor || ''}
                   onChange={(e) => handleFieldChange('primaryColor', e.target.value)}
                   className="w-8 h-8 rounded cursor-pointer border border-slate-200 bg-transparent"
                 />
                 <input 
                   type="text" 
-                  value={localSettings.primaryColor}
+                  value={localSettings.primaryColor || ''}
                   onChange={(e) => handleFieldChange('primaryColor', e.target.value)}
                   className="border border-slate-200 rounded-lg p-1.5 text-xs w-28 text-center font-mono focus:outline-none"
                 />
@@ -718,12 +718,12 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
             <div className="space-y-2">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Typographie (Police de caractère)</span>
               <select
-                value={localSettings.fontFamily}
+                value={localSettings.fontFamily || ''}
                 onChange={(e) => handleFieldChange('fontFamily', e.target.value)}
                 className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none bg-white font-medium"
               >
                 {fonts.map(f => (
-                  <option key={f.value} value={f.value}>{f.name}</option>
+                  <option key={f.value} value={f.value || ''}>{f.name}</option>
                 ))}
               </select>
             </div>
@@ -820,7 +820,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                       <label className="text-[10px] font-bold text-slate-500 uppercase block">Texte du cachet</label>
                       <input 
                         type="text"
-                        value={localSettings.stampText}
+                        value={localSettings.stampText || ''}
                         onChange={(e) => handleFieldChange('stampText', e.target.value)}
                         className="w-full border border-slate-200 bg-white rounded-lg p-2 text-xs focus:outline-none"
                         placeholder="Ex: ATLAS PETROLEUM - VALIDÉ"
@@ -853,7 +853,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Pied de page par défaut</label>
                 <input 
                   type="text" 
-                  value={localSettings.footerText}
+                  value={localSettings.footerText || ''}
                   onChange={(e) => handleFieldChange('footerText', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-xs focus:outline-none"
                   placeholder="Ex: Merci de votre confiance."
@@ -864,7 +864,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 <label className="text-xs font-bold text-slate-500 uppercase">Conditions Générales (CGV / Devis)</label>
                 <textarea 
                   rows={4}
-                  value={localSettings.termsAndConditions}
+                  value={localSettings.termsAndConditions || ''}
                   onChange={(e) => handleFieldChange('termsAndConditions', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-xs focus:outline-none"
                   placeholder="Ex: Tout retard entraînera..."

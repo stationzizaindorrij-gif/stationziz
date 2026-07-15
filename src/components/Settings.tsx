@@ -325,8 +325,31 @@ export default function Settings({ store }: SettingsProps) {
           </form>
         </div>
 
-        {/* Section de sécurité critique / Maintenance base de données */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+        <div className="space-y-6">
+          {/* Section de synchronisation cloud / Multi-PC */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider border-b border-indigo-100 pb-2 flex items-center gap-2">
+              <Cpu className="w-4.5 h-4.5 text-indigo-500" />
+              Synchro Cloud & Multi-PC
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Cette application utilise une base de données cloud sécurisée <strong>Supabase</strong> pour synchroniser vos données (comme les prix d'achat et de vente des carburants) en temps réel sur tous vos ordinateurs.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+              <h4 className="text-xs font-bold text-amber-800 flex items-center gap-1">
+                ⚠️ Problème de synchronisation ?
+              </h4>
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                Si vous modifiez les prix des carburants ou d'autres informations sur un PC et qu'ils n'apparaissent pas sur un autre PC, cela signifie que les politiques de sécurité de votre base de données Supabase bloquent les modifications.
+              </p>
+              <p className="text-[11px] text-amber-700 font-semibold leading-relaxed">
+                Solution : Copiez et exécutez le script SQL complet contenu dans le fichier <code>UPDATE_SUPABASE_ALL_TABLES.sql</code> (situé à la racine du projet) dans l'éditeur SQL de votre Dashboard Supabase. Cela autorisera l'enregistrement et la mise à jour de vos données.
+              </p>
+            </div>
+          </div>
+
+          {/* Section de sécurité critique / Maintenance base de données */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
           <h3 className="text-sm font-bold text-rose-600 uppercase tracking-wider border-b border-rose-100 pb-2 flex items-center gap-2">
             <RotateCcw className="w-4.5 h-4.5 text-rose-500" />
             Zone de Maintenance & Sécurité
@@ -360,6 +383,7 @@ export default function Settings({ store }: SettingsProps) {
           </div>
         </div>
       </div>
+    </div>
 
       {showResetConfirm && (
         <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">

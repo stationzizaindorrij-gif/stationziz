@@ -438,12 +438,29 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
     // Pass the edited totals to store so it overrides what was submitted
     
     const totalLiters = fuelSalesDetails.details.reduce((acc: number, curr: any) => acc + (curr.end - curr.start), 0);
+    
+    const formattedNonCash = {
+      carteSntl: [],
+      espece: [{ amount: paymentsBreakdown.cash }],
+      bonCarburantsVivo: [],
+      vignette: [{ amount: paymentsBreakdown.voucher }],
+      bonClient: [{ amount: paymentsBreakdown.voucher }],
+      tpe: [{ amount: paymentsBreakdown.card, terminal: 'TPE' }],
+      cheque: [{ amount: paymentsBreakdown.check }],
+      virement: [{ amount: paymentsBreakdown.transfer }],
+      autre: [{ amount: paymentsBreakdown.other }]
+    };
+
     store.finalizeShiftClosing(
       activeShift.id, realCash, theoreticalCash, `Clôture journalière automatisée. Écart: ${ecart} MAD. Dépenses: ${totalExpenses} MAD.`, 'Directeur ERP',
       {
         totalLiters,
         totalAmount: fuelSalesDetails.totalFuelAmount,
-        endCounters
+        endCounters,
+        nonCashPayments: formattedNonCash,
+        expenses,
+        productsSold: productSales,
+        servicesSold: serviceSales
       }
     );
     if (draftKey) localStorage.removeItem(draftKey);

@@ -17,7 +17,11 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                   (selectedDetailShift.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0) + 
                   (selectedDetailShift.nonCashPayments?.bonCarburantsVivo?.reduce((sum, item) => sum + item.amount, 0) || 0) +
                   (selectedDetailShift.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0) +
-                  (selectedDetailShift.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0)
+                  (selectedDetailShift.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0) +
+                  (selectedDetailShift.nonCashPayments?.tpe?.reduce((sum, item) => sum + item.amount, 0) || 0) +
+                  (selectedDetailShift.nonCashPayments?.cheque?.reduce((sum, item) => sum + item.amount, 0) || 0) +
+                  (selectedDetailShift.nonCashPayments?.virement?.reduce((sum, item) => sum + item.amount, 0) || 0) +
+                  (selectedDetailShift.nonCashPayments?.autre?.reduce((sum, item) => sum + item.amount, 0) || 0)
                 ) : 0;
 
                 const produitsTotal = selectedDetailShift.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
@@ -224,10 +228,14 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                           const tBonVivo = selectedDetailShift.nonCashPayments?.bonCarburantsVivo?.reduce((sum, item) => sum + item.amount, 0) || 0;
                           const tVignette = selectedDetailShift.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0;
                           const tBonClient = selectedDetailShift.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                          const tTpe = selectedDetailShift.nonCashPayments?.tpe?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                          const tCheque = selectedDetailShift.nonCashPayments?.cheque?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                          const tVirement = selectedDetailShift.nonCashPayments?.virement?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                          const tAutre = selectedDetailShift.nonCashPayments?.autre?.reduce((sum, item) => sum + item.amount, 0) || 0;
                           
                           return (
                             <>
-                              {(tCarteSntl + tBonVivo + tVignette) > 0 && (
+                              {(tCarteSntl + tBonVivo + tVignette + tTpe + tCheque + tVirement + tAutre + tBonClient) > 0 && (
                                 <div className="mb-6">
                                   <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                     <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
@@ -254,9 +262,33 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                             <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tVignette.toFixed(2)} DH</td>
                                           </tr>
                                         )}
+                                        {tTpe > 0 && (
+                                          <tr>
+                                            <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">TPE (Carte Bancaire)</td>
+                                            <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tTpe.toFixed(2)} DH</td>
+                                          </tr>
+                                        )}
+                                        {tCheque > 0 && (
+                                          <tr>
+                                            <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Chèque</td>
+                                            <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tCheque.toFixed(2)} DH</td>
+                                          </tr>
+                                        )}
+                                        {tVirement > 0 && (
+                                          <tr>
+                                            <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Virement</td>
+                                            <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tVirement.toFixed(2)} DH</td>
+                                          </tr>
+                                        )}
+                                        {tAutre > 0 && (
+                                          <tr>
+                                            <td className="px-3 py-2 font-bold text-slate-800 bg-slate-50">Autre</td>
+                                            <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{tAutre.toFixed(2)} DH</td>
+                                          </tr>
+                                        )}
                                         <tr>
                                           <td className="px-3 py-2 font-black text-slate-800 bg-slate-100 uppercase text-[10px]">Total Non Espèce</td>
-                                          <td className="px-3 py-2 text-right font-mono font-black text-indigo-700 bg-slate-100">{(tCarteSntl + tBonVivo + tVignette).toFixed(2)} DH</td>
+                                          <td className="px-3 py-2 text-right font-mono font-black text-indigo-700 bg-slate-100">{(tCarteSntl + tBonVivo + tVignette + tTpe + tCheque + tVirement + tAutre).toFixed(2)} DH</td>
                                         </tr>
                                       </tbody>
                                     </table>

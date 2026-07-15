@@ -406,7 +406,12 @@ export default function Shifts({ store }: ShiftsProps) {
                             const espece = s.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const vignette = s.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const bonClient = s.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0;
-                            return (carteSntl + espece + (s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0) + vignette + bonClient).toFixed(2);
+                            const bonCarburantsVivo = s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+                            const tpe = s.nonCashPayments?.tpe?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const cheque = s.nonCashPayments?.cheque?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const virement = s.nonCashPayments?.virement?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const autre = s.nonCashPayments?.autre?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            return (carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre).toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono font-semibold">
@@ -415,7 +420,12 @@ export default function Shifts({ store }: ShiftsProps) {
                             const espece = s.nonCashPayments?.espece?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const vignette = s.nonCashPayments?.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const bonClient = s.nonCashPayments?.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0;
-                            const encaissements = carteSntl + espece + (s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0) + vignette + bonClient;
+                            const bonCarburantsVivo = s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+                            const tpe = s.nonCashPayments?.tpe?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const cheque = s.nonCashPayments?.cheque?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const virement = s.nonCashPayments?.virement?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const autre = s.nonCashPayments?.autre?.reduce((sum, item) => sum + item.amount, 0) || 0;
+                            const encaissements = carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre;
                             
                             const carburantsTotal = s.totalAmount || 0;
                             const ecart = carburantsTotal - encaissements;

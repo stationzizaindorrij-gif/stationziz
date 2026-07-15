@@ -46,7 +46,9 @@ export function compressImage(
     if (ctx) {
       ctx.drawImage(img, 0, 0, width, height);
       try {
-        const resized = canvas.toDataURL('image/jpeg', quality);
+        // WebP supports both transparency and compression, creating tiny files
+        const mimeType = 'image/webp';
+        const resized = canvas.toDataURL(mimeType, quality);
         callback(resized);
       } catch (e) {
         console.error("Canvas toDataURL failed", e);

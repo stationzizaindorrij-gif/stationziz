@@ -107,11 +107,15 @@ export interface Shift {
   servicesSold?: any[];
   expenses?: any[];
   nonCashPayments?: {
-    carteSntl: { amount: number; clientId?: string; date?: string; stan?: string }[];
-    espece: { amount: number; clientId?: string; date?: string }[];
-    bonCarburantsVivo: { amount: number; clientId?: string; date?: string }[];
-    vignette: { amount: number; clientId?: string; date?: string }[];
-    bonClient: { amount: number; clientName?: string; date?: string }[];
+    carteSntl?: { amount: number; clientId?: string; date?: string; stan?: string }[];
+    espece?: { amount: number; clientId?: string; date?: string }[];
+    bonCarburantsVivo?: { amount: number; clientId?: string; date?: string }[];
+    vignette?: { amount: number; clientId?: string; date?: string }[];
+    bonClient?: { amount: number; clientName?: string; date?: string }[];
+    tpe?: { amount: number; date?: string; terminal?: string }[];
+    cheque?: { amount: number; date?: string }[];
+    virement?: { amount: number; date?: string }[];
+    autre?: { amount: number; date?: string }[];
   };
 }
 
@@ -316,13 +320,3 @@ export interface ShopProduct {
 }
 
 
-export interface PriceChange {
-  id: string;
-  date: string; // ISO date string YYYY-MM-DD
-  productId: string;
-  productType: string;
-  purchasePrice: number;
-  salePrice: number;
-  oldPurchasePrice?: number;
-  oldSalePrice?: number;
-}

@@ -90,7 +90,20 @@ function AppContent({ session }: { session: any }) {
           if (data && data.length > 0) fetchedData[k] = data[0];
         }, 2);
 
-        store.loadInitialData(fetchedData);
+        const sanitizeNulls = (obj: any): any => {
+          if (obj === null) return undefined;
+          if (Array.isArray(obj)) return obj.map(sanitizeNulls);
+          if (typeof obj === 'object') {
+            const newObj: any = {};
+            for (const key in obj) {
+              newObj[key] = sanitizeNulls(obj[key]);
+            }
+            return newObj;
+          }
+          return obj;
+        };
+
+        store.loadInitialData(sanitizeNulls(fetchedData));
       } catch (err) {
         console.error('Erreur de chargement', err);
       } finally {

@@ -5,9 +5,9 @@ import {
 } from './types';
 
 export const INITIAL_PRODUCTS: Product[] = [
-  { id: 'prod_gazoil', name: 'Gazoil', type: 'gazoil', purchasePrice: 1.45, salePrice: 1.82, vatRate: 20, status: 'active' },
-  { id: 'prod_sans_plomb', name: 'Sans Plomb', type: 'sans_plomb', purchasePrice: 1.55, salePrice: 1.95, vatRate: 20, status: 'active' },
-  { id: 'prod_melange', name: 'Mélange', type: 'melange', purchasePrice: 1.62, salePrice: 2.05, vatRate: 20, status: 'active' },
+  { id: 'prod_gazoil', name: 'Gazoil', type: 'gazoil', purchasePrice: 0.00, salePrice: 0.00, vatRate: 20, status: 'active' },
+  { id: 'prod_sans_plomb', name: 'Sans Plomb', type: 'sans_plomb', purchasePrice: 0.00, salePrice: 0.00, vatRate: 20, status: 'active' },
+  { id: 'prod_melange', name: 'Mélange', type: 'melange', purchasePrice: 0.00, salePrice: 0.00, vatRate: 20, status: 'active' },
 ];
 
 export const INITIAL_TANKS: Tank[] = [

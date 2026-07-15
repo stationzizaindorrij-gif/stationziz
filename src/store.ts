@@ -2,11 +2,16 @@ import { supabase } from './lib/supabase';
 import React, { useState
 , useEffect } from 'react';
 import { 
-  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, PriceChange, 
+  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, 
   AuditLog, CashRegistry, Shift, Alert, Supply, Tank, Product, Attendant,
   StationConfig, UserRole, User, StockCorrection, Pump, Nozzle, Sale
 } from './types';
 import { RichDocument } from './components/BillingTypes';
+import { 
+  INITIAL_PRODUCTS, INITIAL_TANKS, INITIAL_PUMPS, INITIAL_NOZZLES, 
+  INITIAL_ATTENDANTS, INITIAL_SHIFTS, INITIAL_SALES, INITIAL_SUPPLIES, 
+  INITIAL_CASH_REGISTRY, INITIAL_CONFIG, INITIAL_SUPPLIERS, INITIAL_CLIENTS 
+} from './data';
 
 export interface ERPStoreType {
   loadInitialData: (data?: any) => void;
@@ -26,7 +31,6 @@ export interface ERPStoreType {
   users: User[];
   config: StationConfig;
   currentRole: UserRole;
-  priceChanges: PriceChange[];
   suppliers: Supplier[];
   clients: Client[];
   purchaseInvoices: PurchaseInvoice[];
@@ -50,6 +54,7 @@ export interface ERPStoreType {
 
   addProduct: (product: Omit<Product, 'id'>, author: string) => void;
   updateProduct: (id: string, updates: Partial<Product>, author: string) => void;
+  updateProductsBulk?: (updates: { id: string; updates: Partial<Product> }[], author: string) => void;
   deleteProduct: (id: string, author: string) => void;
 
   addTank: (tank: Omit<Tank, 'id'>, author: string) => void;
@@ -107,8 +112,10 @@ export interface ERPStoreType {
   addCompletedShift?: (data: any, author: string) => void;
 }
 
+const syncQueues: { [key: string]: Promise<any> } = {};
+
 export function useERPStore(): ERPStoreType {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
   const [tanks, setTanks] = useState<Tank[]>([]);
   const [pumps, setPumps] = useState<Pump[]>([]);
@@ -144,7 +151,6 @@ export function useERPStore(): ERPStoreType {
     name: 'Station ERP', logo: '⛽', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
   });
   const [currentRole, setCurrentRole] = useState<UserRole>('admin');
-  const [priceChanges, setPriceChanges] = useState<PriceChange[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [purchaseInvoices, setPurchaseInvoices] = useState<PurchaseInvoice[]>([]);
@@ -155,62 +161,22 @@ export function useERPStore(): ERPStoreType {
   const saveState = (key: string, data: any, setter: React.Dispatch<React.SetStateAction<any>>) => {
     setter(data);
     
-    // Async sync to Supabase
-    setTimeout(async () => {
+    // Ensure there is a promise chain for this key
+    if (!syncQueues[key]) {
+      syncQueues[key] = Promise.resolve();
+    }
+    
+    // Append the sync task to the queue
+    syncQueues[key] = syncQueues[key].then(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session && session.user) {
            const user_id = session.user.id;
              
-             if (key === 'price_changes') {
-                  // Intercept price_changes and backup to database under erp_config.printerIp
-                  const stringified = JSON.stringify({
-                      priceChanges: data,
-                      documentLogo: config.documentLogo || '',
-                      documentColor: config.documentColor || '',
-                      documentFooter: config.documentFooter || '',
-                      documentNumbering: config.documentNumbering || null,
-                      documentColumnsOrder: config.documentColumnsOrder || null,
-                      documentCompanyDetails: config.documentCompanyDetails || '',
-                      documentSettings: config.documentSettings || null
-                  });
-                  const configToSave = {
-                      id: user_id,
-                      user_id,
-                      name: config.name,
-                      logo: config.logo,
-                      address: config.address,
-                      phone: config.phone,
-                      taxid: config.taxId,
-                      autobackup: config.autoBackup,
-                      language: config.language,
-                      theme: config.theme,
-                      printerip: stringified,
-                      iotconfigured: config.iotConfigured
-                  };
-                  await supabase.from('erp_config').delete().eq('user_id', user_id);
-                  const { error: insertErr } = await supabase.from('erp_config').insert(configToSave);
-                  if (insertErr) {
-                      console.warn("Full insert failed, trying simpler payload:", insertErr);
-                      const simplerConfig = {
-                          id: user_id,
-                          user_id,
-                          name: configToSave.name,
-                          logo: configToSave.logo,
-                          address: configToSave.address,
-                          phone: configToSave.phone,
-                          taxid: configToSave.taxid,
-                          printerip: stringified
-                      };
-                      await supabase.from('erp_config').insert(simplerConfig);
-                  }
-                  return;
-              }
+             
              
              if (key === 'config') {
-                  // Intercept config saving and always preserve current priceChanges inside printerIp
-                  const stringifiedPriceChanges = JSON.stringify({
-                      priceChanges: priceChanges,
+                  const stringifiedConfig = JSON.stringify({
                       documentLogo: data.documentLogo || '',
                       documentColor: data.documentColor || '',
                       documentFooter: data.documentFooter || '',
@@ -230,13 +196,12 @@ export function useERPStore(): ERPStoreType {
                       autobackup: data.autoBackup,
                       language: data.language,
                       theme: data.theme,
-                      printerip: stringifiedPriceChanges,
+                      printerip: stringifiedConfig,
                       iotconfigured: data.iotConfigured
                   };
-                  await supabase.from('erp_config').delete().eq('user_id', user_id);
-                  const { error: insertErr } = await supabase.from('erp_config').insert(configToSave);
+                  const { error: insertErr } = await supabase.from('erp_config').upsert(configToSave);
                   if (insertErr) {
-                      console.warn("Full insert failed, trying simpler payload:", insertErr);
+                      console.warn("Full upsert failed, trying simpler payload:", insertErr);
                       const simplerConfig = {
                           id: user_id,
                           user_id,
@@ -245,9 +210,9 @@ export function useERPStore(): ERPStoreType {
                           address: configToSave.address,
                           phone: configToSave.phone,
                           taxid: configToSave.taxid,
-                          printerip: stringifiedPriceChanges
+                          printerip: stringifiedConfig
                       };
-                      await supabase.from('erp_config').insert(simplerConfig);
+                      await supabase.from('erp_config').upsert(simplerConfig);
                   }
                   return;
               }
@@ -304,31 +269,6 @@ export function useERPStore(): ERPStoreType {
                          };
                      });
                  }
-                 if (key === 'supplies') {
-                     items = items.map(s => {
-                         const { totalAmount, ...rest } = s;
-                         return rest;
-                     });
-                 }
-                 if (key === 'sales') {
-                     items = items.map(s => {
-                         const { totalAmount, ...rest } = s;
-                         return rest;
-                     });
-                 }
-                 if (key === 'shifts') {
-                     items = items.map(s => {
-                         const { totalAmount, ...rest } = s;
-                         return rest;
-                     });
-                 }
-                 if (key === 'products') {
-                     items = items.map(p => {
-                         const { stock, unit, ...rest } = p;
-                         return rest;
-                     });
-                 }
-
                  // Smart sync: Upsert existing/new, delete removed
                  let currentItems = [];
                  let from = 0;
@@ -361,7 +301,10 @@ export function useERPStore(): ERPStoreType {
                  if (items.length > 0) {
                      const chunkSize = 100;
                      for (let i = 0; i < items.length; i += chunkSize) {
-                         await supabase.from(`erp_${key}`).upsert(items.slice(i, i + chunkSize));
+                         const { error: upsertErr } = await supabase.from(`erp_${key}`).upsert(items.slice(i, i + chunkSize));
+                         if (upsertErr) {
+                             console.error(`Error upserting to erp_${key}:`, upsertErr);
+                         }
                      }
                  }
              } else if (typeof data === 'object' && data !== null) {
@@ -370,205 +313,12 @@ export function useERPStore(): ERPStoreType {
                  await supabase.from(`erp_${key}`).insert({ ...data, user_id });
              }
           }
-        } catch(err) {
-          console.error('Supabase sync error', err);
-        }
-      }, 0);
+       } catch(err) {
+         console.error('Supabase sync error', err);
+       }
+    });
   };
 
-  // Forced migration for specific historical prices
-  React.useEffect(() => {
-    if (products.length > 0) {
-        // Run migration if the specific fixed changes are missing from state
-        const hasFixed = priceChanges.some(pc => pc.id === 'fixed_sp_1');
-        if (!hasFixed) {
-           console.log("Running migration v11 to sync with Supabase and local cache...");
-           const sp = products.find(p => p.name.toLowerCase().includes('sans plom') || p.name.toLowerCase().includes('sans-plom'));
-           const melange = products.find(p => p.name.toLowerCase().includes('lange') || p.name.toLowerCase().includes('mélange'));
-           const gasoil = products.find(p => p.name.toLowerCase().includes('gasoil') || p.name.toLowerCase().includes('gazoil'));
-           
-           // Keep existing non-fuel price changes
-           const otherChanges = priceChanges.filter(pc => 
-               (!sp || pc.productId !== sp.id) && 
-               (!melange || pc.productId !== melange.id) && 
-               (!gasoil || pc.productId !== gasoil.id)
-           );
-           
-           let newChanges = [...otherChanges];
-           
-           if (sp) {
-              newChanges.push({ id: `fixed_sp_1`, date: '2026-07-03T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 11.71, salePrice: 12.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
-              newChanges.push({ id: `fixed_sp_2`, date: '2026-07-06T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 12.71, salePrice: 13.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
-              newChanges.push({ id: `fixed_sp_3`, date: '2026-07-09T08:00:00.000Z', productId: sp.id, productType: sp.type, purchasePrice: 15.90, salePrice: 16.45, oldPurchasePrice: 12.71, oldSalePrice: 13.71 });
-           }
-           if (melange) {
-              newChanges.push({ id: `fixed_mel_1`, date: '2026-07-03T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 11.71, salePrice: 12.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
-              newChanges.push({ id: `fixed_mel_2`, date: '2026-07-06T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 12.71, salePrice: 13.71, oldPurchasePrice: 11.71, oldSalePrice: 12.71 });
-              newChanges.push({ id: `fixed_mel_3`, date: '2026-07-09T08:00:00.000Z', productId: melange.id, productType: melange.type, purchasePrice: 15.90, salePrice: 16.45, oldPurchasePrice: 12.71, oldSalePrice: 13.71 });
-           }
-           if (gasoil) {
-              newChanges.push({ id: `fixed_gas_1`, date: '2026-07-03T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 13.45, salePrice: 14.45, oldPurchasePrice: 13.45, oldSalePrice: 14.45 });
-              newChanges.push({ id: `fixed_gas_2`, date: '2026-07-06T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 14.45, salePrice: 15.45, oldPurchasePrice: 13.45, oldSalePrice: 14.45 });
-              newChanges.push({ id: `fixed_gas_3`, date: '2026-07-09T08:00:00.000Z', productId: gasoil.id, productType: gasoil.type, purchasePrice: 14.27, salePrice: 14.71, oldPurchasePrice: 14.45, oldSalePrice: 15.45 });
-           }
-           
-           const updatedProducts = products.map(p => {
-              if (sp && p.id === sp.id) return { ...p, purchasePrice: 15.90, salePrice: 16.45 };
-              if (melange && p.id === melange.id) return { ...p, purchasePrice: 15.90, salePrice: 16.45 };
-              if (gasoil && p.id === gasoil.id) return { ...p, purchasePrice: 14.27, salePrice: 14.71 };
-              return p;
-           });
-           
-           const getHistoricalP = (productId: string, date: string) => {
-              const sortedChanges = [...newChanges].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-              const changesBeforeDate = sortedChanges.filter(c => c.productId === productId && c.date.split('T')[0] <= date.split('T')[0]);
-              if (changesBeforeDate.length > 0) return { purchasePrice: changesBeforeDate[0].purchasePrice, salePrice: changesBeforeDate[0].salePrice };
-              return null;
-           };
-           
-           let salesChanged = false;
-           const updatedSales = sales.map(s => {
-              const h = getHistoricalP(s.productId, s.date);
-              if (h && s.price !== h.salePrice) {
-                  salesChanged = true;
-                  return { ...s, price: h.salePrice, total: parseFloat((s.qty * h.salePrice).toFixed(2)) };
-              }
-              return s;
-           });
-
-           let suppliesChanged = false;
-           const updatedSupplies = supplies.map(s => {
-              const h = getHistoricalP(s.productId, s.date);
-              if (h && s.purchasePrice !== h.purchasePrice) {
-                  suppliesChanged = true;
-                  return { ...s, purchasePrice: h.purchasePrice };
-              }
-              return s;
-           });
-
-           // Perform robust save state to local storage and sync to Supabase
-           saveState('price_changes', newChanges, setPriceChanges);
-           saveState('products', updatedProducts, setProducts);
-
-           if (salesChanged) {
-              saveState('sales', updatedSales, setSales);
-           }
-           if (suppliesChanged) {
-              saveState('supplies', updatedSupplies, setSupplies);
-           }
-        }
-    }
-  }, [products, priceChanges, sales, supplies]);
-
-// Migration to reconstruct missing price changes from past sales and supplies
-  React.useEffect(() => {
-    if (localStorage.getItem('erp_reconstruct_price_changes_fixed_v12')) {
-      return;
-    }
-    if (products.length > 0 && (sales.length > 0 || supplies.length > 0)) {
-      const generatedChanges: PriceChange[] = [];
-      const now = new Date().getTime();
-      
-      products.forEach(p => {
-        // Find all unique sale prices and purchase prices over time
-        const pSales = sales.filter(s => s.productId === p.id).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const pSupplies = supplies.filter(s => s.productId === p.id).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        let lastKnownSale = p.salePrice;
-        let lastKnownPurchase = p.purchasePrice;
-        
-        // Reverse chronological order to find when prices changed
-        const allEvents = [
-          ...pSales.map(s => ({ type: 'sale', date: s.date.includes('T') ? s.date.split('T')[0] : s.date, time: s.time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), price: s.price })),
-          ...pSupplies.map(s => ({ type: 'supply', date: s.date.includes('T') ? s.date.split('T')[0] : s.date, time: s.time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), price: s.purchasePrice }))
-        ].sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
-        
-        allEvents.forEach((ev, idx) => {
-           if (ev.type === 'sale' && ev.price !== lastKnownSale) {
-              const oldSalePrice = ev.price;
-              // It means before this point, the price was different from the CURRENT lastKnownSale.
-              // We need to create a price change at the boundary!
-           }
-        });
-        
-        // Actually, a simpler way is to just generate a price change for EVERY distinct price we see historically,
-        // placed at the timestamp of the first sale/supply that had that price.
-        
-        // Let's go chronologically instead.
-        const chronoEvents = [...allEvents].reverse();
-        
-        let currentPurchase = chronoEvents.find(e => e.type === 'supply')?.price || p.purchasePrice;
-        let currentSale = chronoEvents.find(e => e.type === 'sale')?.price || p.salePrice;
-        
-        let hasChanges = false;
-        
-        chronoEvents.forEach(ev => {
-           let changed = false;
-           let oldP = currentPurchase;
-           let oldS = currentSale;
-           
-           if (ev.type === 'sale' && ev.price !== currentSale) {
-              currentSale = ev.price;
-              changed = true;
-           }
-           if (ev.type === 'supply' && ev.price !== currentPurchase) {
-              currentPurchase = ev.price;
-              changed = true;
-           }
-           
-           if (changed) {
-              hasChanges = true;
-              generatedChanges.push({
-                id: `migrated_price_${p.id}_${ev.date}_${ev.time}_${Math.random()}`,
-                date: `${ev.date}T${ev.time}`,
-                productId: p.id,
-                productType: p.type,
-                purchasePrice: currentPurchase,
-                salePrice: currentSale,
-                oldPurchasePrice: oldP,
-                oldSalePrice: oldS
-              });
-           }
-        });
-        
-        // If current prices in products array are different from the last inferred event,
-        // add one more change for the current state.
-        if (currentPurchase !== p.purchasePrice || currentSale !== p.salePrice) {
-            generatedChanges.push({
-                id: `migrated_price_current_${p.id}_${Math.random()}`,
-                date: new Date(now - 1000).toISOString(),
-                productId: p.id,
-                productType: p.type,
-                purchasePrice: p.purchasePrice,
-                salePrice: p.salePrice,
-                oldPurchasePrice: currentPurchase,
-                oldSalePrice: currentSale
-            });
-        }
-      });
-      
-      if (generatedChanges.length > 0) {
-        // Find changes that are older than any existing recorded price change for the product
-        // Or if no price changes exist at all
-        const newChangesToSave = generatedChanges.filter(gc => {
-            const existingForProduct = priceChanges.filter(pc => pc.productId === gc.productId);
-            if (existingForProduct.length === 0) return true;
-            
-            // If the generated change is strictly older than the OLDEST recorded change
-            const oldestRecorded = Math.min(...existingForProduct.map(pc => new Date(pc.date).getTime()));
-            const newestRecorded = Math.max(...existingForProduct.map(pc => new Date(pc.date).getTime()));
-            const gcTime = new Date(gc.date).getTime();
-            return gcTime < oldestRecorded || gcTime > newestRecorded;
-        });
-        
-        if (newChangesToSave.length > 0) {
-           saveState('price_changes', [...priceChanges, ...newChangesToSave], setPriceChanges);
-        }
-      }
-      localStorage.setItem('erp_reconstruct_price_changes_fixed_v12', 'true');
-    }
-  }, [sales, supplies, products, priceChanges]);
-  
 
 
 
@@ -577,17 +327,70 @@ export function useERPStore(): ERPStoreType {
       let data = externalData;
 
       if (data) {
-        if (!data.products || !data.products.some((p: any) => p.id === 'prod_gazoil')) {
+        if ((!data.pumps || data.pumps.length === 0) && (!data.tanks || data.tanks.length === 0)) {
           localStorage.setItem('erp_prices_aligned_v22', 'true');
-          localStorage.setItem('erp_reconstruct_price_changes_fixed_v12', 'true');
+          console.log("Seeding initial template data to database...");
+          
+          setProducts(INITIAL_PRODUCTS);
+          setTanks(INITIAL_TANKS);
+          setPumps(INITIAL_PUMPS);
+          setNozzles(INITIAL_NOZZLES);
+          setAttendants(INITIAL_ATTENDANTS);
+          setSuppliers(INITIAL_SUPPLIERS);
+          setClients(INITIAL_CLIENTS);
+          setShifts(INITIAL_SHIFTS);
+          setSales(INITIAL_SALES);
+          setSupplies(INITIAL_SUPPLIES);
+          setCashRegistry(INITIAL_CASH_REGISTRY);
+          setConfig(INITIAL_CONFIG);
+
+          saveState('products', INITIAL_PRODUCTS, setProducts);
+          saveState('tanks', INITIAL_TANKS, setTanks);
+          saveState('pumps', INITIAL_PUMPS, setPumps);
+          saveState('nozzles', INITIAL_NOZZLES, setNozzles);
+          saveState('attendants', INITIAL_ATTENDANTS, setAttendants);
+          saveState('suppliers', INITIAL_SUPPLIERS, setSuppliers);
+          saveState('clients', INITIAL_CLIENTS, setClients);
+          saveState('shifts', INITIAL_SHIFTS, setShifts);
+          saveState('sales', INITIAL_SALES, setSales);
+          saveState('supplies', INITIAL_SUPPLIES, setSupplies);
+          saveState('cash_registry', INITIAL_CASH_REGISTRY, setCashRegistry);
+          saveState('config', INITIAL_CONFIG, setConfig);
+          return;
         }
-        setProducts(data.products || []);
+
+
+        setProducts(data.products || INITIAL_PRODUCTS);
         setShopProducts(data.shop_products || []);
         setTanks(data.tanks || []);
         setPumps(data.pumps || []);
         setNozzles(data.nozzles || []);
         setAttendants(data.attendants || []);
-        setShifts(data.shifts || []);
+        let loadedShifts = data.shifts || [];
+        loadedShifts = loadedShifts.map((s: any) => {
+            const parseJson = (val: any) => {
+                if (typeof val === 'string') {
+                    try { return JSON.parse(val); } catch (e) { return undefined; }
+                }
+                return val;
+            };
+            return {
+                ...s,
+                nonCashPayments: parseJson(s.noncashpayments !== undefined ? s.noncashpayments : s.nonCashPayments),
+                productsSold: parseJson(s.productssold !== undefined ? s.productssold : s.productsSold),
+                servicesSold: parseJson(s.servicessold !== undefined ? s.servicessold : s.servicesSold),
+                expenses: parseJson(s.expenses),
+                startCounters: parseJson(s.startcounters !== undefined ? s.startcounters : s.startCounters),
+                endCounters: parseJson(s.endcounters !== undefined ? s.endcounters : s.endCounters),
+                litersSold: parseJson(s.literssold !== undefined ? s.literssold : s.litersSold),
+                amountSold: parseJson(s.amountsold !== undefined ? s.amountsold : s.amountSold),
+                totalLiters: s.totalliters !== undefined && s.totalliters !== null ? s.totalliters : s.totalLiters,
+                totalAmount: s.totalamount !== undefined && s.totalamount !== null ? s.totalamount : s.totalAmount,
+                theoreticalCash: s.theoreticalcash !== undefined && s.theoreticalcash !== null ? s.theoreticalcash : s.theoreticalCash,
+                realCashReceived: s.realcashreceived !== undefined && s.realcashreceived !== null ? s.realcashreceived : s.realCashReceived,
+            };
+        });
+        setShifts(loadedShifts);
         setSales(data.sales || []);
         setSupplies(data.supplies || []);
         let loadedCashRegistry = data.cash_registry;
@@ -647,29 +450,34 @@ export function useERPStore(): ERPStoreType {
             const trimmed = loadedConfig.printerIp.trim();
             if (trimmed.startsWith('{')) {
               try {
-                const parsed = JSON.parse(trimmed);
-                if (parsed.priceChanges) {
-                  data.price_changes = parsed.priceChanges;
-                }
+                const sanitize = (obj: any): any => {
+                  if (obj === null) return undefined;
+                  if (Array.isArray(obj)) return obj.map(sanitize);
+                  if (typeof obj === 'object' && obj !== null) {
+                    const newObj: any = {};
+                    for (const key in obj) {
+                      newObj[key] = sanitize(obj[key]);
+                    }
+                    return newObj;
+                  }
+                  return obj;
+                };
+                const parsed = sanitize(JSON.parse(trimmed));
+                
                 // Hydrate extra document settings back into loadedConfig
-                if (parsed.documentLogo) loadedConfig.documentLogo = parsed.documentLogo;
+                if (parsed.documentLogo) {
+                  loadedConfig.documentLogo = parsed.documentLogo;
+                }
                 if (parsed.documentColor) loadedConfig.documentColor = parsed.documentColor;
                 if (parsed.documentFooter) loadedConfig.documentFooter = parsed.documentFooter;
                 if (parsed.documentNumbering) loadedConfig.documentNumbering = parsed.documentNumbering;
                 if (parsed.documentColumnsOrder) loadedConfig.documentColumnsOrder = parsed.documentColumnsOrder;
                 if (parsed.documentCompanyDetails) loadedConfig.documentCompanyDetails = parsed.documentCompanyDetails;
-                if (parsed.documentSettings) loadedConfig.documentSettings = parsed.documentSettings;
-              } catch (e) {
-                console.error("Failed to parse complex printerIp JSON", e);
-              }
-            } else if (trimmed.startsWith('[')) {
-              try {
-                const parsedChanges = JSON.parse(trimmed);
-                if (Array.isArray(parsedChanges) && parsedChanges.length > 0) {
-                  data.price_changes = parsedChanges;
+                if (parsed.documentSettings) {
+                  loadedConfig.documentSettings = parsed.documentSettings;
                 }
               } catch (e) {
-                console.error("Failed to parse price changes from printerIp", e);
+                console.error("Failed to parse complex printerIp JSON", e);
               }
             }
             loadedConfig = { ...loadedConfig, printerIp: '' };
@@ -688,20 +496,7 @@ export function useERPStore(): ERPStoreType {
             name: 'Station ERP', logo: '⛽', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
           });
         }
-        if (data.price_changes) {
-          const sanitizedChanges = data.price_changes.map(pc => {
-            if (pc.date.includes('T') && pc.date.split('T').length > 2) {
-               return { ...pc, date: pc.date.replace(/T.*T/, 'T') }; // just a quick fix
-            }
-            if (pc.date.match(/T\d{2}:\d{2}:\d{2}$/)) {
-               return { ...pc, date: pc.date + '.000Z' }; // ensure valid JS date if it misses timezone
-            }
-            return pc;
-          });
-          setPriceChanges(sanitizedChanges);
-        } else {
-          setPriceChanges([]);
-        }
+        
         setSuppliers(data.suppliers || []);
         setClients(data.clients || []);
         setPurchaseInvoices(data.purchase_invoices || []);
@@ -766,30 +561,24 @@ export function useERPStore(): ERPStoreType {
         }
       } else {
         localStorage.setItem('erp_prices_aligned_v22', 'true');
-        localStorage.setItem('erp_reconstruct_price_changes_fixed_v12', 'true');
-        setProducts([]);
+        setProducts(INITIAL_PRODUCTS);
         setShopProducts([]);
-        setTanks([]);
-        setPumps([]);
-        setNozzles([]);
-        setAttendants([]);
-        setShifts([]);
-        setSales([]);
-        setSupplies([]);
-        setCashRegistry({
-          id: 'cash_session_current', isOpen: false, openedAt: '', openedBy: '', openingCash: 0, inputs: [], outputs: [], theoreticalCash: 0
-        });
+        setTanks(INITIAL_TANKS);
+        setPumps(INITIAL_PUMPS);
+        setNozzles(INITIAL_NOZZLES);
+        setAttendants(INITIAL_ATTENDANTS);
+        setShifts(INITIAL_SHIFTS);
+        setSales(INITIAL_SALES);
+        setSupplies(INITIAL_SUPPLIES);
+        setCashRegistry(INITIAL_CASH_REGISTRY);
         setStockCorrections([]);
         setAuditLogs([]);
         setAlerts([]);
         setUsers([]);
         setRichDocuments([]);
-        setConfig({
-          name: 'Station ERP', logo: '⛽', address: '', phone: '', taxId: '', autoBackup: true, language: 'fr', theme: 'light', printerIp: '', iotConfigured: false
-        });
-        setPriceChanges([]);
-        setSuppliers([]);
-        setClients([]);
+        setConfig(INITIAL_CONFIG);
+        setSuppliers(INITIAL_SUPPLIERS);
+        setClients(INITIAL_CLIENTS);
         setPurchaseInvoices([]);
         setSalesInvoices([]);
         setDeliveryInvoices([]);
@@ -872,75 +661,19 @@ export function useERPStore(): ERPStoreType {
 
   const addProduct = (product: Omit<Product, 'id'>, author: string) => {
     const newId = `prod_${Date.now()}`;
-    const newChange: PriceChange = {
-      id: `price_change_${Date.now()}`,
-      date: new Date().toISOString(),
-      productId: newId,
-      productType: product.type,
-      purchasePrice: product.purchasePrice,
-      salePrice: product.salePrice,
-      oldPurchasePrice: product.purchasePrice,
-      oldSalePrice: product.salePrice
-    };
-    saveState('price_changes', [...priceChanges, newChange], setPriceChanges);
     saveState('products', [...products, { ...product, id: newId }], setProducts);
   };
 
   const updateProduct = (id: string, updates: Partial<Product>, author: string) => {
-    // Use latest products to prevent closure staleness
-    const currentLocalStr = localStorage.getItem('erp_data');
-    const currentLocal = currentLocalStr ? JSON.parse(currentLocalStr) : {};
-    const latestProducts = currentLocal.products || products;
-    
-    const existingProduct = latestProducts.find((p: Product) => p.id === id);
-    if (existingProduct) {
-      const purchaseChanged = updates.purchasePrice !== undefined && updates.purchasePrice !== existingProduct.purchasePrice;
-      const saleChanged = updates.salePrice !== undefined && updates.salePrice !== existingProduct.salePrice;
-      
-      if (purchaseChanged || saleChanged) {
-        const latestPriceChanges = currentLocal.price_changes || priceChanges;
-        const now = new Date();
-        
-        // Find if there's a very recent change (within 5 seconds) for this same product
-        // If so, we merge into it to avoid race conditions and double-entries when user edits Achat then Vente
-        const recentChangeIndex = latestPriceChanges.findIndex((c: PriceChange) => 
-            c.productId === id && 
-            (now.getTime() - new Date(c.date).getTime() < 5000)
-        );
-        
-        let updatedPriceChanges;
-        
-        if (recentChangeIndex >= 0) {
-            // Merge into existing recent change
-            const existingChange = latestPriceChanges[recentChangeIndex];
-            const mergedChange = {
-                ...existingChange,
-                date: now.toISOString(), // bump date to latest
-                purchasePrice: updates.purchasePrice !== undefined ? updates.purchasePrice : existingChange.purchasePrice,
-                salePrice: updates.salePrice !== undefined ? updates.salePrice : existingChange.salePrice,
-            };
-            updatedPriceChanges = [...latestPriceChanges];
-            updatedPriceChanges[recentChangeIndex] = mergedChange;
-        } else {
-            // Create a new change
-            const newChange: PriceChange = {
-              id: `price_change_${Date.now()}`,
-              date: now.toISOString(),
-              productId: id,
-              productType: existingProduct.type,
-              purchasePrice: updates.purchasePrice !== undefined ? updates.purchasePrice : existingProduct.purchasePrice,
-              salePrice: updates.salePrice !== undefined ? updates.salePrice : existingProduct.salePrice,
-              oldPurchasePrice: existingProduct.purchasePrice,
-              oldSalePrice: existingProduct.salePrice
-            };
-            updatedPriceChanges = [...latestPriceChanges, newChange];
-        }
-        
-        saveState('price_changes', updatedPriceChanges, setPriceChanges);
-      }
-    }
-    
-    saveState('products', latestProducts.map((p: Product) => p.id === id ? { ...p, ...updates } : p), setProducts);
+    saveState('products', products.map(p => p.id === id ? { ...p, ...updates } : p), setProducts);
+  };
+
+  const updateProductsBulk = (updatesList: { id: string; updates: Partial<Product> }[], author: string) => {
+    const updatedProducts = products.map(p => {
+      const match = updatesList.find(u => u.id === p.id);
+      return match ? { ...p, ...match.updates } : p;
+    });
+    saveState('products', updatedProducts, setProducts);
   };
 
   const deleteProduct = (id: string, author: string) => {
@@ -1364,7 +1097,15 @@ export function useERPStore(): ERPStoreType {
     theoreticalCash: number,
     notes: string,
     author: string,
-    updatedTotals?: { totalLiters: number; totalAmount: number; endCounters?: any }
+    updatedTotals?: { 
+      totalLiters: number; 
+      totalAmount: number; 
+      endCounters?: any;
+      nonCashPayments?: any;
+      expenses?: any[];
+      productsSold?: any[];
+      servicesSold?: any[];
+    }
   ) => {
     const shift = shifts.find(s => s.id === shiftId);
     if (!shift) return;
@@ -1387,7 +1128,11 @@ export function useERPStore(): ERPStoreType {
           ...(updatedTotals ? {
             totalLiters: updatedTotals.totalLiters,
             totalAmount: updatedTotals.totalAmount,
-            ...(updatedTotals.endCounters ? { endCounters: updatedTotals.endCounters } : {})
+            ...(updatedTotals.endCounters ? { endCounters: updatedTotals.endCounters } : {}),
+            ...(updatedTotals.nonCashPayments ? { nonCashPayments: updatedTotals.nonCashPayments } : {}),
+            ...(updatedTotals.expenses ? { expenses: updatedTotals.expenses } : {}),
+            ...(updatedTotals.productsSold ? { productsSold: updatedTotals.productsSold } : {}),
+            ...(updatedTotals.servicesSold ? { servicesSold: updatedTotals.servicesSold } : {})
           } : {})
         };
       }
@@ -1730,7 +1475,6 @@ return {
     users,
     config,
     currentRole,
-    priceChanges,
     suppliers,
     clients,
     purchaseInvoices,
@@ -1753,6 +1497,7 @@ return {
     deleteShopProduct,
     addProduct,
     updateProduct,
+    updateProductsBulk,
     deleteProduct,
 
     // Tank Level Correction

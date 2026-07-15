@@ -69,25 +69,32 @@ export function Billing({ store }: { store: ERPStoreType }) {
   
   // Custom billing settings state
   const [docSettings, setDocSettings] = useState<DocumentSettings>(() => {
+    let initialSettings: DocumentSettings | null = null;
     if (store.config && store.config.documentSettings) {
-      return sanitizeSettings(store.config.documentSettings);
-    }
-    const local = localStorage.getItem('erp_billing_settings_v1');
-    if (local) {
-      try {
-        return sanitizeSettings(JSON.parse(local));
-      } catch (e) {
-        console.error("Failed to load custom billing settings", e);
+      initialSettings = sanitizeSettings(store.config.documentSettings);
+    } else {
+      const local = localStorage.getItem('erp_billing_settings_v1');
+      if (local) {
+        try {
+          initialSettings = sanitizeSettings(JSON.parse(local));
+        } catch (e) {
+          console.error("Failed to load custom billing settings", e);
+        }
       }
     }
+    
+    if (initialSettings) {
+      return initialSettings;
+    }
+
     // Fallback to defaults or store config if available
-    const initialName = (store.config.name && store.config.name !== 'Station ERP' && store.config.name !== 'ATLAS PETROLEUM SARL') ? store.config.name : '';
+    const initialName = (store.config?.name && store.config.name !== 'Station ERP' && store.config.name !== 'ATLAS PETROLEUM SARL') ? store.config.name : '';
     return sanitizeSettings({
       ...DEFAULT_SETTINGS,
       companyName: initialName,
-      address: store.config.address || '',
-      phone: store.config.phone || '',
-      ice: store.config.taxId || '',
+      address: store.config?.address || '',
+      phone: store.config?.phone || '',
+      ice: store.config?.taxId || '',
     });
   });
 
@@ -101,15 +108,14 @@ export function Billing({ store }: { store: ERPStoreType }) {
         }
         const nextSettings = {
           ...base,
-          companyName: (store.config.name && store.config.name !== 'Station ERP' && store.config.name !== 'ATLAS PETROLEUM SARL') ? store.config.name : (base.companyName || ''),
-          address: store.config.address || base.address || '',
-          phone: store.config.phone || base.phone || '',
-          ice: store.config.taxId || base.ice || '',
+          // Only pull from store.config if base is completely empty
+          companyName: base.companyName || (store.config.name && store.config.name !== 'Station ERP' && store.config.name !== 'ATLAS PETROLEUM SARL' ? store.config.name : ''),
+          address: base.address || store.config.address || '',
+          phone: base.phone || store.config.phone || '',
+          ice: base.ice || store.config.taxId || '',
         };
-        if (store.config.documentLogo !== undefined && store.config.documentLogo !== '') {
+        if (store.config.documentLogo !== undefined) {
           nextSettings.logoUrl = store.config.documentLogo;
-        } else if (store.config.logo !== undefined && store.config.logo !== '' && store.config.logo !== '⛽') {
-          nextSettings.logoUrl = store.config.logo;
         }
         if (store.config.documentColor !== undefined && store.config.documentColor !== '') {
           nextSettings.primaryColor = store.config.documentColor;
@@ -129,11 +135,8 @@ export function Billing({ store }: { store: ERPStoreType }) {
     localStorage.setItem('erp_billing_settings_v1', JSON.stringify(sanitized));
     
     // Sync back to store config to ensure it is backed up to Supabase
+    // We only update document specific fields, not the main store config name/address/logo
     store.updateConfig({
-      name: sanitized.companyName,
-      address: sanitized.address,
-      phone: sanitized.phone,
-      taxId: sanitized.ice,
       documentLogo: sanitized.logoUrl,
       documentColor: sanitized.primaryColor,
       documentFooter: sanitized.footerText,

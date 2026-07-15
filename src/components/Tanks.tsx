@@ -5,7 +5,7 @@ import {
   Settings, ClipboardList, Info, ArrowDown, Calendar, Search, Trash2, Sliders, X, Droplet, MoreVertical, Edit, FileText, BarChart2, CheckCircle2, XCircle, Power, Activity 
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
-import { Tank, Product, Nozzle, Pump } from '../types';
+import { Tank, Product, Nozzle, Pump, Supply } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
 // Helper function to get fuel properties and colors: Vert -> Gazoil, Bleu -> Sans Plomb, Orange -> Mélange
