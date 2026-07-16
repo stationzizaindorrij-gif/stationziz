@@ -4,7 +4,7 @@ import {
   ArrowLeft, CheckCircle2, DollarSign, Fuel, Package, Settings, Users, Banknote, Droplet,
   CreditCard, Receipt, FileText, ChevronRight, ChevronLeft, Calendar,
   Clock, Lock, CheckCircle, AlertTriangle, Plus, Trash2, Printer, Check, User, Wallet, Wrench, ChevronDown
-, Database } from 'lucide-react';
+, Database, Edit } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { Shift, Product, Nozzle, Sale } from '../types';
 
@@ -499,6 +499,62 @@ useEffect(() => {
                     onChange={e => setEndTime(e.target.value)}
                     className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
                   />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-white p-4 border border-slate-200 rounded-xl shadow-xs">
+                  <span className="text-xs text-slate-500 font-medium">Grille des tarifs réglementés de distribution de carburant.</span>
+                  <button 
+                    type="button"
+                    onClick={handleSavePrices}
+                    className={`px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                  >
+                    {saveSuccess ? <CheckCircle className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                    {saveSuccess ? 'Enregistré' : 'Mettre à jour'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {store.products.filter(p => p.status === 'active').map(prod => (
+                    <div key={prod.id} className="bg-white border rounded-xl overflow-hidden p-5 shadow-xs flex flex-col justify-between border-slate-200">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <span className="p-2.5 bg-sky-50 text-sky-600 rounded-lg">
+                            <Fuel className="w-5 h-5" />
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
+                            En vente
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 font-display text-base">{prod.name}</h3>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase font-mono">Taxe (TVA): {prod.vatRate}%</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs font-mono">
+                          <div className="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                            <span className="text-[10px] text-slate-400 font-sans block mb-1">Achat (MAD/L)</span>
+                            <input 
+                              type="number" 
+                              step="any"
+                              value={localPrices[prod.id]?.purchase !== undefined ? localPrices[prod.id].purchase : (prod.purchasePrice || 0)}
+                              onChange={e => setLocalPrices(prev => ({ ...prev, [prod.id]: { ...prev[prod.id], purchase: parseFloat(e.target.value) || 0, sale: prev[prod.id]?.sale ?? prod.salePrice } }))}
+                              className="w-full text-center bg-white border border-slate-200 rounded p-1 font-bold text-slate-700 focus:outline-none focus:border-indigo-500" 
+                            />
+                          </div>
+                          <div className="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                            <span className="text-[10px] text-slate-400 font-sans block mb-1">Vente Pompe</span>
+                            <input 
+                              type="number" 
+                              step="any"
+                              value={localPrices[prod.id]?.sale !== undefined ? localPrices[prod.id].sale : (prod.salePrice || 0)}
+                              onChange={e => setLocalPrices(prev => ({ ...prev, [prod.id]: { ...prev[prod.id], sale: parseFloat(e.target.value) || 0, purchase: prev[prod.id]?.purchase ?? prod.purchasePrice } }))}
+                              className="w-full text-center bg-white border border-slate-200 rounded p-1 font-bold text-indigo-600 focus:outline-none focus:border-indigo-500" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

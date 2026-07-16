@@ -1,5 +1,5 @@
 import SharedShiftReport from "./SharedShiftReport";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Database, Droplet,  
   ClipboardList, Plus, Play, CheckCircle2, AlertTriangle, ArrowRight, 
@@ -62,6 +62,43 @@ export default function Shifts({ store }: ShiftsProps) {
 
   // Selected shift details popup state
   const [selectedDetailShift, setSelectedDetailShift] = useState<Shift | null>(null);
+
+  const [localPrices, setLocalPrices] = useState<{ [id: string]: { purchase: number, sale: number } }>({});
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    const prices: { [id: string]: { purchase: number, sale: number } } = {};
+    store.products.forEach(p => {
+      if (['gazoil', 'sans_plomb', 'melange'].includes(p.type)) {
+        prices[p.id] = { purchase: p.purchasePrice, sale: p.salePrice };
+      }
+    });
+    setLocalPrices(prev => {
+      if (Object.keys(prev).length === 0) {
+        return prices;
+      }
+      return prev;
+    });
+  }, [store.products]);
+
+  const handleSavePrices = () => {
+    const bulkUpdates = Object.keys(localPrices).map(id => {
+      const { purchase, sale } = localPrices[id];
+      return { id, updates: { purchasePrice: purchase, salePrice: sale } };
+    });
+    
+    if (store.updateProductsBulk) {
+      store.updateProductsBulk(bulkUpdates, 'Directeur ERP');
+    } else {
+      bulkUpdates.forEach(({ id, updates }) => {
+        if (store.updateProduct) {
+          store.updateProduct(id, updates, 'Directeur ERP');
+        }
+      });
+    }
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
 
   const downloadPDF = () => {
     reactToPrintFn();
@@ -553,6 +590,62 @@ export default function Shifts({ store }: ShiftsProps) {
                   >
                     <option value="Journée">Journée Complète (Service Continu)</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="flex justify-between items-center bg-white p-3 border border-slate-200 rounded-lg shadow-xs">
+                  <span className="text-[11px] text-slate-500 font-medium">Grille des tarifs réglementés de distribution de carburant.</span>
+                  <button 
+                    type="button"
+                    onClick={handleSavePrices}
+                    className={`px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                  >
+                    {saveSuccess ? <CheckCircle className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                    {saveSuccess ? 'Enregistré' : 'Mettre à jour'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {store.products.filter(p => p.status === 'active').map(prod => (
+                    <div key={prod.id} className="bg-white border rounded-xl overflow-hidden p-4 shadow-xs flex flex-col justify-between border-slate-200">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <span className="p-2 bg-sky-50 text-sky-600 rounded-lg">
+                            <Fuel className="w-4 h-4" />
+                          </span>
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
+                            En vente
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 font-display text-sm">{prod.name}</h3>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase font-mono">Taxe (TVA): {prod.vatRate}%</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs font-mono">
+                          <div className="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                            <span className="text-[9px] text-slate-400 font-sans block mb-1">Achat (MAD/L)</span>
+                            <input 
+                              type="number" 
+                              step="any"
+                              value={localPrices[prod.id]?.purchase !== undefined ? localPrices[prod.id].purchase : (prod.purchasePrice || 0)}
+                              onChange={e => setLocalPrices(prev => ({ ...prev, [prod.id]: { ...prev[prod.id], purchase: parseFloat(e.target.value) || 0, sale: prev[prod.id]?.sale ?? prod.salePrice } }))}
+                              className="w-full text-center bg-white border border-slate-200 rounded p-1 font-bold text-slate-700 focus:outline-none focus:border-indigo-500" 
+                            />
+                          </div>
+                          <div className="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                            <span className="text-[9px] text-slate-400 font-sans block mb-1">Vente Pompe</span>
+                            <input 
+                              type="number" 
+                              step="any"
+                              value={localPrices[prod.id]?.sale !== undefined ? localPrices[prod.id].sale : (prod.salePrice || 0)}
+                              onChange={e => setLocalPrices(prev => ({ ...prev, [prod.id]: { ...prev[prod.id], sale: parseFloat(e.target.value) || 0, purchase: prev[prod.id]?.purchase ?? prod.purchasePrice } }))}
+                              className="w-full text-center bg-white border border-slate-200 rounded p-1 font-bold text-indigo-600 focus:outline-none focus:border-indigo-500" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
