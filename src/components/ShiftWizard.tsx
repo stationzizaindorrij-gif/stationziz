@@ -528,6 +528,7 @@ useEffect(() => {
                         {isSelected && <CheckCircle className="w-5 h-5 text-indigo-600" />}
                       </div>
                       <h4 className={`font-bold ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>{pump.number}</h4>
+                      {pump.serialNumber && <p className={`text-[10px] font-mono mt-0.5 ${isSelected ? 'text-indigo-700/80' : 'text-slate-500'}`}>S/N: {pump.serialNumber}</p>}
                     </div>
                   )})}
                 </div>

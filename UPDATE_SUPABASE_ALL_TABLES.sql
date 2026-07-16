@@ -16,6 +16,14 @@ CREATE TABLE IF NOT EXISTS public.erp_products (
 -- 1. DATABASE MIGRATIONS (ADD MISSING COLUMNS IF THE TABLES EXIST)
 DO $$
 BEGIN
+  -- erp_attendants -> photo
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'erp_attendants') THEN
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_attendants' AND column_name = 'photo') THEN
+      EXECUTE 'ALTER TABLE erp_attendants ADD COLUMN "photo" TEXT';
+      RAISE NOTICE 'Added photo column to erp_attendants';
+    END IF;
+  END IF;
+
   -- erp_shifts -> endDate
   IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'erp_shifts') THEN
     IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_shifts' AND column_name = 'endDate') THEN

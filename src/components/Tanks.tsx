@@ -9,35 +9,47 @@ import { Tank, Product, Nozzle, Pump, Supply } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
 // Helper function to get fuel properties and colors: Vert -> Gazoil, Bleu -> Sans Plomb, Orange -> Mélange
-const getFuelColor = (productId: string, customHex?: string) => {
-  const pid = productId.toLowerCase();
+const getFuelColor = (productNameOrId: string, customHex?: string) => {
+  const pid = (productNameOrId || '').toLowerCase();
+  const displayName = productNameOrId && !productNameOrId.startsWith('prod_') ? productNameOrId : undefined;
+  
   let res;
   if (pid.includes('gazoil') || pid.includes('diesel')) {
     res = {
-      name: 'Gazoil',
+      name: displayName || 'Gazoil',
       hex: '#10b981', // green-500
       text: 'text-emerald-600',
       bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       stroke: 'stroke-emerald-500',
       fill: 'fill-emerald-500'
     };
-  } else if (pid.includes('sans_plomb') || pid.includes('melange') || pid.includes('sans plomb') || pid.includes('sp')) {
+  } else if (pid.includes('sans_plomb') || pid.includes('sans plomb') || pid.includes('sp')) {
     res = {
-      name: 'Sans Plomb',
+      name: displayName || 'Sans Plomb',
       hex: '#3b82f6', // blue-500
       text: 'text-blue-600',
       bg: 'bg-blue-50 text-blue-700 border-blue-200',
       stroke: 'stroke-blue-500',
       fill: 'fill-blue-500'
     };
-  } else {
+  } else if (pid.includes('melange') || pid.includes('mélange')) {
     res = {
-      name: 'Mélange',
+      name: displayName || 'Mélange',
       hex: '#f97316', // orange-500
       text: 'text-orange-600',
       bg: 'bg-orange-50 text-orange-700 border-orange-200',
       stroke: 'stroke-orange-500',
       fill: 'fill-orange-500'
+    };
+  } else {
+    // Default / Unknown (uses the provided string or "Autre")
+    res = {
+      name: displayName || 'Carburant',
+      hex: '#8b5cf6', // violet-500
+      text: 'text-violet-600',
+      bg: 'bg-violet-50 text-violet-700 border-violet-200',
+      stroke: 'stroke-violet-500',
+      fill: 'fill-violet-500'
     };
   }
   
@@ -407,7 +419,7 @@ export default function Tanks({ store }: TanksProps) {
               
               // Custom colors depending on fuel type matching requirement:
               // Vert -> Gazoil | Bleu -> Sans Plomb | Orange -> Mélange
-              const fuelColorInfo = getFuelColor(tank.productId, tank.color);
+              const fuelColorInfo = getFuelColor(tank.productName || tank.productId, tank.color);
               const fuelTheme = {
                 badgeBg: fuelColorInfo.bg,
                 color: fuelColorInfo.text,
@@ -738,7 +750,7 @@ export default function Tanks({ store }: TanksProps) {
                         const xNoz = 760;
                         const yNoz = 35 + nozIndex * 52;
 
-                        const fuelInfo = getFuelColor(noz.productId);
+                        const fuelInfo = getFuelColor(noz.productName || noz.productId);
                         const activeLine = isLineHighlighted(noz);
                         const lineOpacity = getLineOpacity(noz);
                         const lineWidth = getLineWidth(noz);
@@ -782,7 +794,7 @@ export default function Tanks({ store }: TanksProps) {
                       {tanks.map((tank, idx) => {
                         const x = 140;
                         const y = 70 + idx * 130;
-                        const fuelInfo = getFuelColor(tank.productId, tank.color);
+                        const fuelInfo = getFuelColor(tank.productName || tank.productId, tank.color);
                         const isSelected = selectedNodeType === 'tank' && selectedNodeId === tank.id;
                         
                         // Check if tank is in highlight list
@@ -937,7 +949,7 @@ export default function Tanks({ store }: TanksProps) {
                           selectedNodeType === 'pump' && noz.pumpId === selectedNodeId
                         );
 
-                        const fuelInfo = getFuelColor(noz.productId);
+                        const fuelInfo = getFuelColor(noz.productName || noz.productId);
 
                         return (
                           <g 
@@ -1055,7 +1067,7 @@ export default function Tanks({ store }: TanksProps) {
                       const tank = tanks.find(t => t.id === selectedNodeId);
                       if (!tank) return null;
 
-                      const fuelInfo = getFuelColor(tank.productId, tank.color);
+                      const fuelInfo = getFuelColor(tank.productName || tank.productId, tank.color);
                       const currentPercent = Math.round((tank.currentLevel / tank.capacity) * 100);
 
                       // Connected items calculations
@@ -1237,7 +1249,7 @@ export default function Tanks({ store }: TanksProps) {
                             <h5 className="font-bold text-slate-700 border-b border-slate-100 pb-1 uppercase text-[10px] tracking-wider">Pistolets associés</h5>
                             <div className="space-y-2">
                               {pumpNozzles.map(noz => {
-                                const fuelInfo = getFuelColor(noz.productId);
+                                const fuelInfo = getFuelColor(noz.productName || noz.productId);
                                 return (
                                   <div key={noz.id} className="p-2 border border-slate-200 rounded-lg flex justify-between items-center hover:bg-[#f8fafc80] transition-colors bg-white shadow-3xs">
                                     <div className="space-y-0.5">
@@ -1267,7 +1279,7 @@ export default function Tanks({ store }: TanksProps) {
                       const noz = nozzles.find(n => n.id === selectedNodeId);
                       if (!noz) return null;
 
-                      const fuelInfo = getFuelColor(noz.productId);
+                      const fuelInfo = getFuelColor(noz.productName || noz.productId);
 
                       return (
                         <div className="space-y-4 text-xs">
@@ -2007,7 +2019,7 @@ function TankFormModal({ store, tank, onClose }: TankFormModalProps) {
                 <label className="block text-xs font-bold text-slate-700 mb-1">Couleur de la Cuve</label>
                 <div className="flex gap-2 items-center">
                   {(() => {
-                    const defaultHex = getFuelColor(productId).hex;
+                    const defaultHex = getFuelColor(store.products.find(p => p.id === productId)?.name || productId).hex;
                     const displayColor = color || defaultHex;
                     return (
                       <>
@@ -2133,7 +2145,7 @@ interface TankDetailModalProps {
 
 function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
   const currentPercent = Math.round((tank.currentLevel / tank.capacity) * 100);
-  const fuelColorInfo = getFuelColor(tank.productId, tank.color);
+  const fuelColorInfo = getFuelColor(tank.productName || tank.productId, tank.color);
   
   const tankNozzles = store.nozzles.filter(n => n.tankId === tank.id);
   const pumpIds = tank.connectedPumpIds?.length ? tank.connectedPumpIds : Array.from(new Set(tankNozzles.map(n => n.pumpId)));
@@ -2388,7 +2400,7 @@ interface TankHistoryModalProps {
 }
 
 function TankHistoryModal({ store, tank, onClose }: TankHistoryModalProps) {
-  const fuelColorInfo = getFuelColor(tank.productId, tank.color);
+  const fuelColorInfo = getFuelColor(tank.productName || tank.productId, tank.color);
 
   // Generate 15 days of mock history based on the current level
     const data = React.useMemo(() => {

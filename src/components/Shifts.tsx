@@ -580,7 +580,10 @@ export default function Shifts({ store }: ShiftsProps) {
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-2">
                             <Fuel className={`w-4 h-4 ${isSelected ? 'text-blue-600' : 'text-slate-400'}`} />
-                            <h4 className={`font-bold text-sm ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>{pump.number}</h4>
+                            <div>
+                              <h4 className={`font-bold text-sm ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>{pump.number}</h4>
+                              {pump.serialNumber && <p className={`text-[10px] font-mono mt-0.5 ${isSelected ? 'text-blue-600/80' : 'text-slate-500'}`}>S/N: {pump.serialNumber}</p>}
+                            </div>
                           </div>
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                             pump.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
@@ -623,7 +626,10 @@ export default function Shifts({ store }: ShiftsProps) {
               <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-slate-600 space-y-1">
                 <div><strong>Pompiste sélectionné :</strong> {attendants.find(a => a.id === selectedAttendant)?.firstName} {attendants.find(a => a.id === selectedAttendant)?.lastName}</div>
                 <div><strong>Service :</strong> {shiftName} (Service Continu / Journée)</div>
-                <div><strong>Pompes affectées :</strong> {selectedPumps.map(pId => pumps.find(p => p.id === pId)?.number).join(', ')}</div>
+                <div><strong>Pompes affectées :</strong> {selectedPumps.map(pId => {
+                  const p = pumps.find(p => p.id === pId);
+                  return p ? `${p.number}${p.serialNumber ? ` (S/N: ${p.serialNumber})` : ''}` : '';
+                }).join(', ')}</div>
               </div>
 
               <div className="space-y-3">
