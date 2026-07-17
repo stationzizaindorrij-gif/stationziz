@@ -174,11 +174,11 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
 
                     <div className="grid grid-cols-1 gap-6">
 
-                      {usedTanks.size > 0 && (
+                      {store.tanks.length > 0 && (
                         <div>
                           <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                             <Database className="w-3.5 h-3.5 text-slate-500" />
-                            Cuves (Consommées)
+                            Niveaux des Cuves
                           </h4>
                           <div className="rounded-lg border border-slate-200 overflow-hidden">
                             <table className="w-full text-xs text-left">
@@ -186,76 +186,21 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                 <tr>
                                   <th className="px-3 py-2 font-medium">Cuve</th>
                                   <th className="px-3 py-2 font-medium">Produit</th>
-                                  <th className="px-3 py-2 font-medium text-right">Niveau Actuel (L)</th>
+                                  <th className="px-3 py-2 font-medium text-right">Niveau (L)</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
-                                {Array.from(usedTanks).map(tankId => {
-                                  const tank = store.tanks.find(t => t.id === tankId);
-                                  if (!tank) return null;
-
-                                  const isShiftAfter = (sA: Shift, sB: Shift) => {
-                                    if (sA.date !== sB.date) {
-                                      return sA.date > sB.date;
-                                    }
-                                    const tA = sA.startTime || '';
-                                    const tB = sB.startTime || '';
-                                    if (tA !== tB) {
-                                      return tA > tB;
-                                    }
-                                    return sA.id > sB.id;
-                                  };
-
+                                {store.tanks.map(tank => {
                                   const getTankLevelForShift = (tId: string, targetShift: Shift) => {
                                     const tk = store.tanks.find(t => t.id === tId);
                                     if (!tk) return 0;
-
                                     if (targetShift.endTankLevels && typeof targetShift.endTankLevels[tId] === 'number') {
                                       return targetShift.endTankLevels[tId];
                                     }
-
-                                    let level = tk.currentLevel;
-
-                                    const completedShiftsAfter = store.shifts.filter(s => 
-                                      s.status === 'completed' && 
-                                      s.id !== targetShift.id && 
-                                      isShiftAfter(s, targetShift)
-                                    );
-
-                                    completedShiftsAfter.forEach(s => {
-                                      if (s.litersSold) {
-                                        Object.entries(s.litersSold).forEach(([nozId, qty]) => {
-                                          const noz = store.nozzles.find(n => n.id === nozId);
-                                          if (noz && noz.tankId === tId && qty > 0) {
-                                            level += qty;
-                                          }
-                                        });
-                                      }
-                                    });
-
-                                    const suppliesAfter = store.supplies.filter(sup => 
-                                      sup.tankId === tId && 
-                                      sup.date > targetShift.date
-                                    );
-
-                                    suppliesAfter.forEach(sup => {
-                                      level -= sup.qtyDelivered;
-                                    });
-
-                                    const correctionsAfter = (store.stockCorrections || []).filter(corr => 
-                                      corr.tankId === tId && 
-                                      corr.date > targetShift.date
-                                    );
-
-                                    const sortedCorrections = [...correctionsAfter].sort((a, b) => b.date.localeCompare(a.date));
-                                    sortedCorrections.forEach(corr => {
-                                      level += (corr.qtyBefore - corr.qtyAfter);
-                                    });
-
-                                    return Math.max(0, level);
+                                    return tk.currentLevel;
                                   };
 
-                                  const historicalLevel = getTankLevelForShift(tankId, selectedDetailShift);
+                                  const historicalLevel = getTankLevelForShift(tank.id, selectedDetailShift);
 
                                   return (
                                     <tr key={tank.id}>
@@ -273,7 +218,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                           {tank.productName}
                                         </div>
                                       </td>
-                                      <td className="px-3 py-2 text-right font-mono font-bold">{historicalLevel.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</td>
+                                      <td className="px-3 py-2 text-right font-mono font-bold text-slate-800">{historicalLevel.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                     </tr>
                                   );
                                 })}
