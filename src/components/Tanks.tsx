@@ -629,19 +629,67 @@ export default function Tanks({ store }: TanksProps) {
                     </div>
 
                     {/* ENRICHED SAAS TELEMETRY DETAILS */}
-                    <div className="border-t border-slate-100 pt-3 space-y-2.5 text-xs">
-                      <div className="grid grid-cols-2 gap-2 text-slate-500 leading-tight">
-                        <div>
-                          <span className="block text-[9px] uppercase font-bold text-slate-400">Pompes alimentées</span>
-                          <span className="font-semibold text-slate-800">{countPumps} ({pumpNames || 'Aucune'})</span>
-                        </div>
-                        <div>
-                          <span className="block text-[9px] uppercase font-bold text-slate-400">Pistolets alimentés</span>
-                          <span className="font-semibold text-slate-800">{countNozzles} ({nozzleNames || 'Aucun'})</span>
-                        </div>
+                    <div className="border-t border-slate-100 pt-3.5 space-y-3.5 text-xs">
+                      {/* Distribution Circuit Diagram */}
+                      <div className="space-y-2">
+                        <span className="block text-[10px] uppercase tracking-wider font-extrabold text-slate-400 flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-indigo-500" /> Circuit de Distribution
+                        </span>
+                        
+                        {fedPumps.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-400 text-[10px] italic gap-1">
+                            <Power className="w-3.5 h-3.5 text-slate-300" />
+                            Aucun circuit raccordé
+                          </div>
+                        ) : (
+                          <div className="relative pl-3 border-l-2 border-dashed border-slate-200 space-y-3 mt-1.5">
+                            {/* Visual indicator showing flow starting from the tank */}
+                            <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50 animate-pulse" title="Départ de cuve" />
+                            
+                            {fedPumps.map((pump) => {
+                              const pumpNozzles = tankNozzles.filter(n => n.pumpId === pump.id);
+                              return (
+                                <div key={pump.id} className="relative flex flex-col gap-1.5">
+                                  {/* Horizontal line connector from vertical trunk to the pump card */}
+                                  <div className="absolute -left-[13px] top-4 w-3 h-[1.5px] bg-slate-200" />
+                                  
+                                  {/* Pump header node */}
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs">
+                                      <div className={`w-1.5 h-1.5 rounded-full ${pump.status === 'active' ? 'bg-emerald-500 ring-2 ring-emerald-50' : 'bg-slate-300'}`} />
+                                      <span className="font-sans font-bold text-[10px] text-slate-700">{pump.number}</span>
+                                      {pump.serialNumber && (
+                                        <span className="text-[8px] text-slate-400 font-mono border-l border-slate-200 pl-1">SN: {pump.serialNumber}</span>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Connector line from pump to its nozzles */}
+                                    <div className="flex-1 h-[1px] border-t border-dashed border-slate-200 min-w-[8px]" />
+                                  </div>
+
+                                  {/* Nozzles child container */}
+                                  <div className="flex flex-wrap items-center gap-1 pl-4">
+                                    {pumpNozzles.map(noz => {
+                                      return (
+                                        <div 
+                                          key={noz.id} 
+                                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border transition-all hover:scale-105 shadow-2xs ${fuelTheme.badgeBg}`}
+                                          title={`${noz.name} - ${noz.productName}`}
+                                        >
+                                          <Droplet className={`w-2 h-2 ${fuelTheme.color}`} />
+                                          <span>{noz.name.replace('Pistolet ', 'Pist. ')}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
-                      <div className="border-t border-dashed border-slate-100 pt-2 grid grid-cols-2 gap-2 text-slate-500 leading-tight">
+                      <div className="border-t border-dashed border-slate-100 pt-3.5 grid grid-cols-2 gap-2 text-slate-500 leading-tight">
                         <div>
                           <span className="block text-[9px] uppercase font-bold text-slate-400">Dernière livraison</span>
                           <span className="font-semibold text-slate-700">{lastSupplyDate}</span>
@@ -1171,21 +1219,61 @@ export default function Tanks({ store }: TanksProps) {
 
                           {/* Technical connections */}
                           <div className="space-y-2.5">
-                            <h5 className="font-bold text-slate-700 border-b border-slate-100 pb-1 uppercase text-[10px] tracking-wider">Tracé des liaisons</h5>
-                            <div className="space-y-1.5 text-slate-600 leading-normal">
-                              <div>
-                                <strong>Pompes alimentées : </strong>
-                                <span className="text-slate-800 font-semibold">
-                                  {tPumps.length > 0 ? tPumps.map(p => p.number).join(', ') : 'Aucune'}
-                                </span>
+                            <h5 className="font-bold text-slate-700 border-b border-slate-100 pb-1 uppercase text-[10px] tracking-wider flex items-center gap-1.5">
+                              <Activity className="w-3.5 h-3.5 text-indigo-500" /> Tracé des liaisons
+                            </h5>
+                            
+                            {tPumps.length === 0 ? (
+                              <div className="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-400 text-[10px] italic gap-1">
+                                <Power className="w-3.5 h-3.5 text-slate-300" />
+                                Aucun circuit raccordé
                               </div>
-                              <div>
-                                <strong>Pistolets alimentés : </strong>
-                                <span className="text-slate-800 font-semibold">
-                                  {tNozzles.length > 0 ? tNozzles.map(n => n.name.replace('Pistolet ', '')).join(', ') : 'Aucun'}
-                                </span>
+                            ) : (
+                              <div className="relative pl-3 border-l-2 border-dashed border-slate-200 space-y-3 mt-1.5">
+                                {/* Visual indicator showing flow starting from the tank */}
+                                <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50 animate-pulse" title="Départ de cuve" />
+                                
+                                {tPumps.map((pump) => {
+                                  const pumpNozzles = tNozzles.filter(n => n.pumpId === pump.id);
+                                  return (
+                                    <div key={pump.id} className="relative flex flex-col gap-1.5">
+                                      {/* Horizontal line connector from vertical trunk to the pump card */}
+                                      <div className="absolute -left-[13px] top-4 w-3 h-[1.5px] bg-slate-200" />
+                                      
+                                      {/* Pump header node */}
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs">
+                                          <div className={`w-1.5 h-1.5 rounded-full ${pump.status === 'active' ? 'bg-emerald-500 ring-2 ring-emerald-50' : 'bg-slate-300'}`} />
+                                          <span className="font-sans font-bold text-[10px] text-slate-700">{pump.number}</span>
+                                          {pump.serialNumber && (
+                                            <span className="text-[8px] text-slate-400 font-mono border-l border-slate-200 pl-1">SN: {pump.serialNumber}</span>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Connector line from pump to its nozzles */}
+                                        <div className="flex-1 h-[1px] border-t border-dashed border-slate-200 min-w-[8px]" />
+                                      </div>
+
+                                      {/* Nozzles child container */}
+                                      <div className="flex flex-wrap items-center gap-1 pl-4">
+                                        {pumpNozzles.map(noz => {
+                                          return (
+                                            <div 
+                                              key={noz.id} 
+                                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border transition-all hover:scale-105 shadow-2xs ${fuelInfo.bg}`}
+                                              title={`${noz.name} - ${noz.productName}`}
+                                            >
+                                              <Droplet className={`w-2 h-2 ${fuelInfo.color}`} />
+                                              <span>{noz.name.replace('Pistolet ', 'Pist. ')}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            </div>
+                            )}
                           </div>
 
                           {/* Supplies */}
