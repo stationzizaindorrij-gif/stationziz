@@ -29,6 +29,8 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                 const carburantsTotal = selectedDetailShift.totalAmount || 0;
                 const chiffreAffaires = carburantsTotal + produitsTotal + servicesTotal;
                 const depensesTotal = selectedDetailShift.expenses?.filter(e => e.method === 'cash').reduce((sum, exp) => sum + exp.amount, 0) || 0;
+                const expensesTotal = selectedDetailShift.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+                const encaissementTotalCalculated = nonCashTotal + expensesTotal;
                 const especeARemettre = chiffreAffaires - nonCashTotal - depensesTotal;
 
                 // Calculs Carburants par produit dynamique
@@ -383,6 +385,46 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                       </div>
                     )}
 
+                    {/* DETAILS DEPENSES */}
+                    {(selectedDetailShift.expenses?.length || 0) > 0 && (
+                      <div>
+                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                          <Receipt className="w-3.5 h-3.5 text-rose-500" />
+                          Détails des Dépenses
+                        </h4>
+                        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[10px] uppercase tracking-wider">
+                              <tr>
+                                <th className="px-3 py-2">Type</th>
+                                <th className="px-3 py-2">Description</th>
+                                <th className="px-3 py-2">Mode de Paiement</th>
+                                <th className="px-3 py-2 text-right">Montant (DH)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {selectedDetailShift.expenses?.map(e => (
+                                <tr key={e.id}>
+                                  <td className="px-3 py-2 font-bold text-slate-800 capitalize">{e.type}</td>
+                                  <td className="px-3 py-2 text-slate-500">{e.description}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${e.method === 'cash' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                      {e.method === 'cash' ? 'Espèces (Tiroir)' : 'CB'}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono font-bold text-rose-600">{e.amount.toFixed(2)} DH</td>
+                                </tr>
+                              ))}
+                              <tr>
+                                <td colSpan={3} className="px-3 py-2 font-black text-slate-800 bg-slate-100 uppercase text-[10px]">Total Dépenses</td>
+                                <td className="px-3 py-2 text-right font-mono font-black text-rose-700 bg-slate-100">{expensesTotal.toFixed(2)} DH</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
                     {/* FINANCES COMPACTES */}
                     <div>
                       <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
@@ -393,16 +435,26 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                         <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
                           <div className="p-4 flex flex-col">
                             <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Encaissement</div>
-                            <div className="font-mono font-bold text-indigo-600 text-lg">+{nonCashTotal.toFixed(2)} DH</div>
+                            <div className="font-mono font-bold text-indigo-600 text-lg">+{encaissementTotalCalculated.toFixed(2)} DH</div>
                           </div>
                           <div className="p-4 flex flex-col">
                             <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses / Manquant</div>
-                            <div className={`font-mono font-bold text-lg ${carburantsTotal - nonCashTotal < 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{carburantsTotal - nonCashTotal > 0 ? "-" : "+"}{Math.abs(carburantsTotal - nonCashTotal).toFixed(2)} DH</div>
+                            <div className={`font-mono font-bold text-lg ${(() => {
+                              const diff = chiffreAffaires - encaissementTotalCalculated;
+                              return diff < 0 ? 'text-emerald-600' : diff > 0 ? 'text-rose-600' : 'text-slate-600';
+                            })()}`}>
+                              {(() => {
+                                const diff = chiffreAffaires - encaissementTotalCalculated;
+                                if (diff > 0) return `-${diff.toFixed(2)} DH`;
+                                if (diff < 0) return `+${Math.abs(diff).toFixed(2)} DH`;
+                                return `0.00 DH`;
+                              })()}
+                            </div>
                           </div>
                         </div>
                         <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
                           <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Global</div>
-                          <div className="font-mono font-black text-white text-2xl">{carburantsTotal.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
+                          <div className="font-mono font-black text-white text-2xl">{chiffreAffaires.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
                         </div>
                       </div>
                     </div>

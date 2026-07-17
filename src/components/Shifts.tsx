@@ -434,7 +434,10 @@ export default function Shifts({ store }: ShiftsProps) {
                         <td className="p-3.5 font-mono text-slate-600">
                           {(() => {
                             const carburantsTotal = s.totalAmount || 0;
-                            return carburantsTotal.toFixed(2);
+                            const produitsTotal = s.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
+                            const servicesTotal = s.servicesSold?.reduce((sum, item) => sum + item.total, 0) || 0;
+                            const totalSales = carburantsTotal + produitsTotal + servicesTotal;
+                            return totalSales.toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono text-slate-600">
@@ -448,7 +451,9 @@ export default function Shifts({ store }: ShiftsProps) {
                             const cheque = s.nonCashPayments?.cheque?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const virement = s.nonCashPayments?.virement?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const autre = s.nonCashPayments?.autre?.reduce((sum, item) => sum + item.amount, 0) || 0;
-                            return (carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre).toFixed(2);
+                            const nonCashTotal = carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre;
+                            const expensesTotal = s.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+                            return (nonCashTotal + expensesTotal).toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono font-semibold">
@@ -462,14 +467,20 @@ export default function Shifts({ store }: ShiftsProps) {
                             const cheque = s.nonCashPayments?.cheque?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const virement = s.nonCashPayments?.virement?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const autre = s.nonCashPayments?.autre?.reduce((sum, item) => sum + item.amount, 0) || 0;
-                            const encaissements = carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre;
+                            const nonCashTotal = carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre;
+                            const expensesTotal = s.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+                            const encaissements = nonCashTotal + expensesTotal;
                             
                             const carburantsTotal = s.totalAmount || 0;
-                            const ecart = carburantsTotal - encaissements;
+                            const produitsTotal = s.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
+                            const servicesTotal = s.servicesSold?.reduce((sum, item) => sum + item.total, 0) || 0;
+                            const totalSales = carburantsTotal + produitsTotal + servicesTotal;
+                            
+                            const ecart = totalSales - encaissements;
                             const surplus = ecart < 0;
                             return (
-                                <span className={surplus ? "text-emerald-600" : "text-rose-600"}>
-                                  {(ecart > 0 ? "-" : "+")}{Math.abs(ecart).toFixed(2)} MAD
+                                <span className={surplus ? "text-emerald-600" : ecart > 0 ? "text-rose-600" : "text-slate-600"}>
+                                  {ecart > 0 ? "-" : ecart < 0 ? "+" : ""}{Math.abs(ecart).toFixed(2)} MAD
                                 </span>
                             );
                           })()}

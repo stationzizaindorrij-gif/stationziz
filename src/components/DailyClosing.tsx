@@ -258,7 +258,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
     }
   };
   const [currentStep, setCurrentStep] = useState(1);
-  const activeShift = store.shifts.find(s => s.id === shiftId);
+  const activeShift = store.shifts.find(s => s.id === shiftId) || store.shifts.find(s => s.status === 'active');
 
   // Simulated data state
   const [endCounters, setEndCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>({});
@@ -412,9 +412,38 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
         } catch (e) {
           console.error('Failed to parse draft', e);
         }
+      } else if (activeShift) {
+        // Fallback: load draft values directly from activeShift in database
+        if (activeShift.expenses && activeShift.expenses.length > 0) {
+          setExpenses(activeShift.expenses);
+        }
+        if (activeShift.endCounters && Object.keys(activeShift.endCounters).length > 0) {
+          setEndCounters(activeShift.endCounters);
+        }
+        if (activeShift.productsSold && activeShift.productsSold.length > 0) {
+          setProductSales(activeShift.productsSold);
+        }
+        if (activeShift.servicesSold && activeShift.servicesSold.length > 0) {
+          setServiceSales(activeShift.servicesSold);
+        }
+        if (activeShift.realCashReceived) {
+          setRealCashInput(activeShift.realCashReceived.toString());
+        }
+        if (activeShift.nonCashPayments) {
+          const ncp = activeShift.nonCashPayments;
+          setPaymentsBreakdown({
+            cash: ncp.espece?.reduce((sum, item) => sum + item.amount, 0) || 0,
+            card: ncp.tpe?.reduce((sum, item) => sum + item.amount, 0) || 0,
+            check: ncp.cheque?.reduce((sum, item) => sum + item.amount, 0) || 0,
+            voucher: (ncp.vignette?.reduce((sum, item) => sum + item.amount, 0) || 0) + (ncp.bonClient?.reduce((sum, item) => sum + item.amount, 0) || 0),
+            transfer: ncp.virement?.reduce((sum, item) => sum + item.amount, 0) || 0,
+            other: ncp.autre?.reduce((sum, item) => sum + item.amount, 0) || 0,
+          });
+          setHasEditedPayments(true);
+        }
       }
     }
-  }, [draftKey]);
+  }, [draftKey, activeShift?.id]);
 
   useEffect(() => {
     if (draftKey && Object.keys(endCounters).length > 0) { // Don't save empty init state
@@ -431,6 +460,60 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
       localStorage.setItem(draftKey, JSON.stringify(draft));
     }
   }, [draftKey, currentStep, endCounters, productSales, serviceSales, expenses, paymentsBreakdown, hasEditedPayments, realCashInput]);
+
+  // Real-time Database Draft Sync (Debounced by 1s)
+  useEffect(() => {
+    if (!activeShift) return;
+
+    const handler = setTimeout(() => {
+      const formattedNonCash = {
+        carteSntl: [],
+        espece: [{ amount: paymentsBreakdown.cash }],
+        bonCarburantsVivo: [],
+        vignette: [{ amount: paymentsBreakdown.voucher }],
+        bonClient: [{ amount: paymentsBreakdown.voucher }],
+        tpe: [{ amount: paymentsBreakdown.card, terminal: 'TPE' }],
+        cheque: [{ amount: paymentsBreakdown.check }],
+        virement: [{ amount: paymentsBreakdown.transfer }],
+        autre: [{ amount: paymentsBreakdown.other }]
+      };
+
+      const hasEndCountersChanged = JSON.stringify(endCounters) !== JSON.stringify(activeShift.endCounters || {});
+      const hasProductsSoldChanged = JSON.stringify(productSales) !== JSON.stringify(activeShift.productsSold || []);
+      const hasServicesSoldChanged = JSON.stringify(serviceSales) !== JSON.stringify(activeShift.servicesSold || []);
+      const hasExpensesChanged = JSON.stringify(expenses) !== JSON.stringify(activeShift.expenses || []);
+      const hasRealCashChanged = (parseFloat(realCashInput) || 0) !== (activeShift.realCashReceived || 0);
+      const hasNonCashChanged = JSON.stringify(formattedNonCash) !== JSON.stringify(activeShift.nonCashPayments || {});
+
+      if (
+        hasEndCountersChanged ||
+        hasProductsSoldChanged ||
+        hasServicesSoldChanged ||
+        hasExpensesChanged ||
+        hasRealCashChanged ||
+        hasNonCashChanged
+      ) {
+        store.updateShift(activeShift.id, {
+          endCounters,
+          productsSold: productSales,
+          servicesSold: serviceSales,
+          expenses,
+          realCashReceived: parseFloat(realCashInput) || 0,
+          nonCashPayments: formattedNonCash
+        }, 'Directeur ERP');
+      }
+    }, 1000);
+
+    return () => clearTimeout(handler);
+  }, [
+    activeShift?.id,
+    endCounters,
+    productSales,
+    serviceSales,
+    expenses,
+    paymentsBreakdown,
+    realCashInput
+  ]);
 
   const handleCloseShift = () => {
     if (!activeShift) return;
@@ -683,16 +766,28 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                   <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
                     <div className="p-4 flex flex-col">
                       <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Encaissement</div>
-                      <div className="font-mono font-bold text-indigo-600 text-lg">+{totalNonCashPayments.toFixed(2)} DH</div>
+                      <div className="font-mono font-bold text-indigo-600 text-lg">+{((totalNonCashPayments + paymentsBreakdown.cash) + totalExpenses).toFixed(2)} DH</div>
                     </div>
                     <div className="p-4 flex flex-col">
                       <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses / Manquant</div>
-                      <div className={`font-mono font-bold text-lg ${fuelSalesDetails.totalFuelAmount - totalNonCashPayments < 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{fuelSalesDetails.totalFuelAmount - totalNonCashPayments > 0 ? "-" : "+"}{Math.abs(fuelSalesDetails.totalFuelAmount - totalNonCashPayments).toFixed(2)} DH</div>
+                      <div className={`font-mono font-bold text-lg ${(() => {
+                        const totalEnc = (totalNonCashPayments + paymentsBreakdown.cash) + totalExpenses;
+                        const diff = grandTotalSales - totalEnc;
+                        return diff < 0 ? 'text-emerald-600' : diff > 0 ? 'text-rose-600' : 'text-slate-600';
+                      })()}`}>
+                        {(() => {
+                          const totalEnc = (totalNonCashPayments + paymentsBreakdown.cash) + totalExpenses;
+                          const diff = grandTotalSales - totalEnc;
+                          if (diff > 0) return `-${diff.toFixed(2)} DH`;
+                          if (diff < 0) return `+${Math.abs(diff).toFixed(2)} DH`;
+                          return `0.00 DH`;
+                        })()}
+                      </div>
                     </div>
                   </div>
                   <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
                     <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Global</div>
-                    <div className="font-mono font-black text-white text-2xl">{fuelSalesDetails.totalFuelAmount.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
+                    <div className="font-mono font-black text-white text-2xl">{grandTotalSales.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
                   </div>
                 </div>
               </div>

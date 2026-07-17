@@ -308,6 +308,37 @@ export function useERPStore(): ERPStoreType {
                          };
                      });
                  }
+                  if (key === 'shifts') {
+                      items = items.map(s => {
+                          return {
+                              id: s.id,
+                              user_id,
+                              attendantId: s.attendantId,
+                              attendantName: s.attendantName,
+                              date: s.date,
+                              endDate: s.endDate,
+                              shiftName: s.shiftName,
+                              pumpIds: s.pumpIds || [],
+                              status: s.status,
+                              startTime: s.startTime,
+                              endTime: s.endTime,
+                              startCounters: JSON.stringify(s.startCounters || {}),
+                              endCounters: JSON.stringify(s.endCounters || {}),
+                              litersSold: JSON.stringify(s.litersSold || {}),
+                              amountSold: JSON.stringify(s.amountSold || {}),
+                              totalLiters: s.totalLiters,
+                              totalAmount: s.totalAmount,
+                              theoreticalCash: s.theoreticalCash,
+                              realCashReceived: s.realCashReceived,
+                              discrepancy: s.discrepancy,
+                              notes: s.notes,
+                              productsSold: JSON.stringify(s.productsSold || []),
+                              servicesSold: JSON.stringify(s.servicesSold || []),
+                              expenses: JSON.stringify(s.expenses || []),
+                              nonCashPayments: JSON.stringify(s.nonCashPayments || {})
+                          };
+                      });
+                  }
                  // Smart sync: Upsert existing/new, delete removed
                  let currentItems = [];
                  let from = 0;
