@@ -63,6 +63,7 @@ export interface ERPStoreType {
   deleteTank: (id: string, author: string) => void;
   correctTankLevel: (tankId: string, newLevel: number, reason: string, author: string) => void;
   deleteStockCorrection: (id: string, author: string) => void;
+  updateStockCorrection: (id: string, updates: Partial<StockCorrection>, author: string) => void;
 
   addPump: (pump: Omit<Pump, 'id'>, author: string) => void;
   updatePump: (id: string, updates: Partial<Pump>, author: string) => void;
@@ -752,6 +753,23 @@ export function useERPStore(): ERPStoreType {
 
   const deleteStockCorrection = (id: string, author: string) => {
     saveState('stock_corrections', stockCorrections.filter(c => c.id !== id), setStockCorrections);
+  };
+
+  const updateStockCorrection = (id: string, updates: Partial<StockCorrection>, author: string) => {
+    const corr = stockCorrections.find(c => c.id === id);
+    if (!corr) return;
+
+    const updated = stockCorrections.map(c => {
+      if (c.id === id) {
+        return { ...c, ...updates };
+      }
+      return c;
+    });
+    saveState('stock_corrections', updated, setStockCorrections);
+
+    if (updates.qtyAfter !== undefined) {
+      saveState('tanks', tanks.map(t => t.id === corr.tankId ? { ...t, currentLevel: updates.qtyAfter! } : t), setTanks);
+    }
   };
 
   const addPump = (pump: Omit<Pump, 'id'>, author: string) => {
@@ -1603,6 +1621,7 @@ return {
     deleteTank,
     correctTankLevel,
     deleteStockCorrection,
+    updateStockCorrection,
 
     // Pump & Nozzles CRUD
     addPump,

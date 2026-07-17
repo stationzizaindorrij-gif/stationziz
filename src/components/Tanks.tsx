@@ -5,7 +5,7 @@ import {
   Settings, ClipboardList, Info, ArrowDown, Calendar, Search, Trash2, Sliders, X, Droplet, MoreVertical, Edit, FileText, BarChart2, CheckCircle2, XCircle, Power, Activity 
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
-import { Tank, Product, Nozzle, Pump, Supply } from '../types';
+import { Tank, Product, Nozzle, Pump, Supply, StockCorrection } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
 // Helper function to get fuel properties and colors: Vert -> Gazoil, Bleu -> Sans Plomb, Orange -> Mélange
@@ -100,7 +100,7 @@ export default function Tanks({ store }: TanksProps) {
   };
 
   const { 
-    tanks, products, supplies, stockCorrections, addSupply, correctTankLevel, deleteStockCorrection, currentRole,
+    tanks, products, supplies, stockCorrections, addSupply, correctTankLevel, deleteStockCorrection, updateStockCorrection, currentRole,
     nozzles = [], pumps = [], sales = [], shifts = []
   } = store;
 
@@ -162,6 +162,7 @@ export default function Tanks({ store }: TanksProps) {
   const [editingSupply, setEditingSupply] = useState<Supply | null>(null);
   const [isCorrectionFormOpen, setIsCorrectionFormOpen] = useState(false);
   const [correctionToDelete, setCorrectionToDelete] = useState<string | null>(null);
+  const [editingCorrection, setEditingCorrection] = useState<StockCorrection | null>(null);
 
   // Supply Delivery Form state
   const [supplier, setSupplier] = useState('');
@@ -292,12 +293,21 @@ export default function Tanks({ store }: TanksProps) {
     executeSupply();
   };
 
-  const handleOpenCorrectionForm = (tankId?: string) => {
-    setCorrTankId(tankId || (tanks[0]?.id || ''));
-    const initialTank = tanks.find(t => t.id === (tankId || tanks[0]?.id));
-    setNewLevel(initialTank ? initialTank.currentLevel.toString() : '0');
-    setCorrReason('Vérification par jaugeage manuel (Règle graduée)');
-    setCorrDate((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
+  const handleOpenCorrectionForm = (tankId?: string, corr?: StockCorrection) => {
+    if (corr) {
+      setEditingCorrection(corr);
+      setCorrTankId(corr.tankId);
+      setNewLevel(corr.qtyAfter.toString());
+      setCorrReason(corr.reason);
+      setCorrDate(corr.date ? new Date(corr.date).toISOString().split('T')[0] : (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
+    } else {
+      setEditingCorrection(null);
+      setCorrTankId(tankId || (tanks[0]?.id || ''));
+      const initialTank = tanks.find(t => t.id === (tankId || tanks[0]?.id));
+      setNewLevel(initialTank ? initialTank.currentLevel.toString() : '0');
+      setCorrReason('Vérification par jaugeage manuel (Règle graduée)');
+      setCorrDate((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
+    }
     setIsCorrectionFormOpen(true);
   };
 
@@ -326,7 +336,19 @@ export default function Tanks({ store }: TanksProps) {
       return;
     }
 
-    correctTankLevel(corrTankId, level, corrReason + ' (' + corrDate + ')', 'Directeur ERP');
+    if (editingCorrection) {
+      updateStockCorrection(editingCorrection.id, {
+        tankId: corrTankId,
+        tankNumber: tank.number,
+        productId: tank.productId,
+        qtyAfter: level,
+        reason: corrReason,
+        date: corrDate
+      }, 'Directeur ERP');
+    } else {
+      correctTankLevel(corrTankId, level, corrReason + ' (' + corrDate + ')', 'Directeur ERP');
+    }
+    setEditingCorrection(null);
     setIsCorrectionFormOpen(false);
   };
 
@@ -1478,7 +1500,6 @@ export default function Tanks({ store }: TanksProps) {
                   <th className="p-3">Quantité Avant</th>
                   <th className="p-3">Quantité Corrigée</th>
                   <th className="p-3">Écart d'Ajustement</th>
-                  <th className="p-3">Opérateur</th>
                                     <th className="p-3">Date</th>
                   {hasWriteAccess && <th className="p-3">Actions</th>}
                 </tr>
@@ -1497,17 +1518,25 @@ export default function Tanks({ store }: TanksProps) {
                           {diff > 0 ? '+' : ''}{diff.toFixed(2)} L
                         </span>
                       </td>
-                      <td className="p-3 font-sans text-slate-600">{corr.user}</td>
                                             <td className="p-3 font-sans text-slate-500">{new Date(corr.date).toLocaleDateString('fr-FR')}</td>
                       {hasWriteAccess && (
                         <td className="p-3 text-right">
-                          <button
-                            onClick={() => setCorrectionToDelete(corr.id)}
-                            className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                            title="Supprimer la correction"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleOpenCorrectionForm(undefined, corr)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                              title="Modifier la correction"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setCorrectionToDelete(corr.id)}
+                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                              title="Supprimer la correction"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -1706,8 +1735,8 @@ export default function Tanks({ store }: TanksProps) {
         <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
             <div className="flex justify-between items-center bg-slate-900 text-white px-5 py-4">
-              <h3 className="font-bold font-display">Correction Manuelle Jauge</h3>
-              <button onClick={() => setIsCorrectionFormOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+              <h3 className="font-bold font-display">{editingCorrection ? 'Modifier la Correction Manuelle' : 'Correction Manuelle Jauge'}</h3>
+              <button onClick={() => { setIsCorrectionFormOpen(false); setEditingCorrection(null); }} className="text-slate-400 hover:text-white transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1780,7 +1809,7 @@ export default function Tanks({ store }: TanksProps) {
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button 
                   type="button" 
-                  onClick={() => setIsCorrectionFormOpen(false)}
+                  onClick={() => { setIsCorrectionFormOpen(false); setEditingCorrection(null); }}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
                 >
                   Annuler
@@ -1789,7 +1818,7 @@ export default function Tanks({ store }: TanksProps) {
                   type="submit" 
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors"
                 >
-                  Enregistrer la note
+                  {editingCorrection ? 'Mettre à jour' : 'Enregistrer la note'}
                 </button>
               </div>
             </form>
