@@ -87,6 +87,14 @@ export interface Shift {
       elec: number;
     }
   };
+
+  startTankLevels?: {
+    [tankId: string]: number;
+  };
+
+  endTankLevels?: {
+    [tankId: string]: number;
+  };
   
   // Calculated on completion
   litersSold?: {

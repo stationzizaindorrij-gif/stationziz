@@ -335,7 +335,11 @@ export function useERPStore(): ERPStoreType {
                               productsSold: JSON.stringify(s.productsSold || []),
                               servicesSold: JSON.stringify(s.servicesSold || []),
                               expenses: JSON.stringify(s.expenses || []),
-                              nonCashPayments: JSON.stringify(s.nonCashPayments || {})
+                              nonCashPayments: JSON.stringify({
+                                  ...(s.nonCashPayments || {}),
+                                  ...(s.startTankLevels ? { startTankLevels: s.startTankLevels } : {}),
+                                  ...(s.endTankLevels ? { endTankLevels: s.endTankLevels } : {})
+                              })
                           };
                       });
                   }
@@ -423,9 +427,13 @@ export function useERPStore(): ERPStoreType {
                 }
                 return val;
             };
+            const rawNonCashPayments = parseJson(s.noncashpayments !== undefined ? s.noncashpayments : s.nonCashPayments) || {};
+            const { startTankLevels, endTankLevels, ...nonCashPayments } = rawNonCashPayments;
             return {
                 ...s,
-                nonCashPayments: parseJson(s.noncashpayments !== undefined ? s.noncashpayments : s.nonCashPayments),
+                nonCashPayments,
+                startTankLevels: startTankLevels || parseJson(s.starttanklevels !== undefined ? s.starttanklevels : s.startTankLevels),
+                endTankLevels: endTankLevels || parseJson(s.endtanklevels !== undefined ? s.endtanklevels : s.endTankLevels),
                 productsSold: parseJson(s.productssold !== undefined ? s.productssold : s.productsSold),
                 servicesSold: parseJson(s.servicessold !== undefined ? s.servicessold : s.servicesSold),
                 expenses: parseJson(s.expenses),
@@ -1009,6 +1017,11 @@ export function useERPStore(): ERPStoreType {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
 
+    const initialTankLevels: { [tankId: string]: number } = {};
+    tanks.forEach(t => {
+      initialTankLevels[t.id] = t.currentLevel;
+    });
+
     const newShift: Shift = {
       id: `shift_${Date.now()}`,
       attendantId,
@@ -1018,7 +1031,8 @@ export function useERPStore(): ERPStoreType {
       pumpIds: assignedPumpIds,
       status: 'active',
       startTime: timeStr,
-      startCounters
+      startCounters,
+      startTankLevels: initialTankLevels
     };
 
     // Update nozzles state if custom start counters were supplied
@@ -1162,6 +1176,11 @@ export function useERPStore(): ERPStoreType {
     // Automatically deposit to cash registry if open
     
 
+    const currentEndTankLevels: { [tankId: string]: number } = {};
+    currentTanks.forEach(t => {
+      currentEndTankLevels[t.id] = t.currentLevel;
+    });
+
     // Update Shift record
     const updatedShifts = shifts.map(s => {
       if (s.id === shiftId) {
@@ -1174,7 +1193,8 @@ export function useERPStore(): ERPStoreType {
           amountSold,
           totalLiters: roundedTotalLiters,
           totalAmount: roundedTotalAmount,
-          duration: 8 // Standard 8 hours shift duration
+          duration: 8, // Standard 8 hours shift duration
+          endTankLevels: currentEndTankLevels
         };
       }
       return s;
