@@ -194,10 +194,56 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                   const getTankLevelForShift = (tId: string, targetShift: Shift) => {
                                     const tk = store.tanks.find(t => t.id === tId);
                                     if (!tk) return 0;
-                                    if (targetShift.endTankLevels && typeof targetShift.endTankLevels[tId] === 'number') {
-                                      return targetShift.endTankLevels[tId];
+                                    
+                                    // Start with the current corrected level (theoretical + all corrections)
+                                    let level = tk.currentLevel;
+                                    if (store.stockCorrections) {
+                                      store.stockCorrections.forEach(corr => {
+                                        if (corr.tankId === tId) {
+                                          level += (corr.qtyAfter - corr.qtyBefore);
+                                        }
+                                      });
                                     }
-                                    return tk.currentLevel;
+
+                                    const allCompletedShifts = [...store.shifts].filter(s => s.status === 'completed' || s.status === 'ready_to_close');
+                                    allCompletedShifts.sort((a, b) => {
+                                      if (a.date !== b.date) return a.date.localeCompare(b.date);
+                                      const tA = a.endTime || a.startTime || '';
+                                      const tB = b.endTime || b.startTime || '';
+                                      if (tA !== tB) return tA.localeCompare(tB);
+                                      return a.id.localeCompare(b.id);
+                                    });
+
+                                    const targetIndex = allCompletedShifts.findIndex(s => s.id === targetShift.id);
+                                    if (targetIndex !== -1) {
+                                      for (let i = targetIndex + 1; i < allCompletedShifts.length; i++) {
+                                        const s = allCompletedShifts[i];
+                                        if (s.litersSold) {
+                                          Object.entries(s.litersSold).forEach(([nozId, qty]) => {
+                                            const noz = store.nozzles.find(n => n.id === nozId);
+                                            if (noz && noz.tankId === tId && typeof qty === 'number') {
+                                              level += qty;
+                                            }
+                                          });
+                                        }
+                                      }
+                                    }
+
+                                    store.supplies.forEach(sup => {
+                                      if (sup.tankId === tId && sup.date > targetShift.date) {
+                                        level -= sup.qtyDelivered;
+                                      }
+                                    });
+
+                                    if (store.stockCorrections) {
+                                      store.stockCorrections.forEach(corr => {
+                                        if (corr.tankId === tId && corr.date > targetShift.date) {
+                                          level -= (corr.qtyAfter - corr.qtyBefore);
+                                        }
+                                      });
+                                    }
+
+                                    return Math.max(0, level);
                                   };
 
                                   const historicalLevel = getTankLevelForShift(tank.id, selectedDetailShift);

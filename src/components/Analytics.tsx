@@ -231,28 +231,31 @@ export default function Analytics({ store }: AnalyticsProps) {
       
       // Store the final calculated PUMP
       stockReste[p.id] = { liters: 0, purchase: currentPump, montant: 0, historyPump };
-    });
-
-    let totalStockLiters = 0;
+    });    let totalStockLiters = 0;
     let totalStockMontant = 0;
 
-    store.tanks.forEach(tank => {
-      const product = store.products.find(p => p.id === tank.productId);
-      if (product) {
-        if (!stockReste[product.id]) {
-          stockReste[product.id] = { liters: 0, purchase: getCurrentPrice(product.id, selectedEndDateObj).purchasePrice, montant: 0, historyPump: [] };
-        }
-        stockReste[product.id].liters += tank.currentLevel;
-        totalStockLiters += tank.currentLevel;
-      }
-    });
-
-    // Revert changes that happened AFTER the selected period to reconstruct past stock
     let targetTimestamp = new Date().getTime(); // Default to now
     let targetDateStr = selectedEndDateObj;
 
-    if (selectedShiftId !== 'all') {
-       const selectedShift = store.shifts.find(s => s.id === selectedShiftId);
+    let targetShiftId = selectedShiftId;
+    if (targetShiftId === 'all') {
+       // If 'all' is selected, but a past date is selected, find the last shift of that date to accurately reconstruct stock
+       const allCompletedShifts = [...store.shifts].filter(s => s.status === 'completed' || s.status === 'ready_to_close');
+       allCompletedShifts.sort((a, b) => {
+         if (a.date !== b.date) return a.date.localeCompare(b.date);
+         const tA = a.endTime || a.startTime || '';
+         const tB = b.endTime || b.startTime || '';
+         if (tA !== tB) return tA.localeCompare(tB);
+         return a.id.localeCompare(b.id);
+       });
+       const targetShift = allCompletedShifts.reverse().find(s => s.date <= selectedEndDateObj);
+       if (targetShift && targetShift.date !== new Date().toISOString().split('T')[0]) {
+           targetShiftId = targetShift.id;
+       }
+    }
+
+    if (targetShiftId !== 'all') {
+       const selectedShift = store.shifts.find(s => s.id === targetShiftId);
        if (selectedShift) {
           const dStr = selectedShift.endDate || selectedShift.date;
           const tStr = selectedShift.endTime || '23:59:59';
@@ -261,47 +264,95 @@ export default function Analytics({ store }: AnalyticsProps) {
        }
     }
 
-    // 1. Revert sales from shifts that occurred strictly AFTER the target timestamp
-    const shiftsAfter = store.shifts.filter(s => {
-        if (s.status !== 'completed' && s.status !== 'ready_to_close') return false;
-        const dStr = s.endDate || s.date;
-        const tStr = s.endTime || '23:59:59';
-        return new Date(`${dStr}T${tStr}`).getTime() > targetTimestamp;
-    }).map(s => s.id);
+    store.tanks.forEach(tank => {
+      const product = store.products.find(p => p.id === tank.productId);
+      if (product) {
+        if (!stockReste[product.id]) {
+          stockReste[product.id] = { liters: 0, purchase: getCurrentPrice(product.id, selectedEndDateObj).purchasePrice, montant: 0, historyPump: [] };
+        }
+        
+        // Start with the current corrected level (theoretical + all corrections)
+        let level = tank.currentLevel;
+        if (store.stockCorrections) {
+          store.stockCorrections.forEach(corr => {
+            if (corr.tankId === tank.id) {
+              level += (corr.qtyAfter - corr.qtyBefore);
+            }
+          });
+        }
 
-    const salesAfter = store.sales.filter(s => shiftsAfter.includes(s.shiftId));
-    salesAfter.forEach(s => {
-      if (stockReste[s.productId]) {
-         stockReste[s.productId].liters += s.qty;
-         totalStockLiters += s.qty;
+        const targetShift = store.shifts.find(s => s.id === targetShiftId);
+        if (targetShift) {
+           const allCompletedShifts = [...store.shifts].filter(s => s.status === 'completed' || s.status === 'ready_to_close');
+           allCompletedShifts.sort((a, b) => {
+             if (a.date !== b.date) return a.date.localeCompare(b.date);
+             const tA = a.endTime || a.startTime || '';
+             const tB = b.endTime || b.startTime || '';
+             if (tA !== tB) return tA.localeCompare(tB);
+             return a.id.localeCompare(b.id);
+           });
+           const targetIndex = allCompletedShifts.findIndex(s => s.id === targetShift.id);
+           if (targetIndex !== -1) {
+             for (let i = targetIndex + 1; i < allCompletedShifts.length; i++) {
+               const s = allCompletedShifts[i];
+               if (s.litersSold) {
+                 Object.entries(s.litersSold).forEach(([nozId, qty]) => {
+                   const noz = store.nozzles.find(n => n.id === nozId);
+                   if (noz && noz.tankId === tank.id && typeof qty === 'number') {
+                     level += qty;
+                   }
+                 });
+               }
+             }
+           }
+           store.supplies.forEach(sup => {
+             if (sup.tankId === tank.id && sup.date > targetShift.date) level -= sup.qtyDelivered;
+           });
+           if (store.stockCorrections) {
+             store.stockCorrections.forEach(corr => {
+               if (corr.tankId === tank.id && corr.date > targetShift.date) level -= (corr.qtyAfter - corr.qtyBefore);
+             });
+           }
+        } else if (targetDateStr !== new Date().toISOString().split('T')[0]) {
+           // No shift targeted, but a past date is selected.
+           // Add back all sales after this date
+           const allCompletedShifts = [...store.shifts].filter(s => s.status === 'completed' || s.status === 'ready_to_close');
+           allCompletedShifts.forEach(s => {
+             if (s.date > targetDateStr) {
+               if (s.litersSold) {
+                 Object.entries(s.litersSold).forEach(([nozId, qty]) => {
+                   const noz = store.nozzles.find(n => n.id === nozId);
+                   if (noz && noz.tankId === tank.id && typeof qty === 'number') {
+                     level += qty;
+                   }
+                 });
+               }
+             }
+           });
+           
+           // Subtract supplies after this date
+           store.supplies.forEach(sup => {
+             if (sup.tankId === tank.id && sup.date.split('T')[0] > targetDateStr) {
+               level -= sup.qtyDelivered;
+             }
+           });
+           
+           // Subtract corrections after this date
+           if (store.stockCorrections) {
+             store.stockCorrections.forEach(corr => {
+               if (corr.tankId === tank.id && corr.date.split('T')[0] > targetDateStr) {
+                 level -= (corr.qtyAfter - corr.qtyBefore);
+               }
+             });
+           }
+        }
+
+        level = Math.max(0, level);
+
+        stockReste[product.id].liters += level;
+        totalStockLiters += level;
       }
     });
-
-    // Also add back shop products sales if needed? But this block only concerns fuel (tanks).
-    // The previous code only added back s.qty (liters).
-
-    // 2. Subtract supplies that occurred strictly AFTER the target date
-    const suppliesAfter = store.supplies.filter(s => {
-        return s.date.split('T')[0] > targetDateStr;
-    });
-    suppliesAfter.forEach(s => {
-      if (stockReste[s.productId]) {
-         stockReste[s.productId].liters -= s.qtyDelivered;
-         totalStockLiters -= s.qtyDelivered;
-      }
-    });
-
-    // 3. Revert stock corrections that occurred strictly AFTER the target date
-    const correctionsAfter = (store.stockCorrections || []).filter(c => c.date.split('T')[0] > targetDateStr);
-    correctionsAfter.forEach(c => {
-       const tank = store.tanks.find(t => t.id === c.tankId);
-       if (tank && stockReste[tank.productId]) {
-          const diff = c.qtyAfter - c.qtyBefore;
-          stockReste[tank.productId].liters -= diff;
-          totalStockLiters -= diff;
-       }
-    });
-
 
     Object.keys(stockReste).forEach(type => {
       stockReste[type].montant = stockReste[type].liters * stockReste[type].purchase;

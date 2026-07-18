@@ -192,7 +192,7 @@ export default function Tanks({ store }: TanksProps) {
       setSupplyDate(supply.date ? new Date(supply.date).toISOString().split('T')[0] : (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
     } else {
       setEditingSupply(null);
-      setSupplier('TotalEnergies Distribution');
+      setSupplier('');
       setSupplyTankId(tankId || (tanks[0]?.id || ''));
       setQtyDelivered('5000');
       setPurchasePrice('');

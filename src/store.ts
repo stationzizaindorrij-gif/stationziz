@@ -781,7 +781,6 @@ export function useERPStore(): ERPStoreType {
     const tank = tanks.find(t => t.id === tankId);
     if (!tank) return;
     const qtyBefore = tank.currentLevel;
-    saveState('tanks', tanks.map(t => t.id === tankId ? { ...t, currentLevel: newLevel } : t), setTanks);
     const corr: StockCorrection = {
       id: `corr_${Date.now()}`,
       date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]),
@@ -805,10 +804,6 @@ export function useERPStore(): ERPStoreType {
       return c;
     });
     saveState('stock_corrections', updated, setStockCorrections);
-
-    if (updates.qtyAfter !== undefined) {
-      saveState('tanks', tanks.map(t => t.id === corr.tankId ? { ...t, currentLevel: updates.qtyAfter! } : t), setTanks);
-    }
   };
 
   const addPump = (pump: Omit<Pump, 'id'>, author: string) => {
