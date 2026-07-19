@@ -174,12 +174,8 @@ export default function Analytics({ store }: AnalyticsProps) {
       // Find all events for this product up to the selected date
       const pSales = store.sales.filter(s => s.productId === p.id && s.date.split('T')[0] <= selectedEndDateObj).map(s => ({ type: 'sale', date: s.date.split('T')[0], time: (s as any).time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), qty: s.qty, price: s.price }));
       const pSupplies = store.supplies.filter(s => s.productId === p.id && s.date.split('T')[0] <= selectedEndDateObj).map(s => ({ type: 'supply', date: s.date.split('T')[0], time: (s as any).time || (s.date.includes('T') ? s.date.split('T')[1].substring(0,8) : '00:00:00'), qty: s.qtyDelivered, price: s.purchasePrice }));
-      const pCorrections = (store.stockCorrections || []).filter((c: any) => {
-         const tank = store.tanks.find(t => t.id === c.tankId);
-         return tank && tank.productId === p.id && c.date.split('T')[0] <= selectedEndDateObj;
-      }).map(c => ({ type: 'correction', date: c.date.split('T')[0], time: (c as any).time || (c.date.includes('T') ? c.date.split('T')[1].substring(0,8) : '00:00:00'), qty: c.qtyAfter - c.qtyBefore, price: 0 }));
       
-      const allEvents = [...pSales, ...pSupplies, ...pCorrections].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
+      const allEvents = [...pSales, ...pSupplies].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
       
       // Determine the very first purchase price in the system for this product
       
@@ -195,12 +191,8 @@ export default function Analytics({ store }: AnalyticsProps) {
       // We need ALL events from all time to find the true initial stock
       const allTimeSales = store.sales.filter(s => s.productId === p.id).reduce((sum, s) => sum + s.qty, 0);
       const allTimeSupplies = store.supplies.filter(s => s.productId === p.id).reduce((sum, s) => sum + s.qtyDelivered, 0);
-      const allTimeCorrections = (store.stockCorrections || []).filter(c => {
-         const tank = store.tanks.find(t => t.id === c.tankId);
-         return tank && tank.productId === p.id;
-      }).reduce((sum, c) => sum + (c.qtyAfter - c.qtyBefore), 0);
       
-      const netChangeAllTime = allTimeSupplies + allTimeCorrections - allTimeSales;
+      const netChangeAllTime = allTimeSupplies - allTimeSales;
       const initialStock = actualCurrentStock - netChangeAllTime;
       
       let runningStock = Math.max(0, initialStock);
@@ -224,8 +216,6 @@ export default function Analytics({ store }: AnalyticsProps) {
             historyPump.push({ date: e.date, type: 'supply', stockBefore, qty: e.qty, price: e.price, stockAfter: runningStock, newPump: currentPump });
          } else if (e.type === 'sale') {
             runningStock -= e.qty;
-         } else if (e.type === 'correction') {
-            runningStock += e.qty;
          }
       });
       
@@ -258,15 +248,8 @@ export default function Analytics({ store }: AnalyticsProps) {
           stockReste[product.id] = { liters: 0, purchase: getCurrentPrice(product.id, selectedEndDateObj).purchasePrice, montant: 0, historyPump: [] };
         }
         
-        // Start with the current corrected level (theoretical + all corrections)
+        // Start with the current level of the tank
         let level = tank.currentLevel;
-        if (store.stockCorrections) {
-          store.stockCorrections.forEach(corr => {
-            if (corr.tankId === tank.id) {
-              level += (corr.qtyAfter - corr.qtyBefore);
-            }
-          });
-        }
 
         const targetShift = store.shifts.find(s => s.id === targetShiftId);
         if (targetShift) {
@@ -295,11 +278,7 @@ export default function Analytics({ store }: AnalyticsProps) {
            store.supplies.forEach(sup => {
              if (sup.tankId === tank.id && sup.date.split('T')[0] > targetShift.date) level -= sup.qtyDelivered;
            });
-           if (store.stockCorrections) {
-             store.stockCorrections.forEach(corr => {
-               if (corr.tankId === tank.id && corr.date.split('T')[0] > targetShift.date) level -= (corr.qtyAfter - corr.qtyBefore);
-             });
-           }
+
         } else if (targetDateStr !== (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0])) {
            // No shift targeted, but a past date is selected.
            // Add back all sales after this date
@@ -324,14 +303,7 @@ export default function Analytics({ store }: AnalyticsProps) {
              }
            });
            
-           // Subtract corrections after this date
-           if (store.stockCorrections) {
-             store.stockCorrections.forEach(corr => {
-               if (corr.tankId === tank.id && corr.date.split('T')[0] > targetDateStr) {
-                 level -= (corr.qtyAfter - corr.qtyBefore);
-               }
-             });
-           }
+
         }
 
         level = Math.max(0, level);

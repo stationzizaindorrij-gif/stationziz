@@ -195,15 +195,8 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                     const tk = store.tanks.find(t => t.id === tId);
                                     if (!tk) return 0;
                                     
-                                    // Start with the current corrected level (theoretical + all corrections)
+                                    // Start with the current level of the tank
                                     let level = tk.currentLevel;
-                                    if (store.stockCorrections) {
-                                      store.stockCorrections.forEach(corr => {
-                                        if (corr.tankId === tId) {
-                                          level += (corr.qtyAfter - corr.qtyBefore);
-                                        }
-                                      });
-                                    }
 
                                     const allCompletedShifts = [...store.shifts].filter(s => s.status === 'completed' || s.status === 'ready_to_close');
                                     allCompletedShifts.sort((a, b) => {
@@ -230,18 +223,12 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                     }
 
                                     store.supplies.forEach(sup => {
-                                      if (sup.tankId === tId && sup.date > targetShift.date) {
+                                      if (sup.tankId === tId && sup.date.split('T')[0] > targetShift.date) {
                                         level -= sup.qtyDelivered;
                                       }
                                     });
 
-                                    if (store.stockCorrections) {
-                                      store.stockCorrections.forEach(corr => {
-                                        if (corr.tankId === tId && corr.date > targetShift.date) {
-                                          level -= (corr.qtyAfter - corr.qtyBefore);
-                                        }
-                                      });
-                                    }
+
 
                                     return Math.max(0, level);
                                   };
