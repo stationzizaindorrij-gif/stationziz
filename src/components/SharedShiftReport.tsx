@@ -73,7 +73,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                 return (
                   <div className="space-y-6">
                     {/* EN TÊTE COMPACT */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div className="print-avoid-break flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                       <div>
                         <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase mb-1">Pompiste</div>
                         <div className="font-bold text-slate-800 text-lg uppercase">{selectedDetailShift.attendantName}</div>
@@ -87,7 +87,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                     </div>
 
                     {/* RELEVÉ DES INDEX */}
-                    <div>
+                    <div className="print-avoid-break">
                       <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                         <Fuel className="w-3.5 h-3.5 text-indigo-500" />
                         Relevé des Index
@@ -175,7 +175,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                     <div className="grid grid-cols-1 gap-6">
 
                       {store.tanks.length > 0 && (
-                        <div>
+                        <div className="print-avoid-break">
                           <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                             <Database className="w-3.5 h-3.5 text-slate-500" />
                             Niveaux des Cuves
@@ -280,7 +280,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                           return (
                             <>
                               {(tCarteSntl + tBonVivo + tVignette + tTpe + tCheque + tVirement + tAutre + tBonClient) > 0 && (
-                                <div className="mb-6">
+                                <div className="mb-6 print-avoid-break">
                                   <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                     <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
                                     Détail des Encaissements Non Espèce
@@ -341,7 +341,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                               )}
                               
                               {(tEspece + tBonClient) > 0 && (
-                                <div>
+                                <div className="print-avoid-break">
                                   <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                     <Banknote className="w-3.5 h-3.5 text-indigo-500" />
                                     Détail des Encaissements Espèce
@@ -377,7 +377,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                     )}
                     {/* DETAILS BOUTIQUE */}
                     {(selectedDetailShift.productsSold?.length || 0) > 0 && (
-                      <div>
+                      <div className="print-avoid-break">
                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                           <Package className="w-3.5 h-3.5 text-indigo-500" />
                           Détails de Boutique
@@ -403,7 +403,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
 
                     {/* DETAILS LAVAGE LA GRAISSE */}
                     {(selectedDetailShift.servicesSold?.length || 0) > 0 && (
-                      <div>
+                      <div className="print-avoid-break">
                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                           <Settings className="w-3.5 h-3.5 text-indigo-500" />
                           Détails de Lavage et Graissage
@@ -429,7 +429,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
 
                     {/* DETAILS DEPENSES */}
                     {(selectedDetailShift.expenses?.length || 0) > 0 && (
-                      <div>
+                      <div className="print-avoid-break">
                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                           <Receipt className="w-3.5 h-3.5 text-rose-500" />
                           Détails des Dépenses
@@ -468,7 +468,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                     )}
 
                     {/* FINANCES COMPACTES */}
-                    <div>
+                    <div className="print-avoid-break">
                       <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                         <Wallet className="w-3.5 h-3.5 text-slate-500" />
                         Bilan Financier

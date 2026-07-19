@@ -4,12 +4,109 @@ import {
   Database, Droplet,  
   ClipboardList, Plus, Play, CheckCircle2, AlertTriangle, ArrowRight, 
   Fuel, ShieldAlert, FileSpreadsheet, Calendar, User, Info, Clock, CheckCircle, X, Check 
-, Download , Edit, Trash2, ChevronLeft, ChevronRight , Wallet, Package, Wrench, ChevronDown, ChevronUp, CreditCard , Settings } from 'lucide-react';
-import { useReactToPrint } from 'react-to-print';
+, Download , Edit, Trash2, ChevronLeft, ChevronRight , Wallet, Package, Wrench, ChevronDown, ChevronUp, CreditCard , Settings, Printer } from 'lucide-react';
 import { useRef } from 'react';
 import { ERPStoreType } from '../store';
 import { Shift, Nozzle } from '../types';
 import ShiftWizard from './ShiftWizard';
+
+function parseOklch(l: number, c: number, h: number, a: number = 1): string {
+  if (c < 0.015) {
+    const val = Math.round(l * 255);
+    return `rgba(${val}, ${val}, ${val}, ${a})`;
+  }
+  let r = 0, g = 0, b = 0;
+  if (h >= 340 || h < 20) {
+    r = 239; g = 68; b = 68;
+  } else if (h >= 20 && h < 50) {
+    r = 249; g = 115; b = 22;
+  } else if (h >= 50 && h < 90) {
+    r = 245; g = 158; b = 11;
+  } else if (h >= 90 && h < 165) {
+    r = 34; g = 197; b = 94;
+  } else if (h >= 165 && h < 200) {
+    r = 20; g = 184; b = 166;
+  } else if (h >= 200 && h < 280) {
+    r = 59; g = 130; b = 246;
+  } else {
+    r = 168; g = 85; b = 247;
+  }
+  if (l > 0.5) {
+    const factor = (l - 0.5) * 2;
+    r = Math.round(r + (255 - r) * factor);
+    g = Math.round(g + (255 - g) * factor);
+    b = Math.round(b + (255 - b) * factor);
+  } else {
+    const factor = l * 2;
+    r = Math.round(r * factor);
+    g = Math.round(g * factor);
+    b = Math.round(b * factor);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function parseOklab(l: number, a: number, b: number, alpha: number = 1): string {
+  const c = Math.sqrt(a * a + b * b);
+  let h = (Math.atan2(b, a) * 180) / Math.PI;
+  if (h < 0) h += 360;
+  return parseOklch(l, c, h, alpha);
+}
+
+function safeParseFloat(val: string, fallback = 0): number {
+  if (!val || val.trim().toLowerCase() === 'none') return 0;
+  const num = parseFloat(val);
+  return isNaN(num) ? fallback : num;
+}
+
+function convertOklchOklabToRgb(val: string): string {
+  let result = val.replace(/oklch\(([^)]+)\)/gi, (_, inner) => {
+    try {
+      const parts = inner.trim().split(/[\s,/]+/);
+      if (parts.length >= 3) {
+        const lVal = parts[0];
+        const cVal = parts[1];
+        const hVal = parts[2];
+        const aVal = parts[3];
+
+        const l = lVal.endsWith('%') ? safeParseFloat(lVal) / 100 : safeParseFloat(lVal);
+        const c = cVal.endsWith('%') ? (safeParseFloat(cVal) / 100) * 0.4 : safeParseFloat(cVal);
+        const h = hVal.endsWith('deg') ? safeParseFloat(hVal.slice(0, -3)) : safeParseFloat(hVal);
+        
+        let alpha = 1;
+        if (aVal) {
+          alpha = aVal.endsWith('%') ? safeParseFloat(aVal) / 100 : safeParseFloat(aVal);
+        }
+        return parseOklch(l, c, h, alpha);
+      }
+    } catch (e) {}
+    return 'rgba(100, 116, 139, 1)';
+  });
+
+  result = result.replace(/oklab\(([^)]+)\)/gi, (_, inner) => {
+    try {
+      const parts = inner.trim().split(/[\s,/]+/);
+      if (parts.length >= 3) {
+        const lVal = parts[0];
+        const aVal = parts[1];
+        const bVal = parts[2];
+        const alphaVal = parts[3];
+
+        const l = lVal.endsWith('%') ? safeParseFloat(lVal) / 100 : safeParseFloat(lVal);
+        const a = aVal.endsWith('%') ? (safeParseFloat(aVal) / 100) * 0.4 : safeParseFloat(aVal);
+        const b = bVal.endsWith('%') ? (safeParseFloat(bVal) / 100) * 0.4 : safeParseFloat(bVal);
+        
+        let alpha = 1;
+        if (alphaVal) {
+          alpha = alphaVal.endsWith('%') ? safeParseFloat(alphaVal) / 100 : safeParseFloat(alphaVal);
+        }
+        return parseOklab(l, a, b, alpha);
+      }
+    } catch (e) {}
+    return 'rgba(100, 116, 139, 1)';
+  });
+
+  return result;
+}
 
 interface ShiftsProps {
   store: ERPStoreType;
@@ -17,17 +114,157 @@ interface ShiftsProps {
 
 const printStyles = `
   @media print {
-    body {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+    body > :not(.print-only-container) {
+      display: none !important;
     }
-    @page { margin: 10mm; }
+    .print-only-container {
+      display: block !important;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100% !important;
+      background: white !important;
+      color: #0f172a !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      background: white !important;
+      color: #0f172a !important;
+    }
+    @page {
+      size: A4;
+      margin: 15mm 12mm 15mm 12mm;
+    }
+    #shift-report-content {
+      overflow: visible !important;
+      height: auto !important;
+      max-height: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .print-avoid-break {
+      break-inside: avoid !important;
+      -webkit-column-break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+  }
+  @media screen {
+    .print-only-container {
+      display: none !important;
+    }
   }
 `;
 
 export default function Shifts({ store }: ShiftsProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const reactToPrintFn = useReactToPrint({ contentRef });
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = () => {
+    const element = contentRef.current;
+    if (!element) return;
+    setIsPrinting(true);
+
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        setIsPrinting(false);
+        alert("Veuillez autoriser les fenêtres contextuelles (pop-ups) pour imprimer le rapport.");
+        return;
+      }
+
+      // Clone the content element
+      const clone = element.cloneNode(true) as HTMLDivElement;
+      clone.style.overflow = 'visible';
+      clone.style.height = 'auto';
+      clone.style.maxHeight = 'none';
+      clone.style.padding = '20px';
+      clone.style.margin = '0 auto';
+      clone.style.backgroundColor = 'white';
+      clone.style.color = '#0f172a';
+
+      // We should also convert OKLCH/OKLAB in the clone's inline styles
+      const allCloneElements = clone.querySelectorAll('*');
+      allCloneElements.forEach((el) => {
+        const styleAttr = el.getAttribute('style');
+        if (styleAttr && (/oklch/i.test(styleAttr) || /oklab/i.test(styleAttr))) {
+          el.setAttribute('style', convertOklchOklabToRgb(styleAttr));
+        }
+      });
+
+      // Grab existing stylesheets and style tags, translating oklch/oklab to rgb
+      let stylesHtml = '';
+      Array.from(window.document.querySelectorAll('link[rel="stylesheet"], style')).forEach((el) => {
+        try {
+          if (el.tagName.toLowerCase() === 'style') {
+            const content = el.textContent || '';
+            stylesHtml += `<style>${convertOklchOklabToRgb(content)}</style>\n`;
+          } else if (el.tagName.toLowerCase() === 'link') {
+            stylesHtml += el.outerHTML + '\n';
+          }
+        } catch (e) {
+          console.warn("Failed to copy stylesheet element", e);
+        }
+      });
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Rapport de Shift - ${selectedDetailShift?.attendantName || 'Report'}</title>
+            ${stylesHtml}
+            <style>
+              @page {
+                size: A4;
+                margin: 10mm !important;
+              }
+              @media print {
+                body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background-color: white !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                body > * {
+                  display: block !important;
+                }
+                .no-print { display: none !important; }
+              }
+              body {
+                background-color: white !important;
+                color: #0f172a !important;
+                margin: 0;
+                padding: 10px;
+                font-family: system-ui, -apple-system, sans-serif;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="print-only-container" style="width: 100%; max-width: 800px; margin: 0 auto;">
+              ${clone.outerHTML}
+            </div>
+            <script>
+              window.addEventListener('load', () => {
+                setTimeout(() => {
+                  window.print();
+                  window.close();
+                }, 800);
+              });
+            </script>
+          </body>
+        </html>
+      `);
+
+      printWindow.document.close();
+      setIsPrinting(false);
+    } catch (err) {
+      console.error("Native printing failed:", err);
+      setIsPrinting(false);
+    }
+  };
+
   const { 
     shifts, attendants, pumps, nozzles, products, startShift, submitShiftCounters, currentRole, cashRegistry 
   } = store;
@@ -101,7 +338,7 @@ export default function Shifts({ store }: ShiftsProps) {
   };
 
   const downloadPDF = () => {
-    reactToPrintFn();
+    handlePrint();
   };
 
 
@@ -291,6 +528,7 @@ export default function Shifts({ store }: ShiftsProps) {
 
   return (
     <div className="space-y-6" id="shifts-view">
+      <style dangerouslySetInnerHTML={{ __html: printStyles }} />
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -958,11 +1196,28 @@ export default function Shifts({ store }: ShiftsProps) {
                 Fermer
               </button>
               <button 
-                onClick={() => reactToPrintFn()}
-                className="px-4 py-2 rounded-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2 text-sm"
+                onClick={handlePrint}
+                disabled={isPrinting}
+                className={`px-4 py-2 rounded-lg font-bold text-white flex items-center gap-2 text-sm transition-colors ${
+                  isPrinting 
+                    ? 'bg-indigo-400 cursor-not-allowed' 
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
               >
-                <Download className="w-4 h-4" />
-                Télécharger PDF
+                {isPrinting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Génération...
+                  </>
+                ) : (
+                  <>
+                    <Printer className="w-4 h-4" />
+                    Imprimer
+                  </>
+                )}
               </button>
             </div>
           </div>
