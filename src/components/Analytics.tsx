@@ -231,28 +231,15 @@ export default function Analytics({ store }: AnalyticsProps) {
       
       // Store the final calculated PUMP
       stockReste[p.id] = { liters: 0, purchase: currentPump, montant: 0, historyPump };
-    });    let totalStockLiters = 0;
+    });
+
+    let totalStockLiters = 0;
     let totalStockMontant = 0;
 
     let targetTimestamp = new Date().getTime(); // Default to now
     let targetDateStr = selectedEndDateObj;
 
     let targetShiftId = selectedShiftId;
-    if (targetShiftId === 'all') {
-       // If 'all' is selected, but a past date is selected, find the last shift of that date to accurately reconstruct stock
-       const allCompletedShifts = [...store.shifts].filter(s => s.status === 'completed' || s.status === 'ready_to_close');
-       allCompletedShifts.sort((a, b) => {
-         if (a.date !== b.date) return a.date.localeCompare(b.date);
-         const tA = a.endTime || a.startTime || '';
-         const tB = b.endTime || b.startTime || '';
-         if (tA !== tB) return tA.localeCompare(tB);
-         return a.id.localeCompare(b.id);
-       });
-       const targetShift = allCompletedShifts.reverse().find(s => s.date <= selectedEndDateObj);
-       if (targetShift && targetShift.date !== new Date().toISOString().split('T')[0]) {
-           targetShiftId = targetShift.id;
-       }
-    }
 
     if (targetShiftId !== 'all') {
        const selectedShift = store.shifts.find(s => s.id === targetShiftId);
@@ -306,14 +293,14 @@ export default function Analytics({ store }: AnalyticsProps) {
              }
            }
            store.supplies.forEach(sup => {
-             if (sup.tankId === tank.id && sup.date > targetShift.date) level -= sup.qtyDelivered;
+             if (sup.tankId === tank.id && sup.date.split('T')[0] > targetShift.date) level -= sup.qtyDelivered;
            });
            if (store.stockCorrections) {
              store.stockCorrections.forEach(corr => {
-               if (corr.tankId === tank.id && corr.date > targetShift.date) level -= (corr.qtyAfter - corr.qtyBefore);
+               if (corr.tankId === tank.id && corr.date.split('T')[0] > targetShift.date) level -= (corr.qtyAfter - corr.qtyBefore);
              });
            }
-        } else if (targetDateStr !== new Date().toISOString().split('T')[0]) {
+        } else if (targetDateStr !== (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0])) {
            // No shift targeted, but a past date is selected.
            // Add back all sales after this date
            const allCompletedShifts = [...store.shifts].filter(s => s.status === 'completed' || s.status === 'ready_to_close');
