@@ -8,6 +8,45 @@ interface ClientsProps {
   store: ERPStoreType;
 }
 
+const formatToDMY = (dateStr: string): string => {
+  if (!dateStr) return 'JJ/MM/AAAA';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+interface DatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  id?: string;
+  size?: 'sm' | 'md';
+}
+
+const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }: DatePickerProps) => {
+  const isSm = size === 'sm';
+  return (
+    <div className="relative w-full">
+      <input 
+        type="date"
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+      />
+      <div className={`w-full border border-slate-200 text-slate-900 rounded flex justify-between items-center pointer-events-none select-none transition-colors
+        ${isSm ? 'bg-slate-50 text-xs p-1 h-[28px]' : 'bg-white text-xs p-1.5 min-h-[34px]'}
+        ${className}`}
+      >
+        <span className="font-medium text-slate-700">{formatToDMY(value)}</span>
+        <Calendar className={`${isSm ? 'w-3 h-3' : 'w-4 h-4'} text-slate-400`} />
+      </div>
+    </div>
+  );
+};
+
 export default function Clients({ store }: ClientsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -434,12 +473,9 @@ export default function Clients({ store }: ClientsProps) {
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="block text-xs font-medium text-slate-700 mb-1">Date</label>
-                              <input
-                                type="date"
-                                required
+                              <DatePickerWrapper 
                                 value={paymentDate}
-                                onChange={e => setPaymentDate(e.target.value)}
-                                className="w-full px-2 py-1.5 text-sm bg-white border border-slate-200 rounded focus:ring-1 focus:ring-indigo-500"
+                                onChange={val => setPaymentDate(val)}
                               />
                             </div>
                             <div>

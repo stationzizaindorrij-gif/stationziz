@@ -14,6 +14,45 @@ interface ShiftWizardProps {
   editingShift?: Shift;
 }
 
+const formatToDMY = (dateStr: string): string => {
+  if (!dateStr) return 'JJ/MM/AAAA';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+interface DatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  id?: string;
+  size?: 'sm' | 'md';
+}
+
+const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }: DatePickerProps) => {
+  const isSm = size === 'sm';
+  return (
+    <div className="relative w-full">
+      <input 
+        type="date"
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+      />
+      <div className={`w-full border border-slate-200 text-slate-900 rounded-xl flex justify-between items-center pointer-events-none select-none transition-colors
+        ${isSm ? 'bg-slate-50 text-xs p-2 h-[38px]' : 'bg-white text-sm p-3 min-h-[46px]'}
+        ${className}`}
+      >
+        <span className="font-medium text-slate-700">{formatToDMY(value)}</span>
+        <Calendar className={`${isSm ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-slate-400`} />
+      </div>
+    </div>
+  );
+};
+
 const PriceInput = ({ value, onChange, label }: { value: number, onChange: (val: number) => void, label: string }) => {
   const [localVal, setLocalVal] = useState(value ? value.toFixed(2) : '');
   
@@ -465,20 +504,16 @@ useEffect(() => {
 
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Date Début</label>
-                  <input 
-                    type="date"
+                  <DatePickerWrapper 
                     value={date}
-                    onChange={e => setDate(e.target.value)}
-                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                    onChange={setDate}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Date Fin</label>
-                  <input 
-                    type="date"
+                  <DatePickerWrapper 
                     value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                    onChange={setEndDate}
                   />
                 </div>
 
@@ -1062,15 +1097,14 @@ useEffect(() => {
                           </div>
                         )}
                           <div className="flex-1 w-full">
-                            <input
-                              type="date"
+                            <DatePickerWrapper 
                               value={(entry as any).date || ''}
-                              onChange={e => {
+                              onChange={val => {
                                 const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
-                                newArr[idx].date = e.target.value;
+                                newArr[idx].date = val;
                                 setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
                               }}
-                              className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                              size="sm"
                             />
                           </div>
                           <button
@@ -1217,15 +1251,14 @@ useEffect(() => {
                           </div>
                         )}
                           <div className="flex-1 w-full">
-                            <input
-                              type="date"
+                            <DatePickerWrapper 
                               value={(entry as any).date || ''}
-                              onChange={e => {
+                              onChange={val => {
                                 const newArr = [...nonCashPayments[method.key as keyof typeof nonCashPayments]] as any[];
-                                newArr[idx].date = e.target.value;
+                                newArr[idx].date = val;
                                 setNonCashPayments({ ...nonCashPayments, [method.key]: newArr });
                               }}
-                              className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded focus:ring-indigo-500 focus:border-indigo-500 block p-2 h-[38px]"
+                              size="sm"
                             />
                           </div>
                           <button

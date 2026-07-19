@@ -8,6 +8,45 @@ import { ERPStoreType } from '../store';
 import { Tank, Product, Nozzle, Pump, Supply, StockCorrection } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
+const formatToDMY = (dateStr: string): string => {
+  if (!dateStr) return 'JJ/MM/AAAA';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+interface DatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  id?: string;
+  size?: 'sm' | 'md';
+}
+
+const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }: DatePickerProps) => {
+  const isSm = size === 'sm';
+  return (
+    <div className="relative w-full">
+      <input 
+        type="date"
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+      />
+      <div className={`w-full border border-slate-200 text-slate-900 rounded-lg flex justify-between items-center pointer-events-none select-none transition-colors
+        ${isSm ? 'bg-slate-50 text-xs p-1.5 h-[34px]' : 'bg-white text-xs p-2.5 h-[38px]'}
+        ${className}`}
+      >
+        <span className="font-medium text-slate-700">{formatToDMY(value)}</span>
+        <Calendar className={`${isSm ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-slate-400`} />
+      </div>
+    </div>
+  );
+};
+
 // Helper function to get fuel properties and colors: Vert -> Gazoil, Bleu -> Sans Plomb, Orange -> Mélange
 const getFuelColor = (productNameOrId: string, customHex?: string) => {
   const pid = (productNameOrId || '').toLowerCase();
@@ -1592,13 +1631,13 @@ export default function Tanks({ store }: TanksProps) {
           <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 flex-1">
               <Search className="w-4 h-4 text-slate-400" />
-              <input 
-                type="date" 
-                value={correctionFilterDate}
-                onChange={(e) => setCorrectionFilterDate(e.target.value)}
-                className="w-full max-w-xs border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-indigo-500"
-                placeholder="Filtrer par date..."
-              />
+              <div className="w-full max-w-xs">
+                <DatePickerWrapper 
+                  value={correctionFilterDate}
+                  onChange={(val) => setCorrectionFilterDate(val)}
+                  size="sm"
+                />
+              </div>
               {correctionFilterDate && (
                 <button onClick={() => setCorrectionFilterDate('')} className="text-slate-400 hover:text-slate-600">
                   <X className="w-4 h-4" />
@@ -1817,11 +1856,9 @@ export default function Tanks({ store }: TanksProps) {
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Date de Livraison</label>
-                <input 
-                  type="date" 
+                <DatePickerWrapper 
                   value={supplyDate}
-                  onChange={(e) => setSupplyDate(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500"
+                  onChange={(val) => setSupplyDate(val)}
                 />
               </div>
 
@@ -1900,12 +1937,9 @@ export default function Tanks({ store }: TanksProps) {
               })()}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Date du jaugeage</label>
-                <input 
-                  type="date" 
-                  required
+                <DatePickerWrapper 
                   value={corrDate}
-                  onChange={(e) => setCorrDate(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-sm font-mono focus:outline-none focus:border-indigo-500 bg-white"
+                  onChange={(val) => setCorrDate(val)}
                 />
               </div>
 

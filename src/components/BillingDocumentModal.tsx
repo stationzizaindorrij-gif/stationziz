@@ -3,7 +3,7 @@ import { DocumentType, DocumentItem, DocumentSettings, MixedPaymentRow, RichDocu
 import { numberToWordsFR } from '../lib/numberToWords';
 import { 
   X, Plus, Trash2, ShieldAlert, DollarSign, 
-  Layers, PlusCircle, CheckCircle, HelpCircle, FileText, UserPlus
+  Layers, PlusCircle, CheckCircle, HelpCircle, FileText, UserPlus, Calendar
 } from 'lucide-react';
 
 interface BillingDocumentModalProps {
@@ -18,6 +18,45 @@ interface BillingDocumentModalProps {
   shopProducts: any[];
   defaultDocType?: DocumentType;
 }
+
+const formatToDMY = (dateStr: string): string => {
+  if (!dateStr) return 'JJ/MM/AAAA';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+interface DatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  id?: string;
+  size?: 'sm' | 'md';
+}
+
+const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }: DatePickerProps) => {
+  const isSm = size === 'sm';
+  return (
+    <div className="relative w-full">
+      <input 
+        type="date"
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+      />
+      <div className={`w-full border border-slate-200 text-slate-900 rounded-lg flex justify-between items-center pointer-events-none select-none transition-colors
+        ${isSm ? 'bg-slate-50 text-xs p-2 h-[38px]' : 'bg-white text-xs p-2 h-[38px]'}
+        ${className}`}
+      >
+        <span className="font-medium text-slate-700">{formatToDMY(value)}</span>
+        <Calendar className={`${isSm ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-slate-400`} />
+      </div>
+    </div>
+  );
+};
 
 export function BillingDocumentModal({
   isOpen,
@@ -332,22 +371,17 @@ export function BillingDocumentModal({
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Date d'Émission</label>
-                <input
-                  type="date"
+                <DatePickerWrapper 
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-xs bg-white focus:outline-none"
-                  required
+                  onChange={(val) => setDate(val)}
                 />
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Date d'Échéance</label>
-                <input
-                  type="date"
+                <DatePickerWrapper 
                   value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-xs bg-white focus:outline-none"
+                  onChange={(val) => setDueDate(val)}
                 />
               </div>
             </div>

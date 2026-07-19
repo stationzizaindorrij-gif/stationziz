@@ -158,6 +158,45 @@ const printStyles = `
   }
 `;
 
+const formatToDMY = (dateStr: string): string => {
+  if (!dateStr) return 'JJ/MM/AAAA';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+interface DatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  id?: string;
+  size?: 'sm' | 'md';
+}
+
+const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }: DatePickerProps) => {
+  const isSm = size === 'sm';
+  return (
+    <div className="relative w-full">
+      <input 
+        type="date"
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+      />
+      <div className={`w-full border border-slate-200 text-slate-900 rounded flex justify-between items-center pointer-events-none select-none transition-colors
+        ${isSm ? 'bg-slate-50 text-xs p-1 h-[28px]' : 'bg-white text-sm p-3 min-h-[46px]'}
+        ${className}`}
+      >
+        <span className="font-medium text-slate-700">{formatToDMY(value)}</span>
+        <Calendar className={`${isSm ? 'w-3 h-3' : 'w-4 h-4'} text-slate-400`} />
+      </div>
+    </div>
+  );
+};
+
 export default function Shifts({ store }: ShiftsProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -612,21 +651,21 @@ export default function Shifts({ store }: ShiftsProps) {
               
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500">Du:</span>
-                  <input 
-                    type="date" 
+                  <span className="text-xs text-slate-500 shrink-0">Du:</span>
+                  <DatePickerWrapper 
                     value={filterStartDate} 
-                    onChange={(e) => { setFilterStartDate(e.target.value); setCurrentPage(1); }} 
-                    className="text-xs border-slate-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1"
+                    onChange={(val) => { setFilterStartDate(val); setCurrentPage(1); }} 
+                    size="sm"
+                    className="w-28"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500">Au:</span>
-                  <input 
-                    type="date" 
+                  <span className="text-xs text-slate-500 shrink-0">Au:</span>
+                  <DatePickerWrapper 
                     value={filterEndDate} 
-                    onChange={(e) => { setFilterEndDate(e.target.value); setCurrentPage(1); }} 
-                    className="text-xs border-slate-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1"
+                    onChange={(val) => { setFilterEndDate(val); setCurrentPage(1); }} 
+                    size="sm"
+                    className="w-28"
                   />
                 </div>
                 {(filterStartDate || filterEndDate) && (
