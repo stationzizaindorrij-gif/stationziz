@@ -465,7 +465,20 @@ export default function Tanks({ store }: TanksProps) {
                 ? [...tankSupplies].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] 
                 : null;
               const lastSupplyDate = lastSupply ? new Date(lastSupply.date).toLocaleDateString('fr-FR') : 'Aucune';
-              const lastSupplyQty = lastSupply ? lastSupply.qtyDelivered : 0;
+              
+              let lastSupplyQty = 0;
+              if (lastSupply) {
+                const targetDayStr = new Date(lastSupply.date).toISOString().split('T')[0];
+                const sameDaySupplies = tankSupplies.filter(s => {
+                  try {
+                    const sDayStr = new Date(s.date).toISOString().split('T')[0];
+                    return sDayStr === targetDayStr;
+                  } catch (e) {
+                    return false;
+                  }
+                });
+                lastSupplyQty = sameDaySupplies.reduce((sum, s) => sum + s.qtyDelivered, 0);
+              }
 
               // Calculate today and this month consumption (sales via shifts)
               const tankNozzleIds = tankNozzles.map(n => n.id);
@@ -1150,6 +1163,20 @@ export default function Tanks({ store }: TanksProps) {
                       const lastSup = tSupplies.length > 0 
                         ? [...tSupplies].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] 
                         : null;
+                      
+                      let lastSupQty = 0;
+                      if (lastSup) {
+                        const targetDayStr = new Date(lastSup.date).toISOString().split('T')[0];
+                        const sameDaySupplies = tSupplies.filter(s => {
+                          try {
+                            const sDayStr = new Date(s.date).toISOString().split('T')[0];
+                            return sDayStr === targetDayStr;
+                          } catch (e) {
+                            return false;
+                          }
+                        });
+                        lastSupQty = sameDaySupplies.reduce((sum, s) => sum + s.qtyDelivered, 0);
+                      }
 
                       // Sales consumption via shifts
                       const todayStr = (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
@@ -1289,7 +1316,7 @@ export default function Tanks({ store }: TanksProps) {
                               <div>
                                 <strong>Quantité de la dernière livraison : </strong>
                                 <span className="text-slate-800 font-bold font-mono">
-                                  {lastSup ? `${lastSup.qtyDelivered} L` : '0 L'}
+                                  {lastSup ? `${lastSupQty} L` : '0 L'}
                                 </span>
                               </div>
                             </div>
