@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { 
   Fuel, Plus, History, RotateCcw, AlertTriangle, CheckCircle, ArrowUpRight, 
-  Settings, ClipboardList, Info, ArrowDown, Calendar, Search, Trash2, Sliders, X, Droplet, MoreVertical, Edit, FileText, BarChart2, CheckCircle2, XCircle, Power, Activity 
+  Settings, ClipboardList, Info, ArrowDown, Calendar, Search, Trash2, Sliders, X, Droplet, MoreVertical, Edit, FileText, BarChart2, CheckCircle2, XCircle, Power, Activity,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { Tank, Product, Nozzle, Pump, Supply, StockCorrection } from '../types';
@@ -152,7 +153,7 @@ export default function Tanks({ store }: TanksProps) {
   };
 
   const { 
-    tanks, products, supplies, stockCorrections, addSupply, correctTankLevel, deleteStockCorrection, updateStockCorrection, currentRole,
+    tanks, products, supplies, stockCorrections, addSupply, correctTankLevel, deleteStockCorrection, deleteStockCorrectionsBulk, updateStockCorrection, currentRole,
     nozzles = [], pumps = [], sales = [], shifts = []
   } = store;
 
@@ -230,6 +231,13 @@ export default function Tanks({ store }: TanksProps) {
   const [corrReason, setCorrReason] = useState('');
   const [corrDate, setCorrDate] = useState((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
   const [correctionFilterDate, setCorrectionFilterDate] = useState('');
+  const [expandedGroupIds, setExpandedGroupIds] = useState<string[]>([]);
+
+  const toggleGroupExpanded = (groupId: string) => {
+    setExpandedGroupIds(prev => 
+      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
+    );
+  };
 
   const hasWriteAccess = currentRole === 'admin' || currentRole === 'manager';
 
@@ -1667,55 +1675,270 @@ export default function Tanks({ store }: TanksProps) {
                   <th className="p-3">Quantité Avant</th>
                   <th className="p-3">Quantité Corrigée</th>
                   <th className="p-3">Écart d'Ajustement</th>
-                                    <th className="p-3">Date</th>
-                  {hasWriteAccess && <th className="p-3">Actions</th>}
+                  <th className="p-3">Date</th>
+                  <th className="p-3 text-right w-36">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {stockCorrections.map(corr => {
-                  const diff = parseFloat((corr.qtyAfter - corr.qtyBefore).toFixed(2));
-                  return (
-                    <tr key={corr.id} className="hover:bg-[#f8fafc99] transition-colors">
-                      <td className="p-3 text-slate-400">#{corr.id.split('_')[1] || corr.id}</td>
-                      <td className="p-3 font-sans text-slate-800">{corr.tankNumber}</td>
-                      <td className="p-3 text-slate-500">{Number(corr.qtyBefore).toFixed(2)} L</td>
-                      <td className="p-3 font-bold text-slate-800">{Number(corr.qtyAfter).toFixed(2)} L</td>
-                      <td className="p-3">
-                        <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${diff < 0 ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                          {diff > 0 ? '+' : ''}{diff.toFixed(2)} L
-                        </span>
-                      </td>
-                                            <td className="p-3 font-sans text-slate-500">{new Date(corr.date).toLocaleDateString('fr-FR')}</td>
-                      {hasWriteAccess && (
-                        <td className="p-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                {(() => {
+                  const filteredCorrections = stockCorrections.filter(corr => {
+                    if (!correctionFilterDate) return true;
+                    return corr.date === correctionFilterDate;
+                  });
+
+                  // Grouping corrections
+                  interface GroupedCorrection {
+                    id: string;
+                    isShift: boolean;
+                    shiftId?: string;
+                    shiftName?: string;
+                    attendantName?: string;
+                    date: string;
+                    user: string;
+                    items: typeof stockCorrections;
+                  }
+
+                  const groupedList: GroupedCorrection[] = [];
+
+                  filteredCorrections.forEach(corr => {
+                    const isShift = corr.id.startsWith('corr_shift_');
+                    if (isShift) {
+                      const withoutPrefix = corr.id.substring('corr_shift_'.length);
+                      const shift = shifts.find(s => withoutPrefix.startsWith(s.id + '_'));
+                      const shiftId = shift ? shift.id : (withoutPrefix.split('_')[0] || 'unknown');
+
+                      let group = groupedList.find(g => g.isShift && g.shiftId === shiftId);
+                      if (!group) {
+                        const matchingShift = shifts.find(s => s.id === shiftId);
+                        group = {
+                          id: `shift_${shiftId}`,
+                          isShift: true,
+                          shiftId,
+                          shiftName: matchingShift ? matchingShift.shiftName : undefined,
+                          attendantName: matchingShift ? matchingShift.attendantName : undefined,
+                          date: corr.date,
+                          user: corr.user,
+                          items: []
+                        };
+                        groupedList.push(group);
+                      }
+                      group.items.push(corr);
+                    } else {
+                      groupedList.push({
+                        id: `single_${corr.id}`,
+                        isShift: false,
+                        date: corr.date,
+                        user: corr.user,
+                        items: [corr]
+                      });
+                    }
+                  });
+
+                  if (groupedList.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={7} className="p-6 text-center text-slate-400 italic font-sans">
+                          Aucune correction manuelle effectuée.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return groupedList.flatMap(group => {
+                    const isExpanded = expandedGroupIds.includes(group.id);
+                    const totalBefore = group.items.reduce((sum, item) => sum + item.qtyBefore, 0);
+                    const totalAfter = group.items.reduce((sum, item) => sum + item.qtyAfter, 0);
+                    const totalDiff = parseFloat((totalAfter - totalBefore).toFixed(2));
+                    const tankNumbers = group.items.map(item => item.tankNumber.replace(/CITERNE\s*/i, '')).join(', ');
+
+                    const parentRow = (
+                      <tr 
+                        key={group.id} 
+                        onClick={() => toggleGroupExpanded(group.id)}
+                        className="hover:bg-indigo-50/25 bg-slate-50/40 transition-colors cursor-pointer border-b border-slate-100"
+                      >
+                        {/* ID Log */}
+                        <td className="p-3">
+                          {group.isShift ? (
+                            <div className="space-y-1 font-sans">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                <ClipboardList className="w-3 h-3 text-indigo-500" />
+                                Shift {group.shiftName || 'Clôturé'}
+                              </span>
+                              {group.attendantName && (
+                                <div className="text-[10px] text-slate-600 font-semibold">{group.attendantName}</div>
+                              )}
+                              <div className="text-[9px] text-slate-400 font-mono">#{group.shiftId?.substring(0, 8)}</div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1 font-sans">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                <Sliders className="w-3 h-3 text-slate-500" />
+                                Manuel
+                              </span>
+                              {group.user && (
+                                <div className="text-[10px] text-slate-600 font-semibold">{group.user}</div>
+                              )}
+                              <div className="text-[9px] text-slate-400 font-mono">#{group.id}</div>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Cuve Summary */}
+                        <td className="p-3 font-sans">
+                          <div className="font-extrabold text-slate-800 text-xs">
+                            {group.items.length} Cuves Jaugées
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate max-w-[150px] font-semibold" title={tankNumbers}>
+                            {tankNumbers}
+                          </div>
+                        </td>
+
+                        {/* Total Avant */}
+                        <td className="p-3 font-mono text-slate-400 text-[11px]">
+                          {totalBefore.toFixed(2)} L
+                        </td>
+
+                        {/* Total Après */}
+                        <td className="p-3 font-mono font-bold text-slate-500 text-[11px]">
+                          {totalAfter.toFixed(2)} L
+                        </td>
+
+                        {/* Cumulated gap badge */}
+                        <td className="p-3">
+                          <div className="space-y-0.5 font-sans">
+                            <span className={`font-black px-1.5 py-0.5 rounded text-[10px] inline-block font-mono ${totalDiff < 0 ? 'bg-rose-50 text-rose-700 border border-rose-100' : totalDiff === 0 ? 'bg-slate-50 text-slate-500 border border-slate-150' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+                              {totalDiff > 0 ? '+' : ''}{totalDiff.toFixed(2)} L
+                            </span>
+                            <div className="text-[8px] text-slate-400">Total de l'écart</div>
+                          </div>
+                        </td>
+
+                        {/* Date */}
+                        <td className="p-3 font-sans text-slate-500">
+                          {new Date(group.date).toLocaleDateString('fr-FR')}
+                        </td>
+
+                        {/* Actions to expand/collapse */}
+                        <td className="p-3 text-right font-sans w-36">
+                          <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                            {hasWriteAccess && (
+                              <button
+                                onClick={() => {
+                                  setConfirmModalConfig({
+                                    isOpen: true,
+                                    title: 'Supprimer tout le jaugeage du shift',
+                                    message: `Voulez-vous vraiment supprimer les corrections de jaugeage pour TOUTES les cuves enregistrées lors de ce shift ? (${group.items.length} cuves)`,
+                                    onConfirm: () => {
+                                      const ids = group.items.map(item => item.id);
+                                      deleteStockCorrectionsBulk(ids, 'Administrateur');
+                                    }
+                                  });
+                                }}
+                                className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded transition-colors flex items-center gap-1 text-[10px] font-bold"
+                                title="Supprimer tout le groupe"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span className="hidden sm:inline">Tout suppr.</span>
+                              </button>
+                            )}
                             <button
-                              onClick={() => handleOpenCorrectionForm(undefined, corr)}
-                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                              title="Modifier la correction"
+                              onClick={() => toggleGroupExpanded(group.id)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-all flex items-center gap-1"
+                              title={isExpanded ? "Réduire" : "Développer"}
                             >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setCorrectionToDelete(corr.id)}
-                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                              title="Supprimer la correction"
-                            >
-                              <Trash2 className="w-4 h-4" />
+                              <span className="text-[10px] text-slate-400 font-semibold">{isExpanded ? 'Réduire' : 'Détails'}</span>
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-indigo-600" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-slate-500" />
+                              )}
                             </button>
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  );
-                })}
-                {stockCorrections.length === 0 && (
-                  <tr>
-                    <td colSpan={hasWriteAccess ? 8 : 7} className="p-6 text-center text-slate-400 italic font-sans">
-                      Aucune correction manuelle effectuée.
-                    </td>
-                  </tr>
-                )}
+                      </tr>
+                    );
+
+                    const childRows = isExpanded ? group.items.map(item => {
+                      const diff = parseFloat((item.qtyAfter - item.qtyBefore).toFixed(2));
+                      return (
+                        <tr 
+                          key={`detail_${item.id}`} 
+                          className="bg-[#f8fafc] hover:bg-indigo-50/10 transition-colors border-b border-slate-100/60"
+                        >
+                          {/* ID Indent */}
+                          <td className="p-3 pl-6">
+                            <div className="flex items-center gap-1.5 font-sans text-slate-400">
+                              <span className="text-slate-300 font-bold select-none">└─</span>
+                              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Détail</span>
+                            </div>
+                          </td>
+
+                          {/* Specific Tank */}
+                          <td className="p-3 font-sans text-slate-800 font-extrabold">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                              {item.tankNumber}
+                            </div>
+                          </td>
+
+                          {/* Specific Avant */}
+                          <td className="p-3 text-slate-500 font-mono">
+                            {Number(item.qtyBefore).toFixed(2)} L
+                          </td>
+
+                          {/* Specific Corrigé */}
+                          <td className="p-3 font-bold text-slate-800 font-mono">
+                            {Number(item.qtyAfter).toFixed(2)} L
+                          </td>
+
+                          {/* Specific Diff */}
+                          <td className="p-3">
+                            <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] inline-block font-mono ${diff < 0 ? 'bg-rose-50 text-rose-700 border border-rose-100' : diff === 0 ? 'bg-slate-50 text-slate-500 border border-slate-150' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+                              {diff > 0 ? '+' : ''}{diff.toFixed(2)} L
+                            </span>
+                          </td>
+
+                          {/* Comment / Reason */}
+                          <td className="p-3 text-slate-400 font-sans text-[10px] max-w-[150px] truncate" title={item.reason}>
+                            {item.reason || "Jaugeage du shift"}
+                          </td>
+
+                          {/* Specific Actions */}
+                          <td className="p-3 text-right w-36">
+                            {hasWriteAccess && (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const origCorr = stockCorrections.find(c => c.id === item.id);
+                                    if (origCorr) handleOpenCorrectionForm(undefined, origCorr);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                  title="Modifier cette cuve"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCorrectionToDelete(item.id);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                                  title="Supprimer cette correction"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    }) : [];
+
+                    return [parentRow, ...childRows];
+                  });
+                })()}
               </tbody>
             </table>
           </div>

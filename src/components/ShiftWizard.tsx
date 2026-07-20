@@ -98,20 +98,23 @@ const PriceInput = ({ value, onChange, label }: { value: number, onChange: (val:
 };
 
 export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizardProps) {
-  const draftStr = !editingShift ? localStorage.getItem('erp_shift_draft') : null;
+  const draftKey = editingShift 
+    ? `erp_shift_edit_draft_${editingShift.id}` 
+    : 'erp_shift_draft';
+  const draftStr = localStorage.getItem(draftKey);
   const draft = draftStr ? JSON.parse(draftStr) : null;
 
   const [currentStep, setCurrentStep] = useState(draft?.currentStep || 1);
   const [isCompleted, setIsCompleted] = useState(false);
 
   // Step 1: Info
-  const [date, setDate] = useState(editingShift?.date || draft?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
-  const [endDate, setEndDate] = useState(editingShift?.endDate || draft?.endDate || editingShift?.date || draft?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
-  const [attendantId, setAttendantId] = useState(editingShift?.attendantId || draft?.attendantId || '');
-  const [shiftName, setShiftName] = useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>(editingShift?.shiftName || draft?.shiftName || 'Journée');
-  const [startTime, setStartTime] = useState(editingShift?.startTime || draft?.startTime || '06:00');
-  const [endTime, setEndTime] = useState(editingShift?.endTime || draft?.endTime || '14:00');
-  const [selectedPumps, setSelectedPumps] = useState<string[]>(editingShift?.pumpIds || draft?.selectedPumps || []);
+  const [date, setDate] = useState(draft?.date || editingShift?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
+  const [endDate, setEndDate] = useState(draft?.endDate || editingShift?.endDate || draft?.date || editingShift?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
+  const [attendantId, setAttendantId] = useState(draft?.attendantId || editingShift?.attendantId || '');
+  const [shiftName, setShiftName] = useState<'Journée' | 'Matin' | 'Après-midi' | 'Nuit'>(draft?.shiftName || editingShift?.shiftName || 'Journée');
+  const [startTime, setStartTime] = useState(draft?.startTime || editingShift?.startTime || '06:00');
+  const [endTime, setEndTime] = useState(draft?.endTime || editingShift?.endTime || '14:00');
+  const [selectedPumps, setSelectedPumps] = useState<string[]>(draft?.selectedPumps || editingShift?.pumpIds || []);
   const [draggedPumpId, setDraggedPumpId] = useState<string | null>(null);
 
   const orderedSelectedPumps = useMemo(() => {
@@ -145,13 +148,13 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
 
 
   // Step 2: Counters
-  const [startCounters, setStartCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>(editingShift?.startCounters || draft?.startCounters || {});
-  const [endCounters, setEndCounters] = useState<{ [nozzleId: string]: { mech: number | ''; elec: number | '' } }>(editingShift?.endCounters || draft?.endCounters || {});
+  const [startCounters, setStartCounters] = useState<{ [nozzleId: string]: { mech: number; elec: number } }>(draft?.startCounters || editingShift?.startCounters || {});
+  const [endCounters, setEndCounters] = useState<{ [nozzleId: string]: { mech: number | ''; elec: number | '' } }>(draft?.endCounters || editingShift?.endCounters || {});
 
   // Step 3-6: Sales, Expenses, Payments
-  const [productSales, setProductSales] = useState<any[]>(editingShift?.productsSold || draft?.productSales || []);
-  const [serviceSales, setServiceSales] = useState<any[]>(editingShift?.servicesSold || draft?.serviceSales || []);
-  const [expenses, setExpenses] = useState<any[]>(editingShift?.expenses || draft?.expenses || []);
+  const [productSales, setProductSales] = useState<any[]>(draft?.productSales || editingShift?.productsSold || []);
+  const [serviceSales, setServiceSales] = useState<any[]>(draft?.serviceSales || editingShift?.servicesSold || []);
+  const [expenses, setExpenses] = useState<any[]>(draft?.expenses || editingShift?.expenses || []);
   const [nonCashPayments, setNonCashPayments] = useState<any>(draft?.nonCashPayments || {
     carteSntl: editingShift?.nonCashPayments?.carteSntl || [],
     espece: editingShift?.nonCashPayments?.espece || [],
@@ -159,7 +162,28 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
     vignette: editingShift?.nonCashPayments?.vignette || [],
     bonClient: editingShift?.nonCashPayments?.bonClient || []
   });
-  const [realCashInput, setRealCashInput] = useState(editingShift?.realCashReceived?.toString() || draft?.realCashInput || '');
+  const [realCashInput, setRealCashInput] = useState(draft?.realCashInput || editingShift?.realCashReceived?.toString() || '');
+
+  const [gaugeCorrections, setGaugeCorrections] = useState<{ [tankId: string]: { measuredLevel: number | '', reason: string } }>(() => {
+    if (draft?.gaugeCorrections) {
+      return draft.gaugeCorrections;
+    }
+    if (editingShift?.gaugeCorrections) {
+      const initial: { [tankId: string]: { measuredLevel: number | '', reason: string } } = {};
+      editingShift.gaugeCorrections.forEach(gc => {
+        if (editingShift.status === 'completed' || editingShift.status === 'ready_to_close') {
+          const exists = store.stockCorrections.some(c => c.id === `corr_shift_${editingShift.id}_${gc.tankId}`);
+          if (exists) {
+            initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
+          }
+        } else {
+          initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
+        }
+      });
+      return initial;
+    }
+    return {};
+  });
 
   const [localPrices, setLocalPrices] = useState<{ [id: string]: { purchase: number, sale: number } }>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -209,13 +233,13 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   };
 
 useEffect(() => {
-    if (!editingShift && !isCompleted) {
-        localStorage.setItem('erp_shift_draft', JSON.stringify({
+    if (!isCompleted) {
+        localStorage.setItem(draftKey, JSON.stringify({
            currentStep, date, endDate, attendantId, shiftName, startTime, endTime,
-           selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, localPrices
+           selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, localPrices, gaugeCorrections
         }));
     }
-  }, [currentStep, date, endDate, attendantId, shiftName, startTime, endTime, selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, localPrices, editingShift, isCompleted]);
+  }, [draftKey, currentStep, date, endDate, attendantId, shiftName, startTime, endTime, selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, localPrices, gaugeCorrections, isCompleted]);
 
 useEffect(() => {
     setStartCounters(prevStart => {
@@ -298,6 +322,62 @@ useEffect(() => {
     return { details, totalFuelAmount, totalFuelLiters, litersSold, amountSold };
   }, [orderedSelectedPumps, startCounters, endCounters, store.nozzles, store.products, localPrices]);
 
+  const shiftLitersSoldByTank = useMemo(() => {
+    const sold: { [tankId: string]: number } = {};
+    store.nozzles.forEach(noz => {
+      const qty = fuelSalesDetails.litersSold[noz.id] || 0;
+      if (qty > 0) {
+        sold[noz.tankId] = (sold[noz.tankId] || 0) + qty;
+      }
+    });
+    return sold;
+  }, [store.nozzles, fuelSalesDetails.litersSold]);
+
+  const getExpectedLevelForTank = (tankId: string) => {
+    const tank = store.tanks.find(t => t.id === tankId);
+    if (!tank) return 0;
+
+    const sold = shiftLitersSoldByTank[tank.id] || 0;
+
+    if (editingShift?.status === 'completed') {
+      let level = tank.currentLevel;
+      const allCompletedShifts = [...store.shifts].filter(s => s.status === 'completed');
+      
+      allCompletedShifts.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        const tA = a.endTime || a.startTime || '';
+        const tB = b.endTime || b.startTime || '';
+        if (tA !== tB) return tA.localeCompare(tB);
+        return a.id.localeCompare(b.id);
+      });
+
+      const targetIndex = allCompletedShifts.findIndex(s => s.id === editingShift.id);
+      if (targetIndex !== -1) {
+        for (let i = targetIndex + 1; i < allCompletedShifts.length; i++) {
+          const s = allCompletedShifts[i];
+          if (s.litersSold) {
+            Object.entries(s.litersSold).forEach(([nozId, qty]) => {
+              const noz = store.nozzles.find(n => n.id === nozId);
+              if (noz && noz.tankId === tankId && typeof qty === 'number') {
+                level += qty;
+              }
+            });
+          }
+        }
+      }
+
+      store.supplies.forEach(sup => {
+        if (sup.tankId === tankId && sup.date.split('T')[0] > editingShift.date) {
+          level -= sup.qtyDelivered;
+        }
+      });
+
+      return Math.max(0, level);
+    } else {
+      return Math.max(0, tank.currentLevel - sold);
+    }
+  };
+
 
 // Auto-fill start counters based on previous shifts when pumps are selected
   useEffect(() => {
@@ -360,6 +440,33 @@ useEffect(() => {
   const handleSaveShift = () => {
     const attendant = store.attendants.find(a => a.id === attendantId);
     if (!attendant) return;
+
+    const gcs: any[] = [];
+    store.tanks.forEach(tank => {
+      const expectedLevel = getExpectedLevelForTank(tank.id);
+      const gcInput = gaugeCorrections[tank.id];
+      
+      let qtyAfter = expectedLevel;
+      let reason = gcInput?.reason || `Jaugeage Shift ${shiftName} - ${attendant.firstName} ${attendant.lastName}`;
+      
+      if (gcInput && gcInput.measuredLevel !== '' && gcInput.measuredLevel !== undefined) {
+        const parsed = parseFloat(gcInput.measuredLevel as any);
+        if (!isNaN(parsed)) {
+          qtyAfter = parsed;
+        }
+      }
+
+      const qtyBefore = expectedLevel;
+
+      gcs.push({
+        tankId: tank.id,
+        tankNumber: tank.number,
+        qtyBefore: Number(qtyBefore.toFixed(2)),
+        qtyAfter: Number(qtyAfter.toFixed(2)),
+        discrepancy: Number((qtyAfter - qtyBefore).toFixed(2)),
+        reason
+      });
+    });
     
     const shiftData = {
       date,
@@ -384,7 +491,8 @@ useEffect(() => {
       amountSold: fuelSalesDetails.amountSold,
       totalLiters: fuelSalesDetails.totalFuelLiters,
       totalAmount: fuelSalesDetails.totalFuelAmount,
-      fuelPrices: localPrices
+      fuelPrices: localPrices,
+      gaugeCorrections: gcs
     };
 
     if (nonCashPayments && nonCashPayments.bonClient && nonCashPayments.bonClient.length > 0) {
@@ -425,7 +533,7 @@ useEffect(() => {
       store.addCompletedShift(shiftData as any, store.currentRole);
     }
     
-    localStorage.removeItem('erp_shift_draft');
+    localStorage.removeItem(draftKey);
     setIsCompleted(true);
   };
 
@@ -437,7 +545,8 @@ useEffect(() => {
     { id: 5, title: 'Dépenses', icon: Receipt },
     { id: 6, title: 'Encaissements Non Espèce', icon: CreditCard },
     { id: 7, title: 'Encaissements Espèce', icon: Banknote },
-    { id: 8, title: 'Validation', icon: CheckCircle2 }
+    { id: 8, title: 'Jaugeage des Cuves', icon: Database },
+    { id: 9, title: 'Validation', icon: CheckCircle2 }
   ];
 
   if (isCompleted) {
@@ -1325,8 +1434,122 @@ useEffect(() => {
             </div>
           )}
 
-          {/* STEP 8: Validation */}
+          {/* STEP 8: Jaugeage des Cuves */}
           {currentStep === 8 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                      <Database className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800 font-display tracking-tight">Jaugeage Manuel des Cuves</h3>
+                      <p className="text-xs text-slate-500">Enregistrez les niveaux physiques mesurés à la jauge/pige en fin de shift</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
+                  <table className="w-full min-w-[850px] border-collapse text-left bg-white">
+                    <thead>
+                      <tr className="bg-slate-50/75 border-b border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider">
+                        <th className="py-3.5 px-4 font-display">Cuve / Produit</th>
+                        <th className="py-3.5 px-4 font-display">Capacité & Ventes</th>
+                        <th className="py-3.5 px-4 text-right font-display">Volume Attendu</th>
+                        <th className="py-3.5 px-4 w-44 font-display">Jauge Physique (L)</th>
+                        <th className="py-3.5 px-4 text-right font-display">Écart Constaté</th>
+                        <th className="py-3.5 px-4 w-60 font-display">Raison / Commentaire</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 text-sm">
+                      {store.tanks.map(tank => {
+                        const expectedLevel = getExpectedLevelForTank(tank.id);
+                        const sold = shiftLitersSoldByTank[tank.id] || 0;
+                        const gc = gaugeCorrections[tank.id] || { measuredLevel: '', reason: '' };
+                        
+                        const measured = gc.measuredLevel !== '' && gc.measuredLevel !== undefined 
+                          ? gc.measuredLevel 
+                          : Number(expectedLevel.toFixed(2));
+                          
+                        const parsedMeasured = parseFloat(measured as any);
+                        const diff = !isNaN(parsedMeasured) ? parsedMeasured - expectedLevel : null;
+                        const product = store.products.find(p => p.id === tank.productId);
+
+                        return (
+                          <tr key={tank.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-4 px-4">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-bold text-slate-800 text-sm">Cuve {tank.number}</span>
+                                {product && (
+                                  <span className="self-start text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                    {product.name}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-xs text-slate-500">
+                              <div className="space-y-1">
+                                <div>Capacité: <strong className="font-semibold text-slate-700">{tank.capacity.toLocaleString()} L</strong></div>
+                                <div>Vendu ce shift: <strong className="font-semibold text-indigo-600">{sold.toLocaleString()} L</strong></div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-right font-mono font-extrabold text-indigo-600 text-sm">
+                              {expectedLevel.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L
+                            </td>
+                            <td className="py-4 px-4">
+                              <input
+                                type="number"
+                                placeholder="Ex: 5200"
+                                value={measured}
+                                onChange={e => {
+                                  const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                  setGaugeCorrections({
+                                    ...gaugeCorrections,
+                                    [tank.id]: { ...gc, measuredLevel: val }
+                                  });
+                                }}
+                                className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono font-bold text-slate-800"
+                              />
+                            </td>
+                            <td className="py-4 px-4 text-right font-mono font-bold">
+                              {diff !== null && (
+                                <div className="space-y-0.5">
+                                  <span className={`inline-block px-2 py-0.5 text-xs rounded-md font-bold ${diff < 0 ? 'bg-rose-50 text-rose-600 border border-rose-100' : diff > 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
+                                    {diff === 0 ? '0 L' : `${diff > 0 ? '+' : ''}${diff.toFixed(2)} L`}
+                                  </span>
+                                  <div className="text-[10px] text-slate-400 font-normal mt-0.5">
+                                    {diff === 0 ? 'Conforme' : diff < 0 ? 'Perte / Manquant' : 'Gain / Excédent'}
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-4 px-4">
+                              <input
+                                type="text"
+                                placeholder="Raison de l'écart..."
+                                value={gc.reason}
+                                onChange={e => {
+                                  setGaugeCorrections({
+                                    ...gaugeCorrections,
+                                    [tank.id]: { ...gc, reason: e.target.value }
+                                  });
+                                }}
+                                className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 9: Validation */}
+          {currentStep === 9 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-6">
                 <div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-2">
@@ -1343,6 +1566,33 @@ useEffect(() => {
                   const attendant = store.attendants.find(a => a.id === attendantId);
                   const attendantName = attendant ? `${attendant.firstName} ${attendant.lastName}` : "";
                   
+                  const gcs: any[] = [];
+                  store.tanks.forEach(tank => {
+                    const expectedLevel = getExpectedLevelForTank(tank.id);
+                    const gcInput = gaugeCorrections[tank.id];
+                    
+                    let qtyAfter = expectedLevel;
+                    let reason = gcInput?.reason || `Jaugeage Shift ${shiftName} - ${attendantName}`;
+                    
+                    if (gcInput && gcInput.measuredLevel !== '' && gcInput.measuredLevel !== undefined) {
+                      const parsed = parseFloat(gcInput.measuredLevel as any);
+                      if (!isNaN(parsed)) {
+                        qtyAfter = parsed;
+                      }
+                    }
+
+                    const qtyBefore = expectedLevel;
+
+                    gcs.push({
+                      tankId: tank.id,
+                      tankNumber: tank.number,
+                      qtyBefore: Number(qtyBefore.toFixed(2)),
+                      qtyAfter: Number(qtyAfter.toFixed(2)),
+                      discrepancy: Number((qtyAfter - qtyBefore).toFixed(2)),
+                      reason
+                    });
+                  });
+
                   const previewShift = {
                     date,
                     endDate,
@@ -1364,7 +1614,8 @@ useEffect(() => {
                     litersSold: fuelSalesDetails.litersSold,
                     amountSold: fuelSalesDetails.amountSold,
                     totalLiters: fuelSalesDetails.totalFuelLiters,
-                    totalAmount: fuelSalesDetails.totalFuelAmount
+                    totalAmount: fuelSalesDetails.totalFuelAmount,
+                    gaugeCorrections: gcs
                   };
 
                   return <SharedShiftReport shift={previewShift as any} store={store} />;
@@ -1399,16 +1650,16 @@ useEffect(() => {
           </button>
           
           <div className="flex gap-2">
-            {[1,2,3,4,5,6,7,8].map(step => (
+            {[1,2,3,4,5,6,7,8,9].map(step => (
               <div key={step} className={`w-2 h-2 rounded-full ${currentStep === step ? 'bg-indigo-600' : currentStep > step ? 'bg-emerald-500' : 'bg-slate-300'}`} />
             ))}
           </div>
 
           <button 
-            onClick={() => setCurrentStep(Math.min(8, currentStep + 1))}
-            disabled={currentStep === 8}
+            onClick={() => setCurrentStep(Math.min(9, currentStep + 1))}
+            disabled={currentStep === 9}
             className={`px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all ${
-              currentStep === 8 
+              currentStep === 9 
                 ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400' 
                 : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
             }`}

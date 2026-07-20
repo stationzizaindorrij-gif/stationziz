@@ -131,6 +131,14 @@ export interface Shift {
       sale: number;
     }
   };
+  gaugeCorrections?: {
+    tankId: string;
+    tankNumber: number;
+    qtyBefore: number;
+    qtyAfter: number;
+    discrepancy: number;
+    reason: string;
+  }[];
 }
 
 export interface Sale {

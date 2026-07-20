@@ -63,6 +63,7 @@ export interface ERPStoreType {
   deleteTank: (id: string, author: string) => void;
   correctTankLevel: (tankId: string, newLevel: number, reason: string, author: string, date?: string) => void;
   deleteStockCorrection: (id: string, author: string) => void;
+  deleteStockCorrectionsBulk: (ids: string[], author: string) => void;
   updateStockCorrection: (id: string, updates: Partial<StockCorrection>, author: string) => void;
 
   addPump: (pump: Omit<Pump, 'id'>, author: string) => void;
@@ -416,7 +417,27 @@ export function useERPStore(): ERPStoreType {
         }));
         setProducts(loadedProducts);
         setShopProducts(data.shop_products || []);
-        setTanks(data.tanks || []);
+        let loadedTanks = data.tanks || [];
+        let tanksUpdated = false;
+        loadedTanks = loadedTanks.map((t: any) => {
+          const numberLower = (t.number || '').toLowerCase();
+          const matchesName = 
+            numberLower.includes('citenre 20t n7') || 
+            numberLower.includes('citerne 20t n7') ||
+            (numberLower.includes('citerne') && numberLower.includes('20') && numberLower.includes('7')) ||
+            (numberLower.includes('citenre') && numberLower.includes('20') && numberLower.includes('7'));
+          if (matchesName && Math.abs(t.currentLevel - 6200) < 0.1) {
+            tanksUpdated = true;
+            return { ...t, currentLevel: 8795.94 };
+          }
+          return t;
+        });
+        setTanks(loadedTanks);
+        if (tanksUpdated) {
+          setTimeout(() => {
+            saveState('tanks', loadedTanks, setTanks);
+          }, 1000);
+        }
         setPumps(data.pumps || []);
         setNozzles(data.nozzles || []);
         setAttendants(data.attendants || []);
@@ -793,6 +814,10 @@ export function useERPStore(): ERPStoreType {
 
   const deleteStockCorrection = (id: string, author: string) => {
     saveState('stock_corrections', stockCorrections.filter(c => c.id !== id), setStockCorrections);
+  };
+
+  const deleteStockCorrectionsBulk = (ids: string[], author: string) => {
+    saveState('stock_corrections', stockCorrections.filter(c => !ids.includes(c.id)), setStockCorrections);
   };
 
   const updateStockCorrection = (id: string, updates: Partial<StockCorrection>, author: string) => {
@@ -1407,6 +1432,32 @@ return {
       saveState('sales', [...newSales, ...sales], setSales);
     }
 
+    // Save physical gauge corrections to the stock correction history
+    const shiftIdForCorr = shiftData.id || newShift.id;
+    const cleanStockCorrections = stockCorrections.filter(c => !c.id.startsWith(`corr_shift_${shiftIdForCorr}_`));
+    const newCorrections: StockCorrection[] = [];
+    if ((shiftData as any).gaugeCorrections && (shiftData as any).gaugeCorrections.length > 0) {
+      (shiftData as any).gaugeCorrections.forEach((gc: any) => {
+        const tank = tanks.find(t => t.id === gc.tankId);
+        if (tank) {
+          newCorrections.push({
+            id: `corr_shift_${shiftIdForCorr}_${gc.tankId}`,
+            date: shiftData.date,
+            tankId: gc.tankId,
+            tankNumber: gc.tankNumber,
+            productId: tank.productId,
+            qtyBefore: gc.qtyBefore,
+            qtyAfter: gc.qtyAfter,
+            reason: gc.reason,
+            user: author
+          });
+        }
+      });
+    }
+    if (newCorrections.length > 0 || cleanStockCorrections.length !== stockCorrections.length) {
+      saveState('stock_corrections', [...newCorrections, ...cleanStockCorrections], setStockCorrections);
+    }
+
     if (cashRegistry.isOpen) {
       addCashMovement('input', shiftData.realCashReceived, `Clôture journalière (${shiftData.attendantName} - Shift ${shiftData.shiftName})`, author);
     }
@@ -1669,6 +1720,7 @@ return {
     deleteTank,
     correctTankLevel,
     deleteStockCorrection,
+    deleteStockCorrectionsBulk,
     updateStockCorrection,
 
     // Pump & Nozzles CRUD
@@ -1860,6 +1912,31 @@ return {
 
       const updated = shifts.map(s => s.id === id ? { ...s, ...updatedFields } : s);
       saveState('shifts', updated, setShifts);
+
+      // Handle physical gauge corrections on updateShift
+      if (updatedFields.gaugeCorrections) {
+        const cleanStockCorrections = stockCorrections.filter(c => !c.id.startsWith(`corr_shift_${id}_`));
+        const newCorrections: StockCorrection[] = [];
+        updatedFields.gaugeCorrections.forEach((gc: any) => {
+          const tank = tanks.find(t => t.id === gc.tankId);
+          if (tank) {
+            newCorrections.push({
+              id: `corr_shift_${id}_${gc.tankId}`,
+              date: updatedFields.date || oldShift.date,
+              tankId: gc.tankId,
+              tankNumber: gc.tankNumber,
+              productId: tank.productId,
+              qtyBefore: gc.qtyBefore,
+              qtyAfter: gc.qtyAfter,
+              reason: gc.reason,
+              user: author
+            });
+          }
+        });
+        if (newCorrections.length > 0 || cleanStockCorrections.length !== stockCorrections.length) {
+          saveState('stock_corrections', [...newCorrections, ...cleanStockCorrections], setStockCorrections);
+        }
+      }
     },
     addCompletedShift,
 
