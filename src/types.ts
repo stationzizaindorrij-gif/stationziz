@@ -125,6 +125,12 @@ export interface Shift {
     virement?: { amount: number; date?: string }[];
     autre?: { amount: number; date?: string }[];
   };
+  fuelPrices?: {
+    [productId: string]: {
+      purchase: number;
+      sale: number;
+    }
+  };
 }
 
 export interface Sale {

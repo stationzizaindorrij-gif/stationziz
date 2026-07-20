@@ -3,12 +3,69 @@ import { Users, Plus, Search, Edit2, Trash2, Shield, UserX, UserCheck, MapPin, P
 import { ERPStoreType } from '../store';
 import { Attendant } from '../types';
 
+const formatToDMY = (dateStr: string): string => {
+  if (!dateStr) return 'JJ/MM/AAAA';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+interface DatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  id?: string;
+  size?: 'sm' | 'md';
+}
+
+const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }: DatePickerProps) => {
+  const isSm = size === 'sm';
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleClick = () => {
+    if (inputRef.current) {
+      try {
+        inputRef.current.showPicker();
+      } catch (err) {
+        inputRef.current.focus();
+      }
+    }
+  };
+
+  return (
+    <div className="relative w-full cursor-pointer" onClick={handleClick}>
+      <input 
+        ref={inputRef}
+        type="date"
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+      />
+      <div className={`w-full border border-slate-700 text-slate-200 rounded flex justify-between items-center pointer-events-none select-none transition-colors
+        ${isSm ? 'bg-slate-800 text-xs p-1 h-[28px]' : 'bg-slate-800 text-sm p-3 min-h-[46px]'}
+        ${className}`}
+      >
+        <span className="font-medium text-slate-300">{formatToDMY(value)}</span>
+        <Calendar className={`${isSm ? 'w-3 h-3' : 'w-4 h-4'} text-slate-400`} />
+      </div>
+    </div>
+  );
+};
+
 interface AttendantsProps {
   store: ERPStoreType;
 }
 
 export default function Attendants({ store }: AttendantsProps) {
   const { attendants, addAttendant, updateAttendant, deleteAttendant, currentRole, shifts } = store;
+
+  // Calculator state
+  const [selectedCalcAttendantId, setSelectedCalcAttendantId] = useState('');
+  const [calcStartDate, setCalcStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [calcEndDate, setCalcEndDate] = useState(new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,6 +191,18 @@ export default function Attendants({ store }: AttendantsProps) {
 
   const hasWriteAccess = currentRole === 'admin' || currentRole === 'manager';
 
+  // Filtered statistics for selected attendant inside the calculator
+  const calcShifts = shifts.filter(s => {
+    const matchesAttendant = s.attendantId === selectedCalcAttendantId;
+    const matchesDate = (!calcStartDate || s.date >= calcStartDate) && (!calcEndDate || s.date <= calcEndDate);
+    return matchesAttendant && matchesDate;
+  });
+
+  const calcCompletedShifts = calcShifts.filter(s => s.status === 'completed');
+  const calcTotalShiftsCount = calcShifts.length;
+  const calcTotalLitersSold = calcCompletedShifts.reduce((sum, s) => sum + (s.totalLiters || 0), 0);
+  const calcTotalDiscrepancy = calcCompletedShifts.reduce((sum, s) => sum + (s.discrepancy || 0), 0);
+
   return (
     <div className="space-y-6" id="attendants-view">
       {/* En-tête de la page */}
@@ -150,6 +219,133 @@ export default function Attendants({ store }: AttendantsProps) {
             <Plus className="w-4 h-4" />
             Embaucher un Pompiste
           </button>
+        )}
+      </div>
+
+      {/* Calculateur d'Écart Cumulé */}
+      <div className="bg-slate-900 text-white rounded-xl border border-slate-800 shadow-lg p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-indigo-600 rounded-lg text-white">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold font-display">Suivi & Calculateur d'Écart Cumulé</h2>
+            <p className="text-xs text-slate-400">Sélectionnez un pompiste et une période pour obtenir le bilan cumulé exact de ses écarts.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-800/40 p-4 rounded-xl border border-slate-800">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 uppercase">Choisir le Pompiste</label>
+            <select
+              value={selectedCalcAttendantId}
+              onChange={(e) => setSelectedCalcAttendantId(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">-- Sélectionner un pompiste --</option>
+              {attendants.map(att => (
+                <option key={att.id} value={att.id}>
+                  {att.firstName} {att.lastName} ({att.matricule})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 uppercase">Date de début</label>
+            <DatePickerWrapper
+              value={calcStartDate}
+              onChange={(val) => setCalcStartDate(val)}
+              className="bg-slate-800 text-white border-slate-700 font-bold"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 uppercase">Date de fin</label>
+            <DatePickerWrapper
+              value={calcEndDate}
+              onChange={(val) => setCalcEndDate(val)}
+              className="bg-slate-800 text-white border-slate-700 font-bold"
+            />
+          </div>
+        </div>
+
+        {selectedCalcAttendantId ? (
+          <div className="mt-6 space-y-6 animate-in fade-in duration-200">
+            {/* Cards stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-slate-800/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre de Shifts</span>
+                <span className="text-2xl font-bold font-mono mt-2">{calcTotalShiftsCount}</span>
+                <span className="text-[10px] text-slate-500 mt-1">dans la période sélectionnée</span>
+              </div>
+              
+              <div className="bg-slate-800/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Volume Total Vendu</span>
+                <span className="text-2xl font-bold font-mono mt-2 text-indigo-400">{Math.round(calcTotalLitersSold).toLocaleString()} L</span>
+                <span className="text-[10px] text-slate-500 mt-1">carburant total distribué</span>
+              </div>
+
+              <div className="bg-slate-800/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Écart Cumulé Réel</span>
+                <span className={`text-2xl font-bold font-mono mt-2 ${calcTotalDiscrepancy < 0 ? 'text-rose-400' : calcTotalDiscrepancy > 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
+                  {calcTotalDiscrepancy === 0 ? '0.00' : `${calcTotalDiscrepancy > 0 ? '+' : ''}${calcTotalDiscrepancy.toFixed(2)}`} DH
+                </span>
+                <span className="text-[10px] text-slate-500 mt-1">écart financier cumulé</span>
+              </div>
+            </div>
+
+            {/* Shifts de la période */}
+            <div className="bg-slate-800/40 border border-slate-800/80 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 bg-slate-800/60 border-b border-slate-800 flex justify-between items-center">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Shifts & Écarts détaillés</h4>
+                <span className="text-[10px] text-slate-400">{calcShifts.length} shift(s) trouvé(s)</span>
+              </div>
+              <div className="overflow-x-auto">
+                {calcShifts.length > 0 ? (
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-slate-900/40 text-slate-400 font-bold uppercase border-b border-slate-800">
+                      <tr>
+                        <th className="px-4 py-2.5">Date</th>
+                        <th className="px-4 py-2.5">Shift</th>
+                        <th className="px-4 py-2.5 text-right">Liters vendus</th>
+                        <th className="px-4 py-2.5 text-right">Écart</th>
+                        <th className="px-4 py-2.5">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
+                      {calcShifts.map((s) => (
+                        <tr key={s.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-3 font-mono">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
+                          <td className="px-4 py-3 font-semibold">{s.shiftName}</td>
+                          <td className="px-4 py-3 text-right font-mono">{Math.round(s.totalLiters || 0).toLocaleString()} L</td>
+                          <td className={`px-4 py-3 text-right font-bold font-mono ${s.discrepancy < 0 ? 'text-rose-400' : s.discrepancy > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            {s.discrepancy === 0 ? '0.00' : `${s.discrepancy > 0 ? '+' : ''}${s.discrepancy.toFixed(2)}`} DH
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              s.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }`}>
+                              {s.status === 'completed' ? 'Clôturé' : 'En cours'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-6 text-center text-slate-500">
+                    Aucun shift trouvé pour ce pompiste dans cet intervalle.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 p-8 border border-dashed border-slate-800 rounded-xl text-center text-slate-500">
+            <Info className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-sm">Veuillez sélectionner un pompiste pour afficher le suivi et le calcul de ses écarts.</p>
+          </div>
         )}
       </div>
 

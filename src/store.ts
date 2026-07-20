@@ -61,7 +61,7 @@ export interface ERPStoreType {
   addTank: (tank: Omit<Tank, 'id'>, author: string) => void;
   updateTank: (id: string, updates: Partial<Tank>, author: string) => void;
   deleteTank: (id: string, author: string) => void;
-  correctTankLevel: (tankId: string, newLevel: number, reason: string, author: string) => void;
+  correctTankLevel: (tankId: string, newLevel: number, reason: string, author: string, date?: string) => void;
   deleteStockCorrection: (id: string, author: string) => void;
   updateStockCorrection: (id: string, updates: Partial<StockCorrection>, author: string) => void;
 
@@ -338,7 +338,8 @@ export function useERPStore(): ERPStoreType {
                               nonCashPayments: JSON.stringify({
                                   ...(s.nonCashPayments || {}),
                                   ...(s.startTankLevels ? { startTankLevels: s.startTankLevels } : {}),
-                                  ...(s.endTankLevels ? { endTankLevels: s.endTankLevels } : {})
+                                  ...(s.endTankLevels ? { endTankLevels: s.endTankLevels } : {}),
+                                  ...(s.fuelPrices ? { fuelPrices: s.fuelPrices } : {})
                               })
                           };
                       });
@@ -428,12 +429,13 @@ export function useERPStore(): ERPStoreType {
                 return val;
             };
             const rawNonCashPayments = parseJson(s.noncashpayments !== undefined ? s.noncashpayments : s.nonCashPayments) || {};
-            const { startTankLevels, endTankLevels, ...nonCashPayments } = rawNonCashPayments;
+            const { startTankLevels, endTankLevels, fuelPrices, ...nonCashPayments } = rawNonCashPayments;
             return {
                 ...s,
                 nonCashPayments,
                 startTankLevels: startTankLevels || parseJson(s.starttanklevels !== undefined ? s.starttanklevels : s.startTankLevels),
                 endTankLevels: endTankLevels || parseJson(s.endtanklevels !== undefined ? s.endtanklevels : s.endTankLevels),
+                fuelPrices: fuelPrices || parseJson(s.fuelprices !== undefined ? s.fuelprices : s.fuelPrices),
                 productsSold: parseJson(s.productssold !== undefined ? s.productssold : s.productsSold),
                 servicesSold: parseJson(s.servicessold !== undefined ? s.servicessold : s.servicesSold),
                 expenses: parseJson(s.expenses),
@@ -777,13 +779,13 @@ export function useERPStore(): ERPStoreType {
     saveState('tanks', tanks.filter(t => t.id !== id), setTanks);
   };
 
-  const correctTankLevel = (tankId: string, newLevel: number, reason: string, author: string) => {
+  const correctTankLevel = (tankId: string, newLevel: number, reason: string, author: string, date?: string) => {
     const tank = tanks.find(t => t.id === tankId);
     if (!tank) return;
     const qtyBefore = tank.currentLevel;
     const corr: StockCorrection = {
       id: `corr_${Date.now()}`,
-      date: (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]),
+      date: date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]),
       tankId, tankNumber: tank.number, productId: tank.productId, qtyBefore, qtyAfter: newLevel, reason, user: author
     };
     saveState('stock_corrections', [corr, ...stockCorrections], setStockCorrections);

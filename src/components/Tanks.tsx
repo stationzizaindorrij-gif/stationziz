@@ -27,9 +27,22 @@ interface DatePickerProps {
 
 const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }: DatePickerProps) => {
   const isSm = size === 'sm';
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleClick = () => {
+    if (inputRef.current) {
+      try {
+        inputRef.current.showPicker();
+      } catch (err) {
+        inputRef.current.focus();
+      }
+    }
+  };
+
   return (
-    <div className="relative w-full">
+    <div className="relative w-full cursor-pointer" onClick={handleClick}>
       <input 
+        ref={inputRef}
         type="date"
         id={id}
         value={value}
@@ -385,7 +398,7 @@ export default function Tanks({ store }: TanksProps) {
         date: corrDate
       }, 'Directeur ERP');
     } else {
-      correctTankLevel(corrTankId, level, corrReason + ' (' + corrDate + ')', 'Directeur ERP');
+      correctTankLevel(corrTankId, level, corrReason, 'Directeur ERP', corrDate);
     }
     setEditingCorrection(null);
     setIsCorrectionFormOpen(false);

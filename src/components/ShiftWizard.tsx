@@ -33,9 +33,22 @@ interface DatePickerProps {
 
 const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }: DatePickerProps) => {
   const isSm = size === 'sm';
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleClick = () => {
+    if (inputRef.current) {
+      try {
+        inputRef.current.showPicker();
+      } catch (err) {
+        inputRef.current.focus();
+      }
+    }
+  };
+
   return (
-    <div className="relative w-full">
+    <div className="relative w-full cursor-pointer" onClick={handleClick}>
       <input 
+        ref={inputRef}
         type="date"
         id={id}
         value={value}
@@ -152,6 +165,15 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
+    if (editingShift?.fuelPrices && Object.keys(editingShift.fuelPrices).length > 0) {
+      setLocalPrices(editingShift.fuelPrices);
+      return;
+    }
+    if (draft?.localPrices && Object.keys(draft.localPrices).length > 0) {
+      setLocalPrices(draft.localPrices);
+      return;
+    }
+
     const prices: { [id: string]: { purchase: number, sale: number } } = {};
     store.products.forEach(p => {
       if (['gazoil', 'sans_plomb', 'melange'].includes(p.type)) {
@@ -164,7 +186,7 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
       }
       return prev;
     });
-  }, [store.products]);
+  }, [store.products, editingShift]);
 
   const handleSavePrices = () => {
     const bulkUpdates = Object.keys(localPrices).map(id => {
@@ -190,10 +212,10 @@ useEffect(() => {
     if (!editingShift && !isCompleted) {
         localStorage.setItem('erp_shift_draft', JSON.stringify({
            currentStep, date, endDate, attendantId, shiftName, startTime, endTime,
-           selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput
+           selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, localPrices
         }));
     }
-  }, [currentStep, date, endDate, attendantId, shiftName, startTime, endTime, selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, editingShift, isCompleted]);
+  }, [currentStep, date, endDate, attendantId, shiftName, startTime, endTime, selectedPumps, startCounters, endCounters, productSales, serviceSales, expenses, nonCashPayments, realCashInput, localPrices, editingShift, isCompleted]);
 
 useEffect(() => {
     setStartCounters(prevStart => {
@@ -248,7 +270,7 @@ useEffect(() => {
           const qtyElec = (end.elec !== '' && end.elec !== undefined) ? Math.max(0, eElec - sElec) : 0;
           const qtyMech = (end.mech !== '' && end.mech !== undefined) ? Math.max(0, eMech - sMech) : 0;
           const product = store.products.find(p => p.id === noz.productId);
-          const price = product ? product.salePrice : 0;
+          const price = localPrices[noz.productId]?.sale !== undefined ? localPrices[noz.productId].sale : (product ? product.salePrice : 0);
           
           // Fallback to mechanical if electronic is 0 or empty
           const actualQty = qtyElec > 0 ? qtyElec : qtyMech;
@@ -274,7 +296,7 @@ useEffect(() => {
       });
     });
     return { details, totalFuelAmount, totalFuelLiters, litersSold, amountSold };
-  }, [orderedSelectedPumps, startCounters, endCounters, store.nozzles, store.products]);
+  }, [orderedSelectedPumps, startCounters, endCounters, store.nozzles, store.products, localPrices]);
 
 
 // Auto-fill start counters based on previous shifts when pumps are selected
@@ -361,7 +383,8 @@ useEffect(() => {
       litersSold: fuelSalesDetails.litersSold,
       amountSold: fuelSalesDetails.amountSold,
       totalLiters: fuelSalesDetails.totalFuelLiters,
-      totalAmount: fuelSalesDetails.totalFuelAmount
+      totalAmount: fuelSalesDetails.totalFuelAmount,
+      fuelPrices: localPrices
     };
 
     if (nonCashPayments && nonCashPayments.bonClient && nonCashPayments.bonClient.length > 0) {
