@@ -218,7 +218,7 @@ export default function Tanks({ store }: TanksProps) {
   const [editingCorrection, setEditingCorrection] = useState<StockCorrection | null>(null);
 
   // Supply Delivery Form state
-  const [supplier, setSupplier] = useState('');
+  const [supplier, setSupplier] = useState('Ziz');
   const [supplyTankId, setSupplyTankId] = useState('');
   const [qtyDelivered, setQtyDelivered] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
@@ -252,7 +252,7 @@ export default function Tanks({ store }: TanksProps) {
       setSupplyDate(supply.date ? new Date(supply.date).toISOString().split('T')[0] : (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
     } else {
       setEditingSupply(null);
-      setSupplier('');
+      setSupplier('Ziz');
       setSupplyTankId(tankId || (tanks[0]?.id || ''));
       setQtyDelivered('5000');
       setPurchasePrice('');
@@ -329,7 +329,7 @@ export default function Tanks({ store }: TanksProps) {
         }, currentRole);
       }
 
-      setSupplier('');
+      setSupplier('Ziz');
       setSupplyTankId('');
       setQtyDelivered('');
       setPurchasePrice('');
@@ -429,7 +429,7 @@ export default function Tanks({ store }: TanksProps) {
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Gestion des Cuves & Approvisionnement</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Gestion Stock</h1>
           <p className="text-sm text-slate-500">Supervisez les capacités de stockage, programmez les livraisons et ajustez les niveaux réels de vos cuves.</p>
         </div>
         <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 shrink-0 flex-wrap gap-y-1">
@@ -2030,14 +2030,15 @@ export default function Tanks({ store }: TanksProps) {
             <form onSubmit={handleSupplySubmit} className="p-5 space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Fournisseur</label>
-                <input 
-                  type="text" 
+                <select 
                   required
-                  placeholder="Ex: TotalEnergies Distribution"
                   value={supplier}
                   onChange={(e) => setSupplier(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500"
-                />
+                  className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500 bg-white"
+                >
+                  <option value="Ziz">Ziz</option>
+                  <option value="Adil">Adil</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

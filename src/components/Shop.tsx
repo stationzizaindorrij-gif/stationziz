@@ -76,7 +76,7 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
             <Package className="w-7 h-7 text-indigo-600" />
-            {editingId ? 'Modifier Produit Boutique' : 'Nouveau Produit Boutique'}
+            {editingId ? 'Modifier Huile / Lubrifiant' : 'Nouveau Huile / Lubrifiant'}
           </h2>
           <button
             onClick={() => { setIsAdding(false); setEditingId(null); }}
@@ -249,9 +249,9 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
             <Package className="w-7 h-7 text-indigo-600" />
-            Boutique
+            Huile & Lubrifiant
           </h2>
-          <p className="text-slate-500 mt-1">Gestion des produits de la boutique (hors carburant)</p>
+          <p className="text-slate-500 mt-1">Gestion des huiles et lubrifiants (hors carburant)</p>
         </div>
         {isAdminOrManager && (
           <button

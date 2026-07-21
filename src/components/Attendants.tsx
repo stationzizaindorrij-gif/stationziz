@@ -44,11 +44,11 @@ const DatePickerWrapper = ({ value, onChange, className = '', id, size = 'md' }:
         onChange={e => onChange(e.target.value)}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
       />
-      <div className={`w-full border border-slate-700 text-slate-200 rounded flex justify-between items-center pointer-events-none select-none transition-colors
-        ${isSm ? 'bg-slate-800 text-xs p-1 h-[28px]' : 'bg-slate-800 text-sm p-3 min-h-[46px]'}
-        ${className}`}
+      <div className={`w-full border rounded flex justify-between items-center pointer-events-none select-none transition-colors
+        ${isSm ? 'text-xs p-1 h-[28px]' : 'text-sm p-3 min-h-[46px]'}
+        ${className || 'bg-white border-slate-200 text-slate-800'}`}
       >
-        <span className="font-medium text-slate-300">{formatToDMY(value)}</span>
+        <span className="font-medium">{formatToDMY(value)}</span>
         <Calendar className={`${isSm ? 'w-3 h-3' : 'w-4 h-4'} text-slate-400`} />
       </div>
     </div>
@@ -208,7 +208,7 @@ export default function Attendants({ store }: AttendantsProps) {
       {/* En-tête de la page */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Gestion de l'Équipe & Pompistes</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Gestion des employés</h1>
           <p className="text-sm text-slate-500">Gérez les accès, affectations, dossiers et historiques de vos employés de piste.</p>
         </div>
         {hasWriteAccess && (
@@ -222,132 +222,7 @@ export default function Attendants({ store }: AttendantsProps) {
         )}
       </div>
 
-      {/* Calculateur d'Écart Cumulé */}
-      <div className="bg-slate-900 text-white rounded-xl border border-slate-800 shadow-lg p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-indigo-600 rounded-lg text-white">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold font-display">Suivi & Calculateur d'Écart Cumulé</h2>
-            <p className="text-xs text-slate-400">Sélectionnez un pompiste et une période pour obtenir le bilan cumulé exact de ses écarts.</p>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-800/40 p-4 rounded-xl border border-slate-800">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase">Choisir le Pompiste</label>
-            <select
-              value={selectedCalcAttendantId}
-              onChange={(e) => setSelectedCalcAttendantId(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500"
-            >
-              <option value="">-- Sélectionner un pompiste --</option>
-              {attendants.map(att => (
-                <option key={att.id} value={att.id}>
-                  {att.firstName} {att.lastName} ({att.matricule})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase">Date de début</label>
-            <DatePickerWrapper
-              value={calcStartDate}
-              onChange={(val) => setCalcStartDate(val)}
-              className="bg-slate-800 text-white border-slate-700 font-bold"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase">Date de fin</label>
-            <DatePickerWrapper
-              value={calcEndDate}
-              onChange={(val) => setCalcEndDate(val)}
-              className="bg-slate-800 text-white border-slate-700 font-bold"
-            />
-          </div>
-        </div>
-
-        {selectedCalcAttendantId ? (
-          <div className="mt-6 space-y-6 animate-in fade-in duration-200">
-            {/* Cards stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-slate-800/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre de Shifts</span>
-                <span className="text-2xl font-bold font-mono mt-2">{calcTotalShiftsCount}</span>
-                <span className="text-[10px] text-slate-500 mt-1">dans la période sélectionnée</span>
-              </div>
-              
-              <div className="bg-slate-800/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Volume Total Vendu</span>
-                <span className="text-2xl font-bold font-mono mt-2 text-indigo-400">{Math.round(calcTotalLitersSold).toLocaleString()} L</span>
-                <span className="text-[10px] text-slate-500 mt-1">carburant total distribué</span>
-              </div>
-
-              <div className="bg-slate-800/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Écart Cumulé Réel</span>
-                <span className={`text-2xl font-bold font-mono mt-2 ${calcTotalDiscrepancy < 0 ? 'text-rose-400' : calcTotalDiscrepancy > 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
-                  {calcTotalDiscrepancy === 0 ? '0.00' : `${calcTotalDiscrepancy > 0 ? '+' : ''}${calcTotalDiscrepancy.toFixed(2)}`} DH
-                </span>
-                <span className="text-[10px] text-slate-500 mt-1">écart financier cumulé</span>
-              </div>
-            </div>
-
-            {/* Shifts de la période */}
-            <div className="bg-slate-800/40 border border-slate-800/80 rounded-xl overflow-hidden">
-              <div className="px-4 py-3 bg-slate-800/60 border-b border-slate-800 flex justify-between items-center">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Shifts & Écarts détaillés</h4>
-                <span className="text-[10px] text-slate-400">{calcShifts.length} shift(s) trouvé(s)</span>
-              </div>
-              <div className="overflow-x-auto">
-                {calcShifts.length > 0 ? (
-                  <table className="w-full text-left text-xs text-slate-300">
-                    <thead className="bg-slate-900/40 text-slate-400 font-bold uppercase border-b border-slate-800">
-                      <tr>
-                        <th className="px-4 py-2.5">Date</th>
-                        <th className="px-4 py-2.5">Shift</th>
-                        <th className="px-4 py-2.5 text-right">Liters vendus</th>
-                        <th className="px-4 py-2.5 text-right">Écart</th>
-                        <th className="px-4 py-2.5">Statut</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {calcShifts.map((s) => (
-                        <tr key={s.id} className="hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3 font-mono">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
-                          <td className="px-4 py-3 font-semibold">{s.shiftName}</td>
-                          <td className="px-4 py-3 text-right font-mono">{Math.round(s.totalLiters || 0).toLocaleString()} L</td>
-                          <td className={`px-4 py-3 text-right font-bold font-mono ${s.discrepancy < 0 ? 'text-rose-400' : s.discrepancy > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
-                            {s.discrepancy === 0 ? '0.00' : `${s.discrepancy > 0 ? '+' : ''}${s.discrepancy.toFixed(2)}`} DH
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                              s.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                            }`}>
-                              {s.status === 'completed' ? 'Clôturé' : 'En cours'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="p-6 text-center text-slate-500">
-                    Aucun shift trouvé pour ce pompiste dans cet intervalle.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-6 p-8 border border-dashed border-slate-800 rounded-xl text-center text-slate-500">
-            <Info className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-sm">Veuillez sélectionner un pompiste pour afficher le suivi et le calcul de ses écarts.</p>
-          </div>
-        )}
-      </div>
 
       {/* Barre de recherche et de filtres */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3">
@@ -516,6 +391,131 @@ export default function Attendants({ store }: AttendantsProps) {
           </table>
         </div>
       </div>
+      {/* Calculateur d'Écart Cumulé */}
+      <div className="bg-white text-slate-800 rounded-xl border border-slate-200 shadow-sm p-6 mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold font-display">Suivi & Calculateur d'Écart Cumulé</h2>
+            <p className="text-xs text-slate-500">Sélectionnez un pompiste et une période pour obtenir le bilan cumulé exact de ses écarts.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase">Choisir le Pompiste</label>
+            <select
+              value={selectedCalcAttendantId}
+              onChange={(e) => setSelectedCalcAttendantId(e.target.value)}
+              className="w-full bg-white border border-slate-200 text-slate-800 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">-- Sélectionner un pompiste --</option>
+              {attendants.map(att => (
+                <option key={att.id} value={att.id}>
+                  {att.firstName} {att.lastName} ({att.matricule})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase">Date de début</label>
+            <DatePickerWrapper
+              value={calcStartDate}
+              onChange={(val) => setCalcStartDate(val)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase">Date de fin</label>
+            <DatePickerWrapper
+              value={calcEndDate}
+              onChange={(val) => setCalcEndDate(val)}
+            />
+          </div>
+        </div>
+
+        {selectedCalcAttendantId ? (
+          <div className="mt-6 space-y-6 animate-in fade-in duration-200">
+            {/* Cards stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nombre de Shifts</span>
+                <span className="text-2xl font-bold font-mono mt-2 text-slate-800">{calcTotalShiftsCount}</span>
+                <span className="text-[10px] text-slate-400 mt-1">dans la période sélectionnée</span>
+              </div>
+              
+              <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Volume Total Vendu</span>
+                <span className="text-2xl font-bold font-mono mt-2 text-indigo-600">{Math.round(calcTotalLitersSold).toLocaleString()} L</span>
+                <span className="text-[10px] text-slate-400 mt-1">carburant total distribué</span>
+              </div>
+
+              <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Écart Cumulé Réel</span>
+                <span className={`text-2xl font-bold font-mono mt-2 ${calcTotalDiscrepancy < 0 ? 'text-rose-600' : calcTotalDiscrepancy > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>
+                  {calcTotalDiscrepancy === 0 ? '0.00' : `${calcTotalDiscrepancy > 0 ? '+' : ''}${calcTotalDiscrepancy.toFixed(2)}`} DH
+                </span>
+                <span className="text-[10px] text-slate-400 mt-1">écart financier cumulé</span>
+              </div>
+            </div>
+
+            {/* Shifts de la période */}
+            <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Shifts & Écarts détaillés</h4>
+                <span className="text-[10px] text-slate-500">{calcShifts.length} shift(s) trouvé(s)</span>
+              </div>
+              <div className="overflow-x-auto">
+                {calcShifts.length > 0 ? (
+                  <table className="w-full text-left text-xs text-slate-700">
+                    <thead className="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-2.5">Date</th>
+                        <th className="px-4 py-2.5">Shift</th>
+                        <th className="px-4 py-2.5 text-right">Liters vendus</th>
+                        <th className="px-4 py-2.5 text-right">Écart</th>
+                        <th className="px-4 py-2.5">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {calcShifts.map((s) => (
+                        <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 font-mono">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
+                          <td className="px-4 py-3 font-semibold">{s.shiftName}</td>
+                          <td className="px-4 py-3 text-right font-mono">{Math.round(s.totalLiters || 0).toLocaleString()} L</td>
+                          <td className={`px-4 py-3 text-right font-bold font-mono ${s.discrepancy < 0 ? 'text-rose-600' : s.discrepancy > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                            {s.discrepancy === 0 ? '0.00' : `${s.discrepancy > 0 ? '+' : ''}${s.discrepancy.toFixed(2)}`} DH
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              s.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {s.status === 'completed' ? 'Clôturé' : 'En cours'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-6 text-center text-slate-500">
+                    Aucun shift trouvé pour ce pompiste dans cet intervalle.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-500">
+            <Info className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm">Veuillez sélectionner un pompiste pour afficher le suivi et le calcul de ses écarts.</p>
+          </div>
+        )}
+      </div>
+      
       {/* FORMULAIRE MODAL AJOUT / MODIFICATION */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">

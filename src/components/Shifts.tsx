@@ -584,7 +584,7 @@ export default function Shifts({ store }: ShiftsProps) {
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Prise de Service & Shifts</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Relevé des compteurs</h1>
           <p className="text-sm text-slate-500">Gérez les ouvertures, affectations de pompes, relevés de pistolets et dépôts de caisse de fin de shift.</p>
         </div>
         <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100">

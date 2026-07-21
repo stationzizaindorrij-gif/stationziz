@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { History, 
   BarChart2, LayoutDashboard, Users, Clock, Fuel, 
   Settings as SettingsIcon, Sliders, Bell, FileText, 
-  Menu, X, Landmark, User, Package
+  Menu, X, Landmark, User, Package, Wallet, Receipt
 } from 'lucide-react';
 import { useERPStore } from './store';
 import { supabase } from './lib/supabase';
@@ -22,11 +22,12 @@ import { Shop } from './components/Shop';
 import Analytics from './components/Analytics';
 import Clients from './components/Clients';
 import DailyClosing from './components/DailyClosing';
+import ExpensesModule from './components/ExpensesModule';
 
 type ActiveModule = 
   | 'dashboard' | 'attendants' | 'shifts' | 'tanks' | 'assets' 
   | 'reports' | 'alerts' | 'settings' | 'billing' | 'daily_closing'  
-  | 'analytics' | 'clients' | 'shop' | 'price_history';
+  | 'analytics' | 'clients' | 'shop' | 'price_history' | 'expenses';
 
 function AppContent({ session }: { session: any }) {
   const store = useERPStore();
@@ -143,12 +144,13 @@ function AppContent({ session }: { session: any }) {
   const unreadAlertsCount = store.alerts.filter(a => !a.isRead).length;
 
   const navigationItems = [
-    { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard, badge: 0 },
-    { id: 'attendants', label: 'Pompistes', icon: Users, badge: 0 },
-    { id: 'shifts', label: 'Gestion des Shifts', icon: Clock, badge: 0 },
-    { id: 'tanks', label: 'Cuves & Stock', icon: Fuel, badge: 0 },
-    { id: 'assets', label: 'Installations & Prix', icon: Sliders, badge: 0 },
-    { id: 'shop', label: 'Boutique', icon: Package, badge: 0 },
+    { id: 'dashboard', label: 'Accueil', icon: LayoutDashboard, badge: 0 },
+    { id: 'attendants', label: 'Gestion des employés', icon: Users, badge: 0 },
+    { id: 'shifts', label: 'Relevé des compteurs', icon: Clock, badge: 0 },
+    { id: 'tanks', label: 'Gestion Stock', icon: Fuel, badge: 0 },
+    { id: 'assets', label: 'Calcul changements prix', icon: Sliders, badge: 0 },
+    { id: 'expenses', label: 'Dépenses', icon: Wallet, badge: 0 },
+    { id: 'shop', label: 'Huile Lubrifiant', icon: Package, badge: 0 },
     { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
     { id: 'billing', label: 'Facturation & Documents', icon: Landmark, badge: 0 },
     { id: 'analytics', label: 'Analyse & Rentabilité', icon: BarChart2, badge: 0 },
@@ -180,6 +182,7 @@ function AppContent({ session }: { session: any }) {
             {activeModule === 'assets' && <Assets store={store} />}
             {activeModule === 'attendants' && <Attendants store={store} />}
             {activeModule === 'shifts' && <Shifts store={store} />}
+            {activeModule === 'expenses' && <ExpensesModule store={store} />}
             {activeModule === 'shop' && <Shop store={store} />}
             {activeModule === 'billing' && <Billing store={store} />}
             {activeModule === 'reports' && <Reports store={store} />}
@@ -344,12 +347,13 @@ function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen, stor
 
 function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuClick: () => void }) {
   const moduleNames: Record<string, string> = {
-    dashboard: 'Tableau de Bord',
-    attendants: 'Pompistes',
-    shifts: 'Gestion des Shifts',
-    tanks: 'Cuves & Stock',
-    assets: 'Installations & Prix',
-    shop: 'Boutique',
+    dashboard: 'Accueil',
+    attendants: 'Gestion des employés',
+    shifts: 'Relevé des compteurs',
+    tanks: 'Gestion Stock',
+    assets: 'Calcul changements prix',
+    expenses: 'Dépenses',
+    shop: 'Huile Lubrifiant',
     clients: 'Clients',
     billing: 'Facturation & Documents',
     reports: 'Centre de Rapports',
