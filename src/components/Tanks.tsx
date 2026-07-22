@@ -437,7 +437,7 @@ export default function Tanks({ store }: TanksProps) {
             onClick={() => setActiveSubTab('visual')}
             className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeSubTab === 'visual' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
-            Niveaux des Cuves
+            Niveaux des Citernes
           </button>
           <button 
             onClick={() => setActiveSubTab('corrections')}
@@ -467,13 +467,13 @@ export default function Tanks({ store }: TanksProps) {
           {hasWriteAccess && (
             <div className="flex flex-wrap items-center gap-3 bg-white p-4 border border-slate-200 rounded-xl shadow-xs justify-between">
               <span className="text-xs text-slate-500 font-medium">Réceptionner du carburant ou corriger une jauge ?</span>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 ml-auto justify-end">
                 <button 
                   onClick={() => handleOpenTankForm()}
                   className="inline-flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  Ajouter une cuve
+                  Ajouter une citerne
                 </button>
                 <button 
                   onClick={() => handleOpenCorrectionForm()}
@@ -1563,9 +1563,10 @@ export default function Tanks({ store }: TanksProps) {
             {hasWriteAccess && (
               <button 
                 onClick={() => handleOpenSupplyForm()}
-                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
               >
-                + Enregistrer une Livraison
+                <Plus className="w-4 h-4" />
+                Enregistrer une Livraison
               </button>
             )}
           </div>
@@ -1643,9 +1644,10 @@ export default function Tanks({ store }: TanksProps) {
             {hasWriteAccess && (
               <button 
                 onClick={() => handleOpenCorrectionForm()}
-                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
               >
-                + Enregistrer Jaugeage Manuel
+                <Plus className="w-4 h-4" />
+                Enregistrer Jaugeage Manuel
               </button>
             )}
           </div>
