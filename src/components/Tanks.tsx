@@ -432,28 +432,28 @@ export default function Tanks({ store }: TanksProps) {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Gestion Stock</h1>
           <p className="text-sm text-slate-500">Supervisez les capacités de stockage, programmez les livraisons et ajustez les niveaux réels de vos cuves.</p>
         </div>
-        <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 shrink-0 flex-wrap gap-y-1">
+        <div className="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-100 shrink-0 flex-wrap gap-y-1">
           <button 
             onClick={() => setActiveSubTab('visual')}
-            className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeSubTab === 'visual' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeSubTab === 'visual' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
             Niveaux des Cuves
           </button>
           <button 
             onClick={() => setActiveSubTab('corrections')}
-            className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeSubTab === 'corrections' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeSubTab === 'corrections' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
             Corrections Manuelles
           </button>
           <button 
             onClick={() => setActiveSubTab('deliveries')}
-            className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeSubTab === 'deliveries' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeSubTab === 'deliveries' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
             Historique Livraisons
           </button>
           <button 
             onClick={() => setActiveSubTab('schema')}
-            className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeSubTab === 'schema' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeSubTab === 'schema' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
             Schéma des Installations
           </button>
@@ -467,26 +467,26 @@ export default function Tanks({ store }: TanksProps) {
           {hasWriteAccess && (
             <div className="flex flex-wrap items-center gap-3 bg-white p-4 border border-slate-200 rounded-xl shadow-xs justify-between">
               <span className="text-xs text-slate-500 font-medium">Réceptionner du carburant ou corriger une jauge ?</span>
-              <div className="flex gap-2">
-                                <button 
+              <div className="flex flex-wrap items-center gap-2">
+                <button 
                   onClick={() => handleOpenTankForm()}
-                  className="px-3 py-1.5 border border-slate-200 hover:bg-[#f8fafc99] text-slate-600 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                   Ajouter une cuve
                 </button>
                 <button 
                   onClick={() => handleOpenCorrectionForm()}
-                  className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors cursor-pointer"
                 >
-                  <Sliders className="w-3.5 h-3.5" />
+                  <Sliders className="w-4 h-4" />
                   Correction Manuelle Jauge
                 </button>
                 <button 
                   onClick={() => handleOpenSupplyForm()}
-                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                   Réceptionner une Livraison (Fournisseur)
                 </button>
               </div>

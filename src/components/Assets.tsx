@@ -212,22 +212,22 @@ export default function Assets({ store }: AssetsProps) {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Calcul changements prix</h1>
           <p className="text-sm text-slate-500">Configurez votre grille tarifaire, declarez de nouvelles pompes de distribution et étalonnez les pistolets.</p>
         </div>
-        <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 shrink-0">
+        <div className="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-100 shrink-0">
           <button 
             onClick={() => setActiveTab('products')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'products' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'products' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
             Carburants & Prix
           </button>
           <button 
             onClick={() => setActiveTab('pumps')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'pumps' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'pumps' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
             Distributeurs (Pompes)
           </button>
           <button 
             onClick={() => setActiveTab('nozzles')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'nozzles' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'nozzles' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
             Pistolets & Compteurs
           </button>
@@ -242,9 +242,10 @@ export default function Assets({ store }: AssetsProps) {
             {hasWriteAccess && (
               <button 
                 onClick={() => handleOpenProductForm()}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
               >
-                + Ajouter Carburant
+                <Plus className="w-4 h-4" />
+                Ajouter Carburant
               </button>
             )}
           </div>
@@ -316,9 +317,10 @@ export default function Assets({ store }: AssetsProps) {
             {hasWriteAccess && (
               <button 
                 onClick={() => handleOpenPumpForm()}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
               >
-                + Ajouter une Pompe
+                <Plus className="w-4 h-4" />
+                Ajouter une Pompe
               </button>
             )}
           </div>
@@ -393,9 +395,10 @@ export default function Assets({ store }: AssetsProps) {
             {hasWriteAccess && (
               <button 
                 onClick={() => handleOpenNozzleForm()}
-                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
               >
-                + Ajouter un Pistolet
+                <Plus className="w-4 h-4" />
+                Ajouter un Pistolet
               </button>
             )}
           </div>
