@@ -592,14 +592,14 @@ export default function Shifts({ store }: ShiftsProps) {
             onClick={() => setActiveTab('list')}
             className={`px-4 py-2 text-xs font-semibold rounded-md transition-all ${activeTab === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            Vue d'ensemble ({shifts.length})
+            Relevé des compteurs ({shifts.length})
           </button>
           <button 
             onClick={() => setActiveTab('wizard')}
             className={`px-4 py-2 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${activeTab === 'start' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <Play className="w-3 h-3" />
-            Saisir un Shift
+            Nouveau relevé
           </button>
         </div>
       </div>
