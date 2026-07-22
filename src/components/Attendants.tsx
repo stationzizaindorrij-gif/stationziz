@@ -217,7 +217,7 @@ export default function Attendants({ store }: AttendantsProps) {
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Embaucher un Pompiste
+            Entrer un pompiste
           </button>
         )}
       </div>
@@ -521,7 +521,7 @@ export default function Attendants({ store }: AttendantsProps) {
         <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
             <div className="flex justify-between items-center bg-slate-900 text-white px-5 py-4">
-              <h3 className="font-bold font-display">{isEditMode ? 'Modifier le Pompiste' : 'Embaucher un nouveau Pompiste'}</h3>
+              <h3 className="font-bold font-display">{isEditMode ? 'Modifier le Pompiste' : 'Entrer un nouveau Pompiste'}</h3>
               <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-white transition-colors">
                 <X className="w-5 h-5" />
               </button>
