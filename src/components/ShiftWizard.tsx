@@ -1550,8 +1550,8 @@ useEffect(() => {
                             <td className="py-4 px-4 text-right font-mono font-bold">
                               {diff !== null && (
                                 <div className="space-y-0.5">
-                                  <span className={`inline-block px-2 py-0.5 text-xs rounded-md font-bold ${diff < 0 ? 'bg-rose-50 text-rose-600 border border-rose-100' : diff > 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
-                                    {diff === 0 ? '0 L' : `${diff > 0 ? '+' : ''}${diff.toFixed(2)} L`}
+                                  <span className="inline-block px-2 py-0.5 text-xs rounded-md font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                                    {diff === 0 ? '0 L' : `${Math.abs(diff).toFixed(2)} L`}
                                   </span>
                                   <div className="text-[10px] text-slate-400 font-normal mt-0.5">
                                     {diff === 0 ? 'Conforme' : diff < 0 ? 'Perte / Manquant' : 'Gain / Excédent'}

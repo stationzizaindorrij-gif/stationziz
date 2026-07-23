@@ -491,8 +491,8 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                                   <td className="px-3 py-2 font-bold text-slate-800">Cuve {gc.tankNumber}</td>
                                   <td className="px-3 py-2 text-right font-mono text-slate-500">{gc.qtyBefore.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L</td>
                                   <td className="px-3 py-2 text-right font-mono font-bold text-indigo-600">{gc.qtyAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L</td>
-                                  <td className={`px-3 py-2 text-right font-mono font-bold ${gc.discrepancy < 0 ? 'text-rose-600' : gc.discrepancy > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                    {gc.discrepancy === 0 ? '0' : `${gc.discrepancy > 0 ? '+' : ''}${gc.discrepancy.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} L
+                                  <td className="px-3 py-2 text-right font-mono font-bold text-slate-800">
+                                    {gc.discrepancy === 0 ? '0,00' : `${Math.abs(gc.discrepancy).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} L
                                   </td>
                                   <td className="px-3 py-2 text-slate-600">{gc.reason}</td>
                                 </tr>

@@ -1862,8 +1862,8 @@ export default function Tanks({ store }: TanksProps) {
                         {/* Cumulated gap badge */}
                         <td className="p-3">
                           <div className="space-y-0.5 font-sans">
-                            <span className={`font-black px-1.5 py-0.5 rounded text-[10px] inline-block font-mono ${totalDiff < 0 ? 'bg-rose-50 text-rose-700 border border-rose-100' : totalDiff === 0 ? 'bg-slate-50 text-slate-500 border border-slate-150' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
-                              {totalDiff > 0 ? '+' : ''}{totalDiff.toFixed(2)} L
+                            <span className="font-black px-1.5 py-0.5 rounded text-[10px] inline-block font-mono bg-slate-100 text-slate-800 border border-slate-200">
+                              {Math.abs(totalDiff).toFixed(2)} L
                             </span>
                             <div className="text-[8px] text-slate-400">Total de l'écart</div>
                           </div>
@@ -1949,8 +1949,8 @@ export default function Tanks({ store }: TanksProps) {
 
                           {/* Specific Diff */}
                           <td className="p-3">
-                            <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] inline-block font-mono ${diff < 0 ? 'bg-rose-50 text-rose-700 border border-rose-100' : diff === 0 ? 'bg-slate-50 text-slate-500 border border-slate-150' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
-                              {diff > 0 ? '+' : ''}{diff.toFixed(2)} L
+                            <span className="font-bold px-1.5 py-0.5 rounded text-[10px] inline-block font-mono bg-slate-100 text-slate-800 border border-slate-200">
+                              {Math.abs(diff).toFixed(2)} L
                             </span>
                           </td>
 
@@ -2263,8 +2263,8 @@ export default function Tanks({ store }: TanksProps) {
                       <span className="text-xs text-slate-500 block mb-1">Volume Théorique: <strong className="text-slate-700">{theorique.toFixed(2)} L</strong></span>
                       <span className="text-xs text-slate-500 block">Écart constaté:</span>
                     </div>
-                    <div className={`text-lg font-bold font-mono px-3 py-1 rounded ${ecart < 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                      {ecart > 0 ? '+' : ''}{ecart.toFixed(2)} L
+                    <div className="text-lg font-bold font-mono px-3 py-1 rounded bg-slate-100 text-slate-800">
+                      {Math.abs(ecart).toFixed(2)} L
                     </div>
                   </div>
                 );
@@ -2934,8 +2934,8 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                           <tr key={corr.id} className="hover:bg-slate-50">
                             <td className="p-3 font-medium text-slate-700">{new Date(corr.date).toLocaleDateString('fr-FR')}</td>
                             <td className="p-3 text-slate-500 font-mono text-xs">{corr.qtyBefore} → {corr.qtyAfter}</td>
-                            <td className={`p-3 font-mono font-bold text-right ${diff < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                              {diff > 0 ? '+' : ''}{diff}
+                            <td className="p-3 font-mono font-bold text-right text-slate-800">
+                              {Math.abs(diff)}
                             </td>
                             <td className="p-3 text-slate-600 text-xs">{corr.reason}</td>
                           </tr>
