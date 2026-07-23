@@ -4,6 +4,7 @@ import { Shift, Attendant } from '../types';
 
 export function ExpensesModule({ store }: { store: any }) {
   const [selectedAttendant, setSelectedAttendant] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   
   const { shifts, attendants } = store as { shifts: Shift[], attendants: Attendant[] };
@@ -28,7 +29,7 @@ export function ExpensesModule({ store }: { store: any }) {
         shift.expenses.forEach((exp: any) => {
           expensesList.push({
             id: exp.id || Math.random().toString(),
-            date: shift.date,
+            date: exp.date || shift.date,
             shiftId: shift.id,
             shiftName: shift.shiftName,
             attendantId: shift.attendantId,
@@ -48,14 +49,15 @@ export function ExpensesModule({ store }: { store: any }) {
   const filteredExpenses = useMemo(() => {
     return allExpenses.filter(exp => {
       const matchesAttendant = selectedAttendant ? exp.attendantId === selectedAttendant : true;
+      const matchesDate = selectedDate ? exp.date === selectedDate : true;
       const matchesSearch = 
         exp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         exp.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
         exp.attendantName.toLowerCase().includes(searchTerm.toLowerCase());
       
-      return matchesAttendant && matchesSearch;
+      return matchesAttendant && matchesDate && matchesSearch;
     });
-  }, [allExpenses, selectedAttendant, searchTerm]);
+  }, [allExpenses, selectedAttendant, selectedDate, searchTerm]);
 
   const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -66,13 +68,17 @@ export function ExpensesModule({ store }: { store: any }) {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Suivi des Dépenses</h1>
           <p className="text-sm text-slate-500">Consultez l'historique et les détails de toutes les dépenses enregistrées lors des shifts.</p>
         </div>
-        <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200">
-          <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
-            <Wallet className="w-5 h-5" />
+        
+        {/* Prominent Total Expenses Card */}
+        <div className="flex items-center gap-4 bg-gradient-to-r from-rose-50 to-red-50/40 px-6 py-4 rounded-2xl shadow-md border-2 border-rose-200 shrink-0">
+          <div className="p-3 bg-rose-600 text-white rounded-xl shadow-md">
+            <Wallet className="w-8 h-8" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase">Total Dépenses</p>
-            <p className="text-xl font-black text-rose-600">{totalExpenses.toFixed(2)} DH</p>
+            <p className="text-xs font-black text-rose-800 uppercase tracking-wider mb-0.5">Total Dépenses</p>
+            <p className="text-3xl font-black text-rose-600 font-mono tracking-tight">
+              {totalExpenses.toFixed(2)} <span className="text-base font-bold text-rose-500">MAD</span>
+            </p>
           </div>
         </div>
       </div>
@@ -88,6 +94,28 @@ export function ExpensesModule({ store }: { store: any }) {
             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
           />
         </div>
+
+        {/* Date Filter */}
+        <div className="sm:w-56 relative">
+          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-full pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer"
+          />
+          {selectedDate && (
+            <button
+              onClick={() => setSelectedDate('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-600 rounded px-1.5 py-0.5 transition-colors"
+              title="Effacer la date"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Attendant Filter */}
         <div className="sm:w-64 relative">
           <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <select

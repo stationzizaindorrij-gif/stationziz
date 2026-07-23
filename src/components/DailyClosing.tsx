@@ -267,6 +267,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
   const [expenses, setExpenses] = useState<Expense[]>([]);
   
   // Expenses form state
+  const [expDate, setExpDate] = useState(activeShift?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
   const [expType, setExpType] = useState('Achat fourniture');
   const [expDesc, setExpDesc] = useState('');
   const [expAmount, setExpAmount] = useState('');
@@ -379,6 +380,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
     
     setExpenses([...expenses, {
       id: `exp_${Date.now()}`,
+      date: expDate || activeShift?.date || (new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]),
       type: expType,
       description: expDesc,
       amount,
@@ -1293,27 +1295,31 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
               </div>
 
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <form onSubmit={handleAddExpense} className="flex gap-4 items-end">
-                  <div className="flex-1">
+                <form onSubmit={handleAddExpense} className="flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[130px]">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Date</label>
+                    <input type="date" value={expDate} onChange={e => setExpDate(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white" required />
+                  </div>
+                  <div className="flex-1 min-w-[140px]">
                     <label className="block text-xs font-bold text-slate-700 mb-1">Type de dépense</label>
-                    <select value={expType} onChange={e => setExpType(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500">
+                    <select value={expType} onChange={e => setExpType(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white">
                       <option>Achat fourniture</option>
                       <option>Aide / Manutention</option>
                       <option>Avance Pompiste</option>
                       <option>Frais Divers</option>
                     </select>
                   </div>
-                  <div className="flex-[2]">
+                  <div className="flex-[2] min-w-[180px]">
                     <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
-                    <input type="text" value={expDesc} onChange={e => setExpDesc(e.target.value)} placeholder="Ex: Achat eau pour station" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
+                    <input type="text" value={expDesc} onChange={e => setExpDesc(e.target.value)} placeholder="Ex: Achat eau pour station" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white" required />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-[110px]">
                     <label className="block text-xs font-bold text-slate-700 mb-1">Montant (MAD)</label>
-                    <input type="number" step="any" value={expAmount} onChange={e => setExpAmount(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
+                    <input type="number" step="any" value={expAmount} onChange={e => setExpAmount(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white" required />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-[130px]">
                     <label className="block text-xs font-bold text-slate-700 mb-1">Règlement</label>
-                    <select value={expMethod} onChange={e => setExpMethod(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500">
+                    <select value={expMethod} onChange={e => setExpMethod(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white">
                       <option value="cash">Espèces (Caisse)</option>
                       <option value="card">Carte Bancaire</option>
                     </select>
@@ -1329,6 +1335,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
                       <tr>
+                        <th className="p-3">Date</th>
                         <th className="p-3">Type</th>
                         <th className="p-3">Description</th>
                         <th className="p-3">Règlement</th>
@@ -1339,6 +1346,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     <tbody className="divide-y divide-slate-100">
                       {expenses.map(exp => (
                         <tr key={exp.id} className="hover:bg-slate-50">
+                          <td className="p-3 font-mono text-xs text-slate-600">{exp.date || expDate}</td>
                           <td className="p-3 font-bold text-slate-700">{exp.type}</td>
                           <td className="p-3 text-slate-600">{exp.description}</td>
                           <td className="p-3 text-slate-500">{exp.method === 'cash' ? 'Espèces' : 'Autre'}</td>
@@ -1353,7 +1361,7 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                     </tbody>
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
-                        <td colSpan={3} className="p-3 text-right text-slate-500 uppercase text-xs">Total dépenses</td>
+                        <td colSpan={4} className="p-3 text-right text-slate-500 uppercase text-xs">Total dépenses</td>
                         <td className="p-3 font-mono text-lg text-rose-600 text-right">-{totalExpenses.toFixed(2)}</td>
                         <td></td>
                       </tr>
