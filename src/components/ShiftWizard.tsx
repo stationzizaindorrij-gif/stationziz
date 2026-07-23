@@ -168,17 +168,14 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
     if (draft?.gaugeCorrections) {
       return draft.gaugeCorrections;
     }
-    if (editingShift?.gaugeCorrections) {
+    if (editingShift?.gaugeCorrections && editingShift.gaugeCorrections.length > 0) {
       const initial: { [tankId: string]: { measuredLevel: number | '', expectedLevelOverride?: number | '', reason: string } } = {};
       editingShift.gaugeCorrections.forEach(gc => {
-        if (editingShift.status === 'completed' || editingShift.status === 'ready_to_close') {
-          const exists = store.stockCorrections.some(c => c.id === `corr_shift_${editingShift.id}_${gc.tankId}`);
-          if (exists) {
-            initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
-          }
-        } else {
-          initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
-        }
+        initial[gc.tankId] = {
+          measuredLevel: gc.qtyAfter,
+          expectedLevelOverride: gc.qtyBefore,
+          reason: gc.reason || ''
+        };
       });
       return initial;
     }
@@ -460,7 +457,7 @@ useEffect(() => {
         }
       }
 
-      const qtyBefore = defaultExpected;
+      const qtyBefore = expectedLevel;
 
       gcs.push({
         tankId: tank.id,
@@ -1623,7 +1620,7 @@ useEffect(() => {
                       }
                     }
 
-                    const qtyBefore = defaultExpected;
+                    const qtyBefore = expectedLevel;
 
                     gcs.push({
                       tankId: tank.id,
