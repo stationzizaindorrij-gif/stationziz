@@ -1047,27 +1047,32 @@ useEffect(() => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <form onSubmit={e => {
                 e.preventDefault();
+                const expDate = (document.getElementById('expDate') as HTMLInputElement)?.value || date;
                 const type = (document.getElementById('expType') as HTMLSelectElement).value;
                 const desc = (document.getElementById('expDesc') as HTMLInputElement).value;
                 const amount = parseFloat((document.getElementById('expAmount') as HTMLInputElement).value) || 0;
                 const method = (document.getElementById('expMethod') as HTMLSelectElement).value;
                 
                 if (type && desc && amount) {
-                  setExpenses([...expenses, { id: `exp_${Date.now()}`, type, description: desc, amount, method }]);
+                  setExpenses([...expenses, { id: `exp_${Date.now()}`, date: expDate, type, description: desc, amount, method }]);
                   (document.getElementById('expDesc') as HTMLInputElement).value = '';
                   (document.getElementById('expAmount') as HTMLInputElement).value = '';
                 }
               }} className="bg-rose-50/50 p-5 rounded-xl border border-rose-100 flex flex-wrap gap-4 items-end">
-                <div className="flex-1 min-w-[150px]">
+                <div className="flex-1 min-w-[130px]">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Date</label>
+                  <input type="date" id="expDate" defaultValue={date} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white" required />
+                </div>
+                <div className="flex-[1.5] min-w-[195px]">
                   <label className="block text-xs font-bold text-slate-700 mb-1">Type</label>
-                  <select id="expType" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required>
+                  <select id="expType" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white" required>
                     <option value="avance">Avance Employé</option>
                     <option value="fourniture">Achat Fourniture</option>
                     <option value="repas">Frais de repas</option>
                     <option value="autre">Autre</option>
                   </select>
                 </div>
-                <div className="flex-[2] min-w-[200px]">
+                <div className="flex-[2] min-w-[180px]">
                   <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
                   <input type="text" id="expDesc" placeholder="Motif de la dépense..." className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
                 </div>
@@ -1075,9 +1080,9 @@ useEffect(() => {
                   <label className="block text-xs font-bold text-slate-700 mb-1">Montant</label>
                   <input type="number" id="expAmount" step="any" placeholder="0.00" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
                 </div>
-                <div className="flex-1 min-w-[120px]">
+                <div className="flex-[1.5] min-w-[170px]">
                   <label className="block text-xs font-bold text-slate-700 mb-1">Paiement</label>
-                  <select id="expMethod" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500">
+                  <select id="expMethod" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white">
                     <option value="cash">Espèces (Tiroir)</option>
                     <option value="card">Carte Bancaire</option>
                   </select>
@@ -1092,6 +1097,7 @@ useEffect(() => {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
                       <tr>
+                        <th className="p-3">Date</th>
                         <th className="p-3">Type</th>
                         <th className="p-3">Description</th>
                         <th className="p-3">Mode</th>
@@ -1102,6 +1108,7 @@ useEffect(() => {
                     <tbody className="divide-y divide-slate-100">
                       {expenses.map(exp => (
                         <tr key={exp.id}>
+                          <td className="p-3 font-mono text-xs text-slate-600">{exp.date || date}</td>
                           <td className="p-3 font-semibold text-slate-700 capitalize">{exp.type}</td>
                           <td className="p-3 text-slate-600">{exp.description}</td>
                           <td className="p-3">
@@ -1120,7 +1127,7 @@ useEffect(() => {
                     </tbody>
                     <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
                       <tr>
-                        <td colSpan={3} className="p-3 text-right text-slate-500 uppercase text-xs">Total Dépenses</td>
+                        <td colSpan={4} className="p-3 text-right text-slate-500 uppercase text-xs">Total Dépenses</td>
                         <td className="p-3 font-mono text-lg text-rose-600 text-right">{totalExpenses.toFixed(2)}</td>
                         <td></td>
                       </tr>
@@ -1460,8 +1467,8 @@ useEffect(() => {
                       <tr className="bg-slate-50/75 border-b border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider">
                         <th className="py-3.5 px-4 font-display">Cuve / Produit</th>
                         <th className="py-3.5 px-4 font-display">Capacité & Ventes</th>
-                        <th className="py-3.5 px-4 text-right font-display">Volume Attendu</th>
-                        <th className="py-3.5 px-4 w-44 font-display">Jauge Physique (L)</th>
+                        <th className="py-3.5 px-4 text-right font-display">Jauge Entrée</th>
+                        <th className="py-3.5 px-4 w-44 font-display">Jauge Sortie</th>
                         <th className="py-3.5 px-4 text-right font-display">Écart Constaté</th>
                         <th className="py-3.5 px-4 w-60 font-display">Raison / Commentaire</th>
                       </tr>
