@@ -157,11 +157,19 @@ export default function Tanks({ store }: TanksProps) {
     nozzles = [], pumps = [], sales = [], shifts = []
   } = store;
 
+  // Filter valid nozzles that connect an existing tank and an existing pump
+  const validTanks = tanks;
+  const validPumps = pumps;
+  const validNozzles = nozzles.filter(n => 
+    validTanks.some(t => t.id === n.tankId) && 
+    validPumps.some(p => p.id === n.pumpId)
+  );
+
   const requiredHeight = Math.max(
     580,
-    70 + tanks.length * 130 + 50,
-    70 + pumps.length * 130 + 50,
-    35 + nozzles.length * 52 + 50
+    70 + validTanks.length * 130 + 50,
+    70 + validPumps.length * 130 + 50,
+    35 + validNozzles.length * 52 + 50
   );
 
 
@@ -862,10 +870,10 @@ export default function Tanks({ store }: TanksProps) {
 
                     {/* CONNECTIONS (drawn behind nodes) */}
                     <g id="connections-group">
-                      {nozzles.map((noz) => {
-                        const tankIndex = tanks.findIndex(t => t.id === noz.tankId);
-                        const pumpIndex = pumps.findIndex(p => p.id === noz.pumpId);
-                        const nozIndex = nozzles.findIndex(n => n.id === noz.id);
+                      {validNozzles.map((noz) => {
+                        const tankIndex = validTanks.findIndex(t => t.id === noz.tankId);
+                        const pumpIndex = validPumps.findIndex(p => p.id === noz.pumpId);
+                        const nozIndex = validNozzles.findIndex(n => n.id === noz.id);
 
                         if (tankIndex === -1 || pumpIndex === -1 || nozIndex === -1) return null;
 
@@ -928,9 +936,9 @@ export default function Tanks({ store }: TanksProps) {
                         
                         // Check if tank is in highlight list
                         const isHighlighted = !selectedNodeType || isSelected || (
-                          selectedNodeType === 'pump' && nozzles.some(n => n.pumpId === selectedNodeId && n.tankId === tank.id)
+                          selectedNodeType === 'pump' && validNozzles.some(n => n.pumpId === selectedNodeId && n.tankId === tank.id)
                         ) || (
-                          selectedNodeType === 'nozzle' && nozzles.some(n => n.id === selectedNodeId && n.tankId === tank.id)
+                          selectedNodeType === 'nozzle' && validNozzles.some(n => n.id === selectedNodeId && n.tankId === tank.id)
                         );
 
                         const currentPercent = Math.round((tank.currentLevel / tank.capacity) * 100);
@@ -1005,13 +1013,13 @@ export default function Tanks({ store }: TanksProps) {
                         const isSelected = selectedNodeType === 'pump' && selectedNodeId === pump.id;
                         
                         const isHighlighted = !selectedNodeType || isSelected || (
-                          selectedNodeType === 'tank' && nozzles.some(n => n.tankId === selectedNodeId && n.pumpId === pump.id)
+                          selectedNodeType === 'tank' && validNozzles.some(n => n.tankId === selectedNodeId && n.pumpId === pump.id)
                         ) || (
-                          selectedNodeType === 'nozzle' && nozzles.some(n => n.id === selectedNodeId && n.pumpId === pump.id)
+                          selectedNodeType === 'nozzle' && validNozzles.some(n => n.id === selectedNodeId && n.pumpId === pump.id)
                         );
 
                         // Count nozzles on this pump
-                        const pumpNozzles = nozzles.filter(n => n.pumpId === pump.id);
+                        const pumpNozzles = validNozzles.filter(n => n.pumpId === pump.id);
 
                         return (
                           <g 
@@ -1067,7 +1075,7 @@ export default function Tanks({ store }: TanksProps) {
                     {/* NODES: PISTOLETS (Right Column) */}
                     <g id="nozzles-group">
                       <text x="760" y="25" textAnchor="middle" className="text-[11px] font-extrabold fill-slate-400 font-sans uppercase tracking-wider">Pistolets</text>
-                      {nozzles.map((noz, idx) => {
+                      {validNozzles.map((noz, idx) => {
                         const x = 760;
                         const y = 35 + idx * 52;
                         const isSelected = selectedNodeType === 'nozzle' && selectedNodeId === noz.id;

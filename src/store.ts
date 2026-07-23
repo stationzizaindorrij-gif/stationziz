@@ -786,6 +786,8 @@ export function useERPStore(): ERPStoreType {
 
   const deleteProduct = (id: string, author: string) => {
     saveState('products', products.filter(p => p.id !== id), setProducts);
+    saveState('tanks', tanks.filter(t => t.productId !== id), setTanks);
+    saveState('nozzles', nozzles.filter(n => n.productId !== id), setNozzles);
   };
 
   const addTank = (tank: Omit<Tank, 'id'>, author: string) => {
@@ -798,6 +800,7 @@ export function useERPStore(): ERPStoreType {
 
   const deleteTank = (id: string, author: string) => {
     saveState('tanks', tanks.filter(t => t.id !== id), setTanks);
+    saveState('nozzles', nozzles.filter(n => n.tankId !== id), setNozzles);
   };
 
   const correctTankLevel = (tankId: string, newLevel: number, reason: string, author: string, date?: string) => {
@@ -810,6 +813,7 @@ export function useERPStore(): ERPStoreType {
       tankId, tankNumber: tank.number, productId: tank.productId, qtyBefore, qtyAfter: newLevel, reason, user: author
     };
     saveState('stock_corrections', [corr, ...stockCorrections], setStockCorrections);
+    saveState('tanks', tanks.map(t => t.id === tankId ? { ...t, currentLevel: newLevel } : t), setTanks);
   };
 
   const deleteStockCorrection = (id: string, author: string) => {
@@ -831,6 +835,10 @@ export function useERPStore(): ERPStoreType {
       return c;
     });
     saveState('stock_corrections', updated, setStockCorrections);
+    const targetTankId = updates.tankId || corr.tankId;
+    if (updates.qtyAfter !== undefined && targetTankId) {
+      saveState('tanks', tanks.map(t => t.id === targetTankId ? { ...t, currentLevel: updates.qtyAfter! } : t), setTanks);
+    }
   };
 
   const addPump = (pump: Omit<Pump, 'id'>, author: string) => {
@@ -843,6 +851,7 @@ export function useERPStore(): ERPStoreType {
 
   const deletePump = (id: string, author: string) => {
     saveState('pumps', pumps.filter(p => p.id !== id), setPumps);
+    saveState('nozzles', nozzles.filter(n => n.pumpId !== id), setNozzles);
   };
 
   const reorderPumps = (newPumps: Pump[]) => {
@@ -1432,12 +1441,21 @@ return {
       saveState('sales', [...newSales, ...sales], setSales);
     }
 
-    // Save physical gauge corrections to the stock correction history
+    // Save physical gauge corrections to the stock correction history & update tank levels
     const shiftIdForCorr = shiftData.id || newShift.id;
     const cleanStockCorrections = stockCorrections.filter(c => !c.id.startsWith(`corr_shift_${shiftIdForCorr}_`));
     const newCorrections: StockCorrection[] = [];
     if ((shiftData as any).gaugeCorrections && (shiftData as any).gaugeCorrections.length > 0) {
       (shiftData as any).gaugeCorrections.forEach((gc: any) => {
+        const tankIdx = currentTanks.findIndex(t => t.id === gc.tankId);
+        if (tankIdx !== -1 && typeof gc.qtyAfter === 'number' && !isNaN(gc.qtyAfter)) {
+          currentTanks[tankIdx] = {
+            ...currentTanks[tankIdx],
+            currentLevel: Number(gc.qtyAfter.toFixed(2))
+          };
+          tanksChanged = true;
+        }
+
         const tank = tanks.find(t => t.id === gc.tankId);
         if (tank) {
           newCorrections.push({
@@ -1454,6 +1472,11 @@ return {
         }
       });
     }
+
+    if (tanksChanged) {
+      saveState('tanks', currentTanks, setTanks);
+    }
+
     if (newCorrections.length > 0 || cleanStockCorrections.length !== stockCorrections.length) {
       saveState('stock_corrections', [...newCorrections, ...cleanStockCorrections], setStockCorrections);
     }
@@ -1918,6 +1941,15 @@ return {
         const cleanStockCorrections = stockCorrections.filter(c => !c.id.startsWith(`corr_shift_${id}_`));
         const newCorrections: StockCorrection[] = [];
         updatedFields.gaugeCorrections.forEach((gc: any) => {
+          const tankIdx = currentTanks.findIndex(t => t.id === gc.tankId);
+          if (tankIdx !== -1 && typeof gc.qtyAfter === 'number' && !isNaN(gc.qtyAfter)) {
+            currentTanks[tankIdx] = {
+              ...currentTanks[tankIdx],
+              currentLevel: Number(gc.qtyAfter.toFixed(2))
+            };
+            tanksChanged = true;
+          }
+
           const tank = tanks.find(t => t.id === gc.tankId);
           if (tank) {
             newCorrections.push({
@@ -1933,6 +1965,11 @@ return {
             });
           }
         });
+
+        if (tanksChanged) {
+          saveState('tanks', currentTanks, setTanks);
+        }
+
         if (newCorrections.length > 0 || cleanStockCorrections.length !== stockCorrections.length) {
           saveState('stock_corrections', [...newCorrections, ...cleanStockCorrections], setStockCorrections);
         }

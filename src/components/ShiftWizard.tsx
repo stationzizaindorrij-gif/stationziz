@@ -164,12 +164,12 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   });
   const [realCashInput, setRealCashInput] = useState(draft?.realCashInput || editingShift?.realCashReceived?.toString() || '');
 
-  const [gaugeCorrections, setGaugeCorrections] = useState<{ [tankId: string]: { measuredLevel: number | '', reason: string } }>(() => {
+  const [gaugeCorrections, setGaugeCorrections] = useState<{ [tankId: string]: { measuredLevel: number | '', expectedLevelOverride?: number | '', reason: string } }>(() => {
     if (draft?.gaugeCorrections) {
       return draft.gaugeCorrections;
     }
     if (editingShift?.gaugeCorrections) {
-      const initial: { [tankId: string]: { measuredLevel: number | '', reason: string } } = {};
+      const initial: { [tankId: string]: { measuredLevel: number | '', expectedLevelOverride?: number | '', reason: string } } = {};
       editingShift.gaugeCorrections.forEach(gc => {
         if (editingShift.status === 'completed' || editingShift.status === 'ready_to_close') {
           const exists = store.stockCorrections.some(c => c.id === `corr_shift_${editingShift.id}_${gc.tankId}`);
@@ -443,9 +443,13 @@ useEffect(() => {
 
     const gcs: any[] = [];
     store.tanks.forEach(tank => {
-      const expectedLevel = getExpectedLevelForTank(tank.id);
+      const defaultExpected = getExpectedLevelForTank(tank.id);
       const gcInput = gaugeCorrections[tank.id];
       
+      const expectedLevel = (gcInput && gcInput.expectedLevelOverride !== undefined && gcInput.expectedLevelOverride !== '')
+        ? parseFloat(gcInput.expectedLevelOverride as any)
+        : defaultExpected;
+
       let qtyAfter = expectedLevel;
       let reason = gcInput?.reason || `Jaugeage Shift ${shiftName} - ${attendant.firstName} ${attendant.lastName}`;
       
@@ -456,14 +460,14 @@ useEffect(() => {
         }
       }
 
-      const qtyBefore = expectedLevel;
+      const qtyBefore = defaultExpected;
 
       gcs.push({
         tankId: tank.id,
         tankNumber: tank.number,
         qtyBefore: Number(qtyBefore.toFixed(2)),
         qtyAfter: Number(qtyAfter.toFixed(2)),
-        discrepancy: Number((qtyAfter - qtyBefore).toFixed(2)),
+        discrepancy: Number((qtyAfter - expectedLevel).toFixed(2)),
         reason
       });
     });
@@ -1464,23 +1468,27 @@ useEffect(() => {
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700 text-sm">
                       {store.tanks.map(tank => {
-                        const expectedLevel = getExpectedLevelForTank(tank.id);
+                        const defaultExpected = getExpectedLevelForTank(tank.id);
                         const sold = shiftLitersSoldByTank[tank.id] || 0;
-                        const gc = gaugeCorrections[tank.id] || { measuredLevel: '', reason: '' };
+                        const gc = gaugeCorrections[tank.id] || { measuredLevel: '', expectedLevelOverride: '', reason: '' };
                         
+                        const expectedLevel = (gc.expectedLevelOverride !== undefined && gc.expectedLevelOverride !== '')
+                          ? parseFloat(gc.expectedLevelOverride as any)
+                          : defaultExpected;
+
                         const measured = gc.measuredLevel !== '' && gc.measuredLevel !== undefined 
                           ? gc.measuredLevel 
                           : Number(expectedLevel.toFixed(2));
                           
                         const parsedMeasured = parseFloat(measured as any);
-                        const diff = !isNaN(parsedMeasured) ? parsedMeasured - expectedLevel : null;
+                        const diff = !isNaN(parsedMeasured) && !isNaN(expectedLevel) ? parsedMeasured - expectedLevel : null;
                         const product = store.products.find(p => p.id === tank.productId);
 
                         return (
                           <tr key={tank.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="py-4 px-4">
                               <div className="flex flex-col gap-1">
-                                <span className="font-bold text-slate-800 text-sm">Cuve {tank.number}</span>
+                                <span className="font-bold text-slate-800 text-sm">Citerne {tank.number}</span>
                                 {product && (
                                   <span className="self-start text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                                     {product.name}
@@ -1494,23 +1502,46 @@ useEffect(() => {
                                 <div>Vendu ce shift: <strong className="font-semibold text-indigo-600">{sold.toLocaleString()} L</strong></div>
                               </div>
                             </td>
-                            <td className="py-4 px-4 text-right font-mono font-extrabold text-indigo-600 text-sm">
-                              {expectedLevel.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L
+                            <td className="py-4 px-4">
+                              <div className="relative flex items-center">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder={defaultExpected.toFixed(2)}
+                                  value={gc.expectedLevelOverride !== undefined ? gc.expectedLevelOverride : Number(expectedLevel.toFixed(2))}
+                                  onChange={e => {
+                                    const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                    setGaugeCorrections({
+                                      ...gaugeCorrections,
+                                      [tank.id]: {
+                                        ...gc,
+                                        expectedLevelOverride: val
+                                      }
+                                    });
+                                  }}
+                                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-indigo-50/60 font-mono font-extrabold text-indigo-900 text-right pr-7"
+                                />
+                                <span className="absolute right-2 text-xs font-bold text-indigo-500 pointer-events-none">L</span>
+                              </div>
                             </td>
                             <td className="py-4 px-4">
-                              <input
-                                type="number"
-                                placeholder="Ex: 5200"
-                                value={measured}
-                                onChange={e => {
-                                  const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                  setGaugeCorrections({
-                                    ...gaugeCorrections,
-                                    [tank.id]: { ...gc, measuredLevel: val }
-                                  });
-                                }}
-                                className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono font-bold text-slate-800"
-                              />
+                              <div className="relative flex items-center">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Ex: 5200"
+                                  value={measured}
+                                  onChange={e => {
+                                    const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                    setGaugeCorrections({
+                                      ...gaugeCorrections,
+                                      [tank.id]: { ...gc, measuredLevel: val }
+                                    });
+                                  }}
+                                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono font-bold text-slate-800 pr-7"
+                                />
+                                <span className="absolute right-2 text-xs font-bold text-slate-400 pointer-events-none">L</span>
+                              </div>
                             </td>
                             <td className="py-4 px-4 text-right font-mono font-bold">
                               {diff !== null && (
@@ -1568,9 +1599,13 @@ useEffect(() => {
                   
                   const gcs: any[] = [];
                   store.tanks.forEach(tank => {
-                    const expectedLevel = getExpectedLevelForTank(tank.id);
+                    const defaultExpected = getExpectedLevelForTank(tank.id);
                     const gcInput = gaugeCorrections[tank.id];
                     
+                    const expectedLevel = (gcInput && gcInput.expectedLevelOverride !== undefined && gcInput.expectedLevelOverride !== '')
+                      ? parseFloat(gcInput.expectedLevelOverride as any)
+                      : defaultExpected;
+
                     let qtyAfter = expectedLevel;
                     let reason = gcInput?.reason || `Jaugeage Shift ${shiftName} - ${attendantName}`;
                     
@@ -1581,14 +1616,14 @@ useEffect(() => {
                       }
                     }
 
-                    const qtyBefore = expectedLevel;
+                    const qtyBefore = defaultExpected;
 
                     gcs.push({
                       tankId: tank.id,
                       tankNumber: tank.number,
                       qtyBefore: Number(qtyBefore.toFixed(2)),
                       qtyAfter: Number(qtyAfter.toFixed(2)),
-                      discrepancy: Number((qtyAfter - qtyBefore).toFixed(2)),
+                      discrepancy: Number((qtyAfter - expectedLevel).toFixed(2)),
                       reason
                     });
                   });
