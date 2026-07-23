@@ -24,11 +24,28 @@ BEGIN
     END IF;
   END IF;
 
-  -- erp_shifts -> endDate
+  -- erp_shifts -> endDate, gaugeCorrections
   IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'erp_shifts') THEN
     IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_shifts' AND column_name = 'endDate') THEN
       EXECUTE 'ALTER TABLE erp_shifts ADD COLUMN "endDate" TEXT';
       RAISE NOTICE 'Added endDate column to erp_shifts';
+    END IF;
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_shifts' AND (column_name = 'gaugeCorrections' OR column_name = 'gaugecorrections')) THEN
+      EXECUTE 'ALTER TABLE erp_shifts ADD COLUMN "gaugeCorrections" JSONB';
+      RAISE NOTICE 'Added gaugeCorrections column to erp_shifts';
+    END IF;
+  END IF;
+
+  -- erp_stock_corrections -> gauge columns migration
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'erp_stock_corrections') THEN
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_stock_corrections' AND (column_name = 'tankId' OR column_name = 'tankid')) THEN
+      EXECUTE 'ALTER TABLE erp_stock_corrections ADD COLUMN "tankId" TEXT';
+    END IF;
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_stock_corrections' AND (column_name = 'qtyBefore' OR column_name = 'qtybefore')) THEN
+      EXECUTE 'ALTER TABLE erp_stock_corrections ADD COLUMN "qtyBefore" NUMERIC';
+    END IF;
+    IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_stock_corrections' AND (column_name = 'qtyAfter' OR column_name = 'qtyafter')) THEN
+      EXECUTE 'ALTER TABLE erp_stock_corrections ADD COLUMN "qtyAfter" NUMERIC';
     END IF;
   END IF;
 
