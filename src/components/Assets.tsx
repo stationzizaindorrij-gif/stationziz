@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { 
+import { Calendar, Search,  
   Fuel, Plus, CheckCircle, AlertTriangle, Edit2, AlertCircle, Trash2, 
   Settings, Layers, Link, Sliders, Play, X, SlidersHorizontal 
 } from 'lucide-react';
-import { ERPStoreType } from '../store';
-import { Product, Pump, Nozzle } from '../types';
+import { ERPStoreType } from "../store";
+import { Product, Pump, Nozzle } from "../types";
 
 interface AssetsProps {
   store: ERPStoreType;
@@ -18,6 +18,7 @@ export default function Assets({ store }: AssetsProps) {
 
   // Tab for products vs pumps vs nozzles
   const [activeTab, setActiveTab] = useState<'products' | 'pumps' | 'nozzles' | 'history'>('products');
+  const [historySearchDate, setHistorySearchDate] = useState<string>('');
 
   // Addition forms toggles
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
@@ -306,6 +307,85 @@ export default function Assets({ store }: AssetsProps) {
               </div>
             ))}
           </div>
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mt-6">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 font-display">Historique des changements de prix</h3>
+                <p className="text-sm text-slate-500">Consultez les modifications des prix par date.</p>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="date" 
+                  value={historySearchDate}
+                  onChange={e => setHistorySearchDate(e.target.value)}
+                  className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]"
+                />
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="p-4">Date & Heure</th>
+                    <th className="p-4">Utilisateur</th>
+                    <th className="p-4">Carburant</th>
+                    <th className="p-4">Prix Achat</th>
+                    <th className="p-4">Prix Vente</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {store.auditLogs
+                    .filter(log => log.module === 'PriceHistory')
+                    .filter(log => !historySearchDate || log.date === historySearchDate)
+                    .sort((a, b) => new Date(`${b.date}T${b.time || '00:00:00'}`).getTime() - new Date(`${a.date}T${a.time || '00:00:00'}`).getTime())
+                    .map((log) => {
+                      try {
+                        const details = JSON.parse(log.details);
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-slate-800">{new Date(log.date).toLocaleDateString('fr-FR')}</span>
+                                <span className="text-xs text-slate-500">{log.time || '00:00:00'}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                                {log.user}
+                              </span>
+                            </td>
+                            <td className="p-4 font-bold text-slate-800">{details.productName}</td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <span className="line-through text-slate-400 text-xs">{details.oldPurchasePrice.toFixed(2)}</span>
+                                <span className="text-indigo-600 font-bold">{details.newPurchasePrice.toFixed(2)} MAD</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <span className="line-through text-slate-400 text-xs">{details.oldSalePrice.toFixed(2)}</span>
+                                <span className="text-emerald-600 font-bold">{details.newSalePrice.toFixed(2)} MAD</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      } catch (e) {
+                        return null;
+                      }
+                    })
+                  }
+                  {store.auditLogs.filter(log => log.module === 'PriceHistory' && (!historySearchDate || log.date === historySearchDate)).length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-500">
+                        Aucun changement de prix trouvé pour cette date.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -468,6 +548,90 @@ export default function Assets({ store }: AssetsProps) {
       )}
 
 
+      {/* 4. HISTORIQUE DES PRIX */}
+      {activeTab === 'history' && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 font-display">Historique des changements de prix</h3>
+                <p className="text-sm text-slate-500">Consultez les modifications des prix par date.</p>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="date" 
+                  value={historySearchDate}
+                  onChange={e => setHistorySearchDate(e.target.value)}
+                  className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]"
+                />
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="p-4">Date & Heure</th>
+                    <th className="p-4">Utilisateur</th>
+                    <th className="p-4">Carburant</th>
+                    <th className="p-4">Prix Achat</th>
+                    <th className="p-4">Prix Vente</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {store.auditLogs
+                    .filter(log => log.module === 'PriceHistory')
+                    .filter(log => !historySearchDate || log.date === historySearchDate)
+                    .sort((a, b) => new Date(`${b.date}T${b.time || '00:00:00'}`).getTime() - new Date(`${a.date}T${a.time || '00:00:00'}`).getTime())
+                    .map((log) => {
+                      try {
+                        const details = JSON.parse(log.details);
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-slate-800">{new Date(log.date).toLocaleDateString('fr-FR')}</span>
+                                <span className="text-xs text-slate-500">{log.time || '00:00:00'}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                                {log.user}
+                              </span>
+                            </td>
+                            <td className="p-4 font-bold text-slate-800">{details.productName}</td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <span className="line-through text-slate-400 text-xs">{details.oldPurchasePrice.toFixed(2)}</span>
+                                <span className="text-indigo-600 font-bold">{details.newPurchasePrice.toFixed(2)} MAD</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <span className="line-through text-slate-400 text-xs">{details.oldSalePrice.toFixed(2)}</span>
+                                <span className="text-emerald-600 font-bold">{details.newSalePrice.toFixed(2)} MAD</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      } catch (e) {
+                        return null;
+                      }
+                    })
+                  }
+                  {store.auditLogs.filter(log => log.module === 'PriceHistory' && (!historySearchDate || log.date === historySearchDate)).length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-500">
+                        Aucun changement de prix trouvé pour cette date.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FORMULAIRE POMPE MODAL */}
       {isPumpFormOpen && (

@@ -4,7 +4,7 @@ import React, { useState
 import { 
   Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, 
   AuditLog, CashRegistry, Shift, Alert, Supply, Tank, Product, Attendant,
-  StationConfig, UserRole, User, StockCorrection, Pump, Nozzle, Sale
+  StationConfig, UserRole, User, StockCorrection, Pump, PriceHistory, Nozzle, Sale
 } from './types';
 import { RichDocument } from './components/BillingTypes';
 import { 
@@ -17,6 +17,7 @@ export interface ERPStoreType {
   loadInitialData: (data?: any) => void;
   products: Product[];
   shopProducts: ShopProduct[];
+  priceHistory: PriceHistory[];
   tanks: Tank[];
   pumps: Pump[];
   nozzles: Nozzle[];
@@ -118,6 +119,7 @@ export interface ERPStoreType {
 const syncQueues: { [key: string]: Promise<any> } = {};
 
 export function useERPStore(): ERPStoreType {
+  const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
   const [tanks, setTanks] = useState<Tank[]>([]);
@@ -775,15 +777,49 @@ export function useERPStore(): ERPStoreType {
   };
 
   const updateProduct = (id: string, updates: Partial<Product>, author: string) => {
+    const oldProduct = products.find(p => p.id === id);
+    
+    if (oldProduct) {
+      if ((updates.purchasePrice !== undefined && updates.purchasePrice !== oldProduct.purchasePrice) ||
+          (updates.salePrice !== undefined && updates.salePrice !== oldProduct.salePrice)) {
+        const historyDetails = {
+          productId: id,
+          productName: oldProduct.name,
+          oldPurchasePrice: oldProduct.purchasePrice,
+          newPurchasePrice: updates.purchasePrice !== undefined ? updates.purchasePrice : oldProduct.purchasePrice,
+          oldSalePrice: oldProduct.salePrice,
+          newSalePrice: updates.salePrice !== undefined ? updates.salePrice : oldProduct.salePrice,
+        };
+        logAction(author, 'Modification Prix', 'PriceHistory', JSON.stringify(historyDetails));
+      }
+    }
     saveState('products', products.map(p => p.id === id ? { ...p, ...updates } : p), setProducts);
+    if (oldProduct) {
+      logAction(author, 'Modification', 'Catalogue', `Modification du produit ${oldProduct.name}`);
+    }
   };
 
   const updateProductsBulk = (updatesList: { id: string; updates: Partial<Product> }[], author: string) => {
     const updatedProducts = products.map(p => {
       const match = updatesList.find(u => u.id === p.id);
+      if (match) {
+        if ((match.updates.purchasePrice !== undefined && match.updates.purchasePrice !== p.purchasePrice) ||
+            (match.updates.salePrice !== undefined && match.updates.salePrice !== p.salePrice)) {
+          const historyDetails = {
+            productId: p.id,
+            productName: p.name,
+            oldPurchasePrice: p.purchasePrice,
+            newPurchasePrice: match.updates.purchasePrice !== undefined ? match.updates.purchasePrice : p.purchasePrice,
+            oldSalePrice: p.salePrice,
+            newSalePrice: match.updates.salePrice !== undefined ? match.updates.salePrice : p.salePrice,
+          };
+          logAction(author, 'Modification Prix Bulk', 'PriceHistory', JSON.stringify(historyDetails));
+        }
+      }
       return match ? { ...p, ...match.updates } : p;
     });
     saveState('products', updatedProducts, setProducts);
+    logAction(author, 'Modification Bulk', 'Catalogue', `Mise à jour en masse de ${updatesList.length} produits`);
   };
 
   const deleteProduct = (id: string, author: string) => {

@@ -443,13 +443,13 @@ export default function Tanks({ store }: TanksProps) {
             onClick={() => setActiveSubTab('corrections')}
             className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeSubTab === 'corrections' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
-            Corrections Manuelles
+            Corrections Jaugeages
           </button>
           <button 
             onClick={() => setActiveSubTab('deliveries')}
             className={`px-4 py-2 text-sm font-semibold rounded-md transition-all cursor-pointer ${activeSubTab === 'deliveries' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
           >
-            Historique Livraisons
+            Historique d'Achats
           </button>
           <button 
             onClick={() => setActiveSubTab('schema')}
@@ -779,13 +779,13 @@ export default function Tanks({ store }: TanksProps) {
                         onClick={() => handleOpenCorrectionForm(tank.id)}
                         className="py-1 border border-slate-200 bg-white hover:bg-slate-50 rounded text-[10px] font-bold text-slate-600 transition-colors"
                       >
-                        Ajuster Jauge
+                        Jaugeage
                       </button>
                       <button 
                         onClick={() => handleOpenSupplyForm(tank.id)}
                         className="py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-[10px] font-bold text-white transition-colors"
                       >
-                        Livrer Carburant
+                        Achat Carburant
                       </button>
                     </div>
                   )}
@@ -1701,7 +1701,7 @@ export default function Tanks({ store }: TanksProps) {
         </div>
       )}
 
-      {/* 3. HISTORIQUE DES CORRECTIONS MANUELLES */}
+      {/* 3. HISTORIQUE DES CORRECTIONS JAUGEAGES */}
       {activeSubTab === 'corrections' && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
@@ -2798,11 +2798,11 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                 </div>
               </div>
 
-              {/* Historique des Livraisons */}
+              {/* Historique d'Achats */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                   <h4 className="text-sm font-bold text-slate-800 font-display flex items-center gap-2">
-                    <Droplet className="w-4 h-4 text-indigo-500" /> Historique des Livraisons
+                    <Droplet className="w-4 h-4 text-indigo-500" /> Historique d'Achats
                   </h4>
                 </div>
                 {tankSupplies.length > 0 ? (
@@ -2835,7 +2835,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                   <h4 className="text-sm font-bold text-slate-800 font-display flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-amber-500" /> Corrections Manuelles
+                    <Sliders className="w-4 h-4 text-amber-500" /> Corrections Jaugeages
                   </h4>
                 </div>
                 {tankCorrections.length > 0 ? (

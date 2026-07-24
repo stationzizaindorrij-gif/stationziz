@@ -1,3 +1,14 @@
+export interface PriceHistory {
+  id: string;
+  productId: string;
+  date: string;
+  oldPurchasePrice: number;
+  newPurchasePrice: number;
+  oldSalePrice: number;
+  newSalePrice: number;
+  author: string;
+}
+
 export interface Product {
   id: string;
   name: string;
