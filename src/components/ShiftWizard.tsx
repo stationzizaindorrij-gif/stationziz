@@ -1505,7 +1505,7 @@ useEffect(() => {
                         <th className="py-3.5 px-4 font-display">Citerne / Produit</th>
                         <th className="py-3.5 px-4 font-display">Capacité & Ventes</th>
                         <th className="py-3.5 px-4 text-right font-display">Volume Attendu</th>
-                        <th className="py-3.5 px-4 w-44 font-display">Jauge Physique (L)</th>
+                        <th className="py-3.5 px-4 w-44 font-display">Stock Sortie</th>
                         <th className="py-3.5 px-4 text-right font-display">Écart Constaté</th>
                         <th className="py-3.5 px-4 w-60 font-display">Raison / Commentaire</th>
                       </tr>
