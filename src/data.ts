@@ -11,9 +11,9 @@ export const INITIAL_PRODUCTS: Product[] = [
 ];
 
 export const INITIAL_TANKS: Tank[] = [
-  { id: 'tank_1', number: 'Cuve N°1 (Gazoil)', productId: 'prod_gazoil', productName: 'Gazoil', capacity: 30000, currentLevel: 24500, minLevel: 5000, maxLevel: 29500 },
-  { id: 'tank_2', number: 'Cuve N°2 (Sans Plomb)', productId: 'prod_sans_plomb', productName: 'Sans Plomb', capacity: 20000, currentLevel: 14200, minLevel: 4000, maxLevel: 19500 },
-  { id: 'tank_3', number: 'Cuve N°3 (Mélange)', productId: 'prod_melange', productName: 'Mélange', capacity: 20000, currentLevel: 4200, minLevel: 4000, maxLevel: 19500 }, // Low Stock Alarm triggered soon!
+  { id: 'tank_1', number: 'Citerne N°1 (Gazoil)', productId: 'prod_gazoil', productName: 'Gazoil', capacity: 30000, currentLevel: 24500, minLevel: 5000, maxLevel: 29500 },
+  { id: 'tank_2', number: 'Citerne N°2 (Sans Plomb)', productId: 'prod_sans_plomb', productName: 'Sans Plomb', capacity: 20000, currentLevel: 14200, minLevel: 4000, maxLevel: 19500 },
+  { id: 'tank_3', number: 'Citerne N°3 (Mélange)', productId: 'prod_melange', productName: 'Mélange', capacity: 20000, currentLevel: 4200, minLevel: 4000, maxLevel: 19500 }, // Low Stock Alarm triggered soon!
 ];
 
 export const INITIAL_PUMPS: Pump[] = [
@@ -25,22 +25,22 @@ export const INITIAL_PUMPS: Pump[] = [
 
 export const INITIAL_NOZZLES: Nozzle[] = [
   // Pompe 1
-  { id: 'noz_1a', name: 'Pistolet 1-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_1', tankNumber: 'Cuve N°1 (Gazoil)', currentMechCounter: 152430, currentElecCounter: 152432.1, status: 'active' },
-  { id: 'noz_1b', name: 'Pistolet 1-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_2', tankNumber: 'Cuve N°2 (Sans Plomb)', currentMechCounter: 98210, currentElecCounter: 98211.5, status: 'active' },
-  { id: 'noz_1c', name: 'Pistolet 1-C', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_3', tankNumber: 'Cuve N°3 (Mélange)', currentMechCounter: 64150, currentElecCounter: 64152.0, status: 'active' },
+  { id: 'noz_1a', name: 'Pistolet 1-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', currentMechCounter: 152430, currentElecCounter: 152432.1, status: 'active' },
+  { id: 'noz_1b', name: 'Pistolet 1-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', currentMechCounter: 98210, currentElecCounter: 98211.5, status: 'active' },
+  { id: 'noz_1c', name: 'Pistolet 1-C', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_3', tankNumber: 'Citerne N°3 (Mélange)', currentMechCounter: 64150, currentElecCounter: 64152.0, status: 'active' },
   
   // Pompe 2
-  { id: 'noz_2a', name: 'Pistolet 2-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_1', tankNumber: 'Cuve N°1 (Gazoil)', currentMechCounter: 184200, currentElecCounter: 184203.4, status: 'active' },
-  { id: 'noz_2b', name: 'Pistolet 2-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_2', tankNumber: 'Cuve N°2 (Sans Plomb)', currentMechCounter: 74100, currentElecCounter: 74102.2, status: 'active' },
-  { id: 'noz_2c', name: 'Pistolet 2-C', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_3', tankNumber: 'Cuve N°3 (Mélange)', currentMechCounter: 41200, currentElecCounter: 41200.8, status: 'active' },
+  { id: 'noz_2a', name: 'Pistolet 2-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', currentMechCounter: 184200, currentElecCounter: 184203.4, status: 'active' },
+  { id: 'noz_2b', name: 'Pistolet 2-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', currentMechCounter: 74100, currentElecCounter: 74102.2, status: 'active' },
+  { id: 'noz_2c', name: 'Pistolet 2-C', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_3', tankNumber: 'Citerne N°3 (Mélange)', currentMechCounter: 41200, currentElecCounter: 41200.8, status: 'active' },
 
   // Pompe 3
-  { id: 'noz_3a', name: 'Pistolet 3-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_3', pumpNumber: 'Pompe 03', tankId: 'tank_1', tankNumber: 'Cuve N°1 (Gazoil)', currentMechCounter: 211450, currentElecCounter: 211452.9, status: 'active' },
-  { id: 'noz_3b', name: 'Pistolet 3-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_3', pumpNumber: 'Pompe 03', tankId: 'tank_2', tankNumber: 'Cuve N°2 (Sans Plomb)', currentMechCounter: 82300, currentElecCounter: 82301.1, status: 'active' },
+  { id: 'noz_3a', name: 'Pistolet 3-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_3', pumpNumber: 'Pompe 03', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', currentMechCounter: 211450, currentElecCounter: 211452.9, status: 'active' },
+  { id: 'noz_3b', name: 'Pistolet 3-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_3', pumpNumber: 'Pompe 03', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', currentMechCounter: 82300, currentElecCounter: 82301.1, status: 'active' },
 
   // Pompe 4
-  { id: 'noz_4a', name: 'Pistolet 4-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_4', pumpNumber: 'Pompe 04', tankId: 'tank_1', tankNumber: 'Cuve N°1 (Gazoil)', currentMechCounter: 35000, currentElecCounter: 35000.0, status: 'defective' },
-  { id: 'noz_4b', name: 'Pistolet 4-B', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_4', pumpNumber: 'Pompe 04', tankId: 'tank_3', tankNumber: 'Cuve N°3 (Mélange)', currentMechCounter: 22100, currentElecCounter: 22100.0, status: 'active' },
+  { id: 'noz_4a', name: 'Pistolet 4-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_4', pumpNumber: 'Pompe 04', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', currentMechCounter: 35000, currentElecCounter: 35000.0, status: 'defective' },
+  { id: 'noz_4b', name: 'Pistolet 4-B', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_4', pumpNumber: 'Pompe 04', tankId: 'tank_3', tankNumber: 'Citerne N°3 (Mélange)', currentMechCounter: 22100, currentElecCounter: 22100.0, status: 'active' },
 ];
 
 export const INITIAL_ATTENDANTS: Attendant[] = [
@@ -156,9 +156,9 @@ export const INITIAL_SALES: Sale[] = [
 ];
 
 export const INITIAL_SUPPLIES: Supply[] = [
-  { id: 'sup_1', supplier: 'TotalEnergies Distribution', productId: 'prod_gazoil', productName: 'Gazoil', tankId: 'tank_1', tankNumber: 'Cuve N°1 (Gazoil)', qtyDelivered: 12000, purchasePrice: 1.41, invoiceNumber: 'INV-2026-0689', date: '2026-06-28' },
-  { id: 'sup_2', supplier: 'Esso Cargo France', productId: 'prod_sans_plomb', productName: 'Sans Plomb', tankId: 'tank_2', tankNumber: 'Cuve N°2 (Sans Plomb)', qtyDelivered: 8000, purchasePrice: 1.51, invoiceNumber: 'INV-2026-0711', date: '2026-06-30' },
-  { id: 'sup_3', supplier: 'TotalEnergies Distribution', productId: 'prod_melange', productName: 'Mélange', tankId: 'tank_3', tankNumber: 'Cuve N°3 (Mélange)', qtyDelivered: 6000, purchasePrice: 1.58, invoiceNumber: 'INV-2026-0715', date: '2026-07-01' },
+  { id: 'sup_1', supplier: 'TotalEnergies Distribution', productId: 'prod_gazoil', productName: 'Gazoil', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', qtyDelivered: 12000, purchasePrice: 1.41, invoiceNumber: 'INV-2026-0689', date: '2026-06-28' },
+  { id: 'sup_2', supplier: 'Esso Cargo France', productId: 'prod_sans_plomb', productName: 'Sans Plomb', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', qtyDelivered: 8000, purchasePrice: 1.51, invoiceNumber: 'INV-2026-0711', date: '2026-06-30' },
+  { id: 'sup_3', supplier: 'TotalEnergies Distribution', productId: 'prod_melange', productName: 'Mélange', tankId: 'tank_3', tankNumber: 'Citerne N°3 (Mélange)', qtyDelivered: 6000, purchasePrice: 1.58, invoiceNumber: 'INV-2026-0715', date: '2026-07-01' },
 ];
 
 export const INITIAL_CASH_REGISTRY: CashRegistry = {
@@ -177,7 +177,7 @@ export const INITIAL_CASH_REGISTRY: CashRegistry = {
 };
 
 export const INITIAL_STOCK_CORRECTIONS: StockCorrection[] = [
-  { id: 'corr_1', date: '2026-06-25', tankId: 'tank_2', tankNumber: 'Cuve N°2 (Sans Plomb)', productId: 'prod_sans_plomb', qtyBefore: 12450, qtyAfter: 12410, reason: 'Correction écart évaporation thermique', user: 'Directeur ERP' }
+  { id: 'corr_1', date: '2026-06-25', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', productId: 'prod_sans_plomb', qtyBefore: 12450, qtyAfter: 12410, reason: 'Correction écart évaporation thermique', user: 'Directeur ERP' }
 ];
 
 export const INITIAL_AUDIT_LOGS: AuditLog[] = [
@@ -186,7 +186,7 @@ export const INITIAL_AUDIT_LOGS: AuditLog[] = [
 ];
 
 export const INITIAL_ALERTS: Alert[] = [
-  { id: 'alert_1', date: '2026-07-05T01:10:00', severity: 'warning', message: 'Le niveau de la Cuve N°3 (Mélange) est faible : 4 200 L restants (seuil min : 4 000 L).', isRead: false, type: 'low_stock' },
+  { id: 'alert_1', date: '2026-07-05T01:10:00', severity: 'warning', message: 'Le niveau de la Citerne N°3 (Mélange) est faible : 4 200 L restants (seuil min : 4 000 L).', isRead: false, type: 'low_stock' },
   { id: 'alert_2', date: '2026-07-05T16:00:00', severity: 'warning', message: 'La Pompe 04 est déclarée HORS SERVICE pour maintenance pistolet.', isRead: true, type: 'pump_offline' },
   { id: 'alert_3', date: '2026-07-05T22:15:00', severity: 'danger', message: 'Écart de caisse détecté sur le shift "Après-midi" de Khadija Bennani : -5.00 MAD.', isRead: false, type: 'cash_discrepancy' },
 ];

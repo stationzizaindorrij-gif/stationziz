@@ -364,7 +364,7 @@ export default function Settings({ store }: SettingsProps) {
                   Option 1 : Vider complètement ma base de données (À Blanc)
                 </h4>
                 <p className="text-[11px] text-rose-700 leading-relaxed">
-                  Cette action va effacer définitivement toutes les données par défaut, les pompistes fictifs, les cuves, les pistolets, les shifts et l'historique de ventes de votre compte afin de vous laisser configurer votre propre station avec vos propres données réelles.
+                  Cette action va effacer définitivement toutes les données par défaut, les pompistes fictifs, les citernes, les pistolets, les shifts et l'historique de ventes de votre compte afin de vous laisser configurer votre propre station avec vos propres données réelles.
                 </p>
                 <button 
                   onClick={() => setShowResetConfirm(true)}
@@ -382,7 +382,7 @@ export default function Settings({ store }: SettingsProps) {
                   Option 2 : Charger les données de démonstration d'usine
                 </h4>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Si vous souhaitez uniquement tester l'application ou faire une démonstration, cliquez ici pour charger les données d'usine pré-configurées (pompistes Amine/Youssef, cuves de test, etc.).
+                  Si vous souhaitez uniquement tester l'application ou faire une démonstration, cliquez ici pour charger les données d'usine pré-configurées (pompistes Amine/Youssef, citernes de test, etc.).
                 </p>
                 <button 
                   onClick={() => setShowDemoLoadConfirm(true)}
@@ -420,7 +420,7 @@ export default function Settings({ store }: SettingsProps) {
               <h3 className="text-xl font-bold text-rose-600 mb-2">EFFACER TOUTES LES DONNÉES</h3>
               <p className="text-sm text-slate-500 mb-6">
                 Êtes-vous sûr de vouloir vider complètement votre compte ? <br/><br/>
-                Cette action supprimera tous les pompistes fictifs, les cuves, les pistolets, les shifts et les ventes. Votre compte sera entièrement vide pour vous permettre de configurer votre station réelle.
+                Cette action supprimera tous les pompistes fictifs, les citernes, les pistolets, les shifts et les ventes. Votre compte sera entièrement vide pour vous permettre de configurer votre station réelle.
               </p>
               <div className="flex gap-3 justify-end">
                 <button 
@@ -451,7 +451,7 @@ export default function Settings({ store }: SettingsProps) {
             <div className="p-6">
               <h3 className="text-xl font-bold text-slate-800 mb-2">CHARGER LES DONNÉES DE DÉMO</h3>
               <p className="text-sm text-slate-500 mb-6">
-                Voulez-vous charger l'ensemble des données de test d'usine (pompistes Amine & Youssef, cuves, pistolets, et ventes fictives) ? Cela remplacera vos données actuelles.
+                Voulez-vous charger l'ensemble des données de test d'usine (pompistes Amine & Youssef, citernes, pistolets, et ventes fictives) ? Cela remplacera vos données actuelles.
               </p>
               <div className="flex gap-3 justify-end">
                 <button 

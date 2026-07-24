@@ -179,7 +179,7 @@ export default function Assets({ store }: AssetsProps) {
     const tankObj = tanks.find(t => t.id === nozTankId);
 
     if (!pumpObj || !prodObj || !tankObj) {
-      alert("Associez une pompe, un carburant et une cuve existante.");
+      alert("Associez une pompe, un carburant et une citerne existante.");
       return;
     }
 
@@ -410,7 +410,7 @@ export default function Assets({ store }: AssetsProps) {
                   <th className="p-3">Désignation</th>
                   <th className="p-3">Carburant</th>
                   <th className="p-3">Distributeur</th>
-                  <th className="p-3">Cuve reliée</th>
+                  <th className="p-3">Citerne reliée</th>
                   <th className="p-3">Index Électronique</th>
                   <th className="p-3">Index Mécanique</th>
                   <th className="p-3">Statut</th>
@@ -584,7 +584,7 @@ export default function Assets({ store }: AssetsProps) {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Cuve reliée</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Citerne reliée</label>
                     <select 
                       value={nozTankId}
                       onChange={(e) => setNozTankId(e.target.value)}

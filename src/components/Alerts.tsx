@@ -18,7 +18,7 @@ export default function Alerts({ store }: AlertsProps) {
 
   // Trigger signal check simulation
   const handleSimulateIoTCheck = () => {
-    alert("[SIMULATION IoT] Communication vérifiée sur l'intégralité des 4 cuves de stockage et 8 pistolets actifs.\nTaux de perte de paquets : 0.0%\nSignal RF : Excellent (98%)");
+    alert("[SIMULATION IoT] Communication vérifiée sur l'intégralité des 4 citernes de stockage et 8 pistolets actifs.\nTaux de perte de paquets : 0.0%\nSignal RF : Excellent (98%)");
   };
 
   const hasWriteAccess = currentRole === 'admin' || currentRole === 'manager';
@@ -29,7 +29,7 @@ export default function Alerts({ store }: AlertsProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Centre de Supervision IoT & Alertes</h1>
-          <p className="text-sm text-slate-500">Consultez les télémétries automatiques des cuves de stockage, pistolets et états de caisse.</p>
+          <p className="text-sm text-slate-500">Consultez les télémétries automatiques des citernes de stockage, pistolets et états de caisse.</p>
         </div>
         <div className="flex gap-2">
           <button 

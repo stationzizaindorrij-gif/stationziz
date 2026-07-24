@@ -133,7 +133,7 @@ export interface Shift {
   };
   gaugeCorrections?: {
     tankId: string;
-    tankNumber: number;
+    tankNumber: string;
     qtyBefore: number;
     qtyAfter: number;
     discrepancy: number;

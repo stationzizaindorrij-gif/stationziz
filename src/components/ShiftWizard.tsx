@@ -165,24 +165,43 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   const [realCashInput, setRealCashInput] = useState(draft?.realCashInput || editingShift?.realCashReceived?.toString() || '');
 
   const [gaugeCorrections, setGaugeCorrections] = useState<{ [tankId: string]: { measuredLevel: number | '', reason: string } }>(() => {
-    if (draft?.gaugeCorrections) {
-      return draft.gaugeCorrections;
+    let shiftGcs = editingShift?.gaugeCorrections || [];
+    
+    // Fallback for older shifts where gaugeCorrections wasn't embedded
+    if (shiftGcs.length === 0 && editingShift && store.stockCorrections) {
+      const relatedCorrections = store.stockCorrections.filter(c => c.id.startsWith(`corr_shift_${editingShift.id}_`));
+      shiftGcs = relatedCorrections.map(c => ({
+        tankId: c.tankId,
+        tankNumber: c.tankNumber || '',
+        qtyBefore: c.qtyBefore,
+        qtyAfter: c.qtyAfter,
+        discrepancy: c.qtyAfter - c.qtyBefore,
+        reason: c.reason
+      }));
     }
-    if (editingShift?.gaugeCorrections) {
-      const initial: { [tankId: string]: { measuredLevel: number | '', reason: string } } = {};
-      editingShift.gaugeCorrections.forEach(gc => {
-        if (editingShift.status === 'completed' || editingShift.status === 'ready_to_close') {
-          const exists = store.stockCorrections.some(c => c.id === `corr_shift_${editingShift.id}_${gc.tankId}`);
-          if (exists) {
-            initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
-          }
-        } else {
-          initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
-        }
+
+    const initial: { [tankId: string]: { measuredLevel: number | '', reason: string } } = {};
+    if (shiftGcs.length > 0) {
+      shiftGcs.forEach(gc => {
+        initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
+      });
+    }
+
+    if (draft?.gaugeCorrections && Object.keys(draft.gaugeCorrections).length > 0) {
+      Object.keys(draft.gaugeCorrections).forEach(tankId => {
+         const draftGc = draft.gaugeCorrections[tankId];
+         // Only overwrite if draft actually has a value, or if initial doesn't exist.
+         // This prevents old corrupted drafts (with empty measuredLevel) from wiping actual DB values.
+         if (draftGc.measuredLevel !== '' && draftGc.measuredLevel !== undefined) {
+             initial[tankId] = draftGc;
+         } else if (!initial[tankId]) {
+             initial[tankId] = draftGc;
+         }
       });
       return initial;
     }
-    return {};
+
+    return initial;
   });
 
   const [localPrices, setLocalPrices] = useState<{ [id: string]: { purchase: number, sale: number } }>({});
@@ -334,6 +353,19 @@ useEffect(() => {
   }, [store.nozzles, fuelSalesDetails.litersSold]);
 
   const getExpectedLevelForTank = (tankId: string) => {
+    // If we are editing a shift that already has a saved gauge correction for this tank, use its historical qtyBefore
+    if (editingShift?.gaugeCorrections) {
+      const gc = editingShift.gaugeCorrections.find(g => g.tankId === tankId);
+      if (gc && gc.qtyBefore !== undefined) {
+        return gc.qtyBefore;
+      }
+    } else if (editingShift && store.stockCorrections) {
+      const gc = store.stockCorrections.find(c => c.id === `corr_shift_${editingShift.id}_${tankId}`);
+      if (gc && gc.qtyBefore !== undefined) {
+        return gc.qtyBefore;
+      }
+    }
+
     const tank = store.tanks.find(t => t.id === tankId);
     if (!tank) return 0;
 
@@ -545,7 +577,7 @@ useEffect(() => {
     { id: 5, title: 'Dépenses', icon: Receipt },
     { id: 6, title: 'Encaissements Non Espèce', icon: CreditCard },
     { id: 7, title: 'Encaissements Espèce', icon: Banknote },
-    { id: 8, title: 'Jaugeage des Cuves', icon: Database },
+    { id: 8, title: 'Jaugeage des Citernes', icon: Database },
     { id: 9, title: 'Validation', icon: CheckCircle2 }
   ];
 
@@ -1450,7 +1482,7 @@ useEffect(() => {
             </div>
           )}
 
-          {/* STEP 8: Jaugeage des Cuves */}
+          {/* STEP 8: Jaugeage des Citernes */}
           {currentStep === 8 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-6">
@@ -1460,7 +1492,7 @@ useEffect(() => {
                       <Database className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-slate-800 font-display tracking-tight">Jaugeage Manuel des Cuves</h3>
+                      <h3 className="text-xl font-black text-slate-800 font-display tracking-tight">Jaugeage Manuel des Citernes</h3>
                       <p className="text-xs text-slate-500">Enregistrez les niveaux physiques mesurés à la jauge/pige en fin de shift</p>
                     </div>
                   </div>
@@ -1470,7 +1502,7 @@ useEffect(() => {
                   <table className="w-full min-w-[850px] border-collapse text-left bg-white">
                     <thead>
                       <tr className="bg-slate-50/75 border-b border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider">
-                        <th className="py-3.5 px-4 font-display">Cuve / Produit</th>
+                        <th className="py-3.5 px-4 font-display">Citerne / Produit</th>
                         <th className="py-3.5 px-4 font-display">Capacité & Ventes</th>
                         <th className="py-3.5 px-4 text-right font-display">Volume Attendu</th>
                         <th className="py-3.5 px-4 w-44 font-display">Jauge Physique (L)</th>
@@ -1496,7 +1528,7 @@ useEffect(() => {
                           <tr key={tank.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="py-4 px-4">
                               <div className="flex flex-col gap-1">
-                                <span className="font-bold text-slate-800 text-sm">Cuve {tank.number}</span>
+                                <span className="font-bold text-slate-800 text-sm">Citerne {tank.number}</span>
                                 {product && (
                                   <span className="self-start text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                                     {product.name}
@@ -1641,7 +1673,7 @@ useEffect(() => {
 
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6">
                 <h4 className="font-bold text-indigo-900 mb-2">Confirmation</h4>
-                <p className="text-sm text-indigo-700/80 mb-6">En validant cette clôture, les données seront verrouillées, les stocks de cuves mis à jour, et les écritures de caisse générées.</p>
+                <p className="text-sm text-indigo-700/80 mb-6">En validant cette clôture, les données seront verrouillées, les stocks de citernes mis à jour, et les écritures de caisse générées.</p>
                 <button 
                   onClick={handleSaveShift}
                   disabled={!attendantId}

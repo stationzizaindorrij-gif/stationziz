@@ -344,7 +344,7 @@ export default function Tanks({ store }: TanksProps) {
       setConfirmModalConfig({
         isOpen: true,
         title: 'Risque de débordement',
-        message: `Attention: La quantité livrée (${qty} L) cumulée au niveau actuel (${tank.currentLevel.toFixed(2)} L) dépasse la capacité totale de la cuve (${tank.capacity} L). Souhaitez-vous quand même forcer la livraison au niveau maximum ?`,
+        message: `Attention: La quantité livrée (${qty} L) cumulée au niveau actuel (${tank.currentLevel.toFixed(2)} L) dépasse la capacité totale de la citerne (${tank.capacity} L). Souhaitez-vous quand même forcer la livraison au niveau maximum ?`,
         onConfirm: executeSupply
       });
       return;
@@ -430,7 +430,7 @@ export default function Tanks({ store }: TanksProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Gestion Stock</h1>
-          <p className="text-sm text-slate-500">Supervisez les capacités de stockage, programmez les livraisons et ajustez les niveaux réels de vos cuves.</p>
+          <p className="text-sm text-slate-500">Supervisez les capacités de stockage, programmez les livraisons et ajustez les niveaux réels de vos citernes.</p>
         </div>
         <div className="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-100 shrink-0">
           <button 
@@ -479,7 +479,7 @@ export default function Tanks({ store }: TanksProps) {
             </div>
           )}
 
-          {/* Grid des cuves graphiques */}
+          {/* Grid des citernes graphiques */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {[...tanks].sort((a, b) => (b.currentLevel / b.capacity) - (a.currentLevel / a.capacity)).map(tank => {
               const currentPercent = Math.round((tank.currentLevel / tank.capacity) * 100);
@@ -671,7 +671,7 @@ export default function Tanks({ store }: TanksProps) {
                       </div>
                     )}
 
-                    {/* Données d'index de cuve */}
+                    {/* Données d'index de citerne */}
                     <div className="space-y-1.5 border-t border-slate-100 pt-3 text-[11px] text-slate-500 font-mono">
                       <div className="flex justify-between">
                         <span>Disponible :</span>
@@ -703,7 +703,7 @@ export default function Tanks({ store }: TanksProps) {
                         ) : (
                           <div className="relative pl-3 border-l-2 border-dashed border-slate-200 space-y-3 mt-1.5">
                             {/* Visual indicator showing flow starting from the tank */}
-                            <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50 animate-pulse" title="Départ de cuve" />
+                            <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50 animate-pulse" title="Départ de citerne" />
                             
                             {fedPumps.map((pump) => {
                               const pumpNozzles = tankNozzles.filter(n => n.pumpId === pump.id);
@@ -772,7 +772,7 @@ export default function Tanks({ store }: TanksProps) {
                     </div>
                   </div>
 
-                  {/* Boutons d'action rapides sur la cuve */}
+                  {/* Boutons d'action rapides sur la citerne */}
                   {hasWriteAccess && (
                     <div className="bg-slate-50 border-t border-slate-100 p-3 grid grid-cols-2 gap-2">
                       <button 
@@ -807,7 +807,7 @@ export default function Tanks({ store }: TanksProps) {
                 Schéma Réseau Interactif
               </span>
               <p className="text-xs text-slate-500">
-                Visualisez la distribution de carburant en temps réel de vos cuves vers les pistolets à travers les pompes. Cliquez sur n'importe quel équipement pour l'inspecter et tracer son circuit.
+                Visualisez la distribution de carburant en temps réel de vos citernes vers les pistolets à travers les pompes. Cliquez sur n'importe quel équipement pour l'inspecter et tracer son circuit.
               </p>
             </div>
             {selectedNodeId && (
@@ -890,7 +890,7 @@ export default function Tanks({ store }: TanksProps) {
 
                         return (
                           <g key={`flow-${noz.id}`} className="transition-all duration-300">
-                            {/* Cuve -> Pompe */}
+                            {/* Citerne -> Pompe */}
                             <path 
                               d={`M ${xTank + 65} ${yTank} C ${xTank + 180} ${yTank}, ${xPump - 180} ${yPump}, ${xPump - 65} ${yPump}`}
                               fill="none"
@@ -917,9 +917,9 @@ export default function Tanks({ store }: TanksProps) {
                       })}
                     </g>
 
-                    {/* NODES: CUVES (Left Column) */}
+                    {/* NODES: CITERNES (Left Column) */}
                     <g id="tanks-group">
-                      <text x="140" y="25" textAnchor="middle" className="text-[11px] font-extrabold fill-slate-400 font-sans uppercase tracking-wider">Cuves de Stockage</text>
+                      <text x="140" y="25" textAnchor="middle" className="text-[11px] font-extrabold fill-slate-400 font-sans uppercase tracking-wider">Citernes de Stockage</text>
                       {tanks.map((tank, idx) => {
                         const x = 140;
                         const y = 70 + idx * 130;
@@ -1185,7 +1185,7 @@ export default function Tanks({ store }: TanksProps) {
                     <div className="space-y-1">
                       <p className="text-sm font-bold text-slate-700">Aucune sélection</p>
                       <p className="text-xs text-slate-400 px-4 leading-normal">
-                        Cliquez sur une cuve, une pompe ou un pistolet dans le schéma pour analyser ses caractéristiques et tracer son réseau de distribution.
+                        Cliquez sur une citerne, une pompe ou un pistolet dans le schéma pour analyser ses caractéristiques et tracer son réseau de distribution.
                       </p>
                     </div>
                   </div>
@@ -1304,7 +1304,7 @@ export default function Tanks({ store }: TanksProps) {
                             ) : (
                               <div className="relative pl-3 border-l-2 border-dashed border-slate-200 space-y-3 mt-1.5">
                                 {/* Visual indicator showing flow starting from the tank */}
-                                <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50 animate-pulse" title="Départ de cuve" />
+                                <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50 animate-pulse" title="Départ de citerne" />
                                 
                                 {tPumps.map((pump) => {
                                   const pumpNozzles = tNozzles.filter(n => n.pumpId === pump.id);
@@ -1424,7 +1424,7 @@ export default function Tanks({ store }: TanksProps) {
                             </div>
                             <div className="flex justify-between items-center border-t border-[#e2e8f099] pt-2">
                               <span className="text-slate-500 font-semibold">Alimenté par :</span>
-                              <span className="text-slate-800 font-semibold text-right max-w-[140px] truncate" title={sourceTanks}>{sourceTanks || 'Aucune cuve'}</span>
+                              <span className="text-slate-800 font-semibold text-right max-w-[140px] truncate" title={sourceTanks}>{sourceTanks || 'Aucune citerne'}</span>
                             </div>
                           </div>
 
@@ -1484,7 +1484,7 @@ export default function Tanks({ store }: TanksProps) {
 
                             <div className="border-t border-[#e2e8f099] pt-2 space-y-2">
                               <div className="flex justify-between items-center">
-                                <span className="text-slate-500 font-semibold">Cuve d'alimentation :</span>
+                                <span className="text-slate-500 font-semibold">Citerne d'alimentation :</span>
                                 <span className="text-slate-900 font-bold text-right">{noz.tankNumber}</span>
                               </div>
                               <div className="flex justify-between items-center">
@@ -1563,7 +1563,7 @@ export default function Tanks({ store }: TanksProps) {
                   <th className="p-3">Facture N°</th>
                   <th className="p-3">Fournisseur</th>
                   <th className="p-3">Carburant</th>
-                  <th className="p-3">Cuve de dépot</th>
+                  <th className="p-3">Citerne de dépot</th>
                   <th className="p-3">Quantité Livrée</th>
                   <th className="p-3">Prix d'Achat Unitaire</th>
                   <th className="p-3">Coût Total d'Acquisition</th>
@@ -1572,47 +1572,129 @@ export default function Tanks({ store }: TanksProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {supplies.map(sup => (
-                  <tr key={sup.id} className="hover:bg-[#f8fafc99] transition-colors font-mono">
-                    <td className="p-3 font-sans font-bold text-indigo-600">{sup.invoiceNumber}</td>
-                    <td className="p-3 font-sans text-slate-700">{sup.supplier}</td>
-                    <td className="p-3 font-sans">
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-bold">
-                        {sup.productName}
-                      </span>
-                    </td>
-                    <td className="p-3 font-sans text-slate-500">{sup.tankNumber}</td>
-                    <td className="p-3 font-bold text-slate-800 text-right">{sup.qtyDelivered} L</td>
-                    <td className="p-3 text-right">{sup.purchasePrice.toFixed(2)} MAD/L</td>
-                    <td className="p-3 font-bold text-slate-900 text-right">{(sup.qtyDelivered * sup.purchasePrice).toFixed(2)}</td>
-                    <td className="p-3 font-sans text-slate-500">{new Date(sup.date).toLocaleDateString('fr-FR')}</td>
-                    <td className="p-3 text-right">
-                      {hasWriteAccess && (
-                        <div className="flex items-center justify-end gap-1">
-                          <button 
-                            onClick={() => handleOpenSupplyForm(sup.tankId, sup)}
-                            className="p-1.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded transition-colors"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => setSupplyToDelete(sup.id)}
-                            className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {supplies.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="p-6 text-center text-slate-400 italic">
-                      Aucun approvisionnement enregistré.
-                    </td>
-                  </tr>
-                )}
+                {(() => {
+                  interface GroupedSupply {
+                    id: string;
+                    date: string;
+                    items: typeof supplies;
+                  }
+
+                  const groupedSupplies: GroupedSupply[] = [];
+                  const sortedSupplies = [...supplies].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                  sortedSupplies.forEach(sup => {
+                    const dateOnly = sup.date.split('T')[0];
+                    let group = groupedSupplies.find(g => g.id === dateOnly);
+                    if (!group) {
+                      group = {
+                        id: dateOnly,
+                        date: dateOnly,
+                        items: []
+                      };
+                      groupedSupplies.push(group);
+                    }
+                    group.items.push(sup);
+                  });
+
+                  if (groupedSupplies.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={9} className="p-6 text-center text-slate-400 italic">
+                          Aucun approvisionnement enregistré.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return groupedSupplies.flatMap(group => {
+                    const isExpanded = expandedGroupIds.includes(`supply_${group.id}`);
+                    const totalQty = group.items.reduce((sum, item) => sum + item.qtyDelivered, 0);
+                    const totalCost = group.items.reduce((sum, item) => sum + (item.qtyDelivered * item.purchasePrice), 0);
+                    const suppliers = Array.from(new Set(group.items.map(item => item.supplier))).join(', ');
+                    
+                    const parentRow = (
+                      <tr 
+                        key={`parent_${group.id}`} 
+                        onClick={() => toggleGroupExpanded(`supply_${group.id}`)}
+                        className="hover:bg-indigo-50/25 bg-slate-50/40 transition-colors cursor-pointer border-b border-slate-100"
+                      >
+                         <td className="p-3" colSpan={2}>
+                             <div className="space-y-1 font-sans">
+                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                 <History className="w-3 h-3 text-indigo-500" />
+                                 Livraisons du {new Date(group.date).toLocaleDateString('fr-FR')}
+                               </span>
+                             </div>
+                         </td>
+                         <td className="p-3 font-sans" colSpan={2}>
+                           <div className="font-extrabold text-slate-800 text-xs">
+                             {group.items.length} Livraison(s)
+                           </div>
+                           <div className="text-[10px] text-slate-500 truncate max-w-[150px] font-semibold" title={suppliers}>
+                             {suppliers}
+                           </div>
+                         </td>
+                         <td className="p-3 font-bold text-slate-800 text-right">{totalQty.toFixed(2)} L</td>
+                         <td className="p-3 font-sans text-slate-500 text-right">--</td>
+                         <td className="p-3 font-bold text-slate-900 text-right">{totalCost.toFixed(2)}</td>
+                         <td className="p-3 font-sans text-slate-500">{new Date(group.date).toLocaleDateString('fr-FR')}</td>
+                         <td className="p-3 text-right font-sans">
+                           <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                             <button
+                               onClick={() => toggleGroupExpanded(`supply_${group.id}`)}
+                               className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-all flex items-center gap-1"
+                               title={isExpanded ? "Réduire" : "Développer"}
+                             >
+                               <span className="text-[10px] text-slate-400 font-semibold">{isExpanded ? 'Réduire' : 'Détails'}</span>
+                               {isExpanded ? (
+                                 <ChevronUp className="w-4 h-4 text-indigo-600" />
+                               ) : (
+                                 <ChevronDown className="w-4 h-4 text-slate-500" />
+                               )}
+                             </button>
+                           </div>
+                         </td>
+                      </tr>
+                    );
+
+                    const childRows = isExpanded ? group.items.map(sup => (
+                      <tr key={sup.id} className="hover:bg-[#f8fafc99] transition-colors font-mono bg-white">
+                        <td className="p-3 pl-8 font-sans font-bold text-indigo-600 border-l-2 border-indigo-100">{sup.invoiceNumber}</td>
+                        <td className="p-3 font-sans text-slate-700">{sup.supplier}</td>
+                        <td className="p-3 font-sans">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-bold">
+                            {sup.productName}
+                          </span>
+                        </td>
+                        <td className="p-3 font-sans text-slate-500">{sup.tankNumber}</td>
+                        <td className="p-3 font-bold text-slate-800 text-right">{sup.qtyDelivered} L</td>
+                        <td className="p-3 text-right">{sup.purchasePrice.toFixed(2)} MAD/L</td>
+                        <td className="p-3 font-bold text-slate-900 text-right">{(sup.qtyDelivered * sup.purchasePrice).toFixed(2)}</td>
+                        <td className="p-3 font-sans text-slate-500">{new Date(sup.date).toLocaleDateString('fr-FR')}</td>
+                        <td className="p-3 text-right">
+                          {hasWriteAccess && (
+                            <div className="flex items-center justify-end gap-1">
+                              <button 
+                                onClick={() => handleOpenSupplyForm(sup.tankId, sup)}
+                                className="p-1.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded transition-colors"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button 
+                                onClick={() => setSupplyToDelete(sup.id)}
+                                className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )) : [];
+
+                    return [parentRow, ...childRows];
+                  });
+                })()}
               </tbody>
             </table>
           </div>
@@ -1659,7 +1741,7 @@ export default function Tanks({ store }: TanksProps) {
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 font-bold text-slate-600">
                   <th className="p-3">ID Log</th>
-                  <th className="p-3">Cuve</th>
+                  <th className="p-3">Citerne</th>
                   <th className="p-3">Quantité Avant</th>
                   <th className="p-3">Quantité Corrigée</th>
                   <th className="p-3">Écart d'Ajustement</th>
@@ -1772,10 +1854,10 @@ export default function Tanks({ store }: TanksProps) {
                           )}
                         </td>
 
-                        {/* Cuve Summary */}
+                        {/* Citerne Summary */}
                         <td className="p-3 font-sans">
                           <div className="font-extrabold text-slate-800 text-xs">
-                            {group.items.length} Cuves Jaugées
+                            {group.items.length} Citernes Jaugées
                           </div>
                           <div className="text-[10px] text-slate-500 truncate max-w-[150px] font-semibold" title={tankNumbers}>
                             {tankNumbers}
@@ -1816,7 +1898,7 @@ export default function Tanks({ store }: TanksProps) {
                                   setConfirmModalConfig({
                                     isOpen: true,
                                     title: 'Supprimer tout le jaugeage du shift',
-                                    message: `Voulez-vous vraiment supprimer les corrections de jaugeage pour TOUTES les cuves enregistrées lors de ce shift ? (${group.items.length} cuves)`,
+                                    message: `Voulez-vous vraiment supprimer les corrections de jaugeage pour TOUTES les citernes enregistrées lors de ce shift ? (${group.items.length} citernes)`,
                                     onConfirm: () => {
                                       const ids = group.items.map(item => item.id);
                                       deleteStockCorrectionsBulk(ids, 'Administrateur');
@@ -1903,7 +1985,7 @@ export default function Tanks({ store }: TanksProps) {
                                     if (origCorr) handleOpenCorrectionForm(undefined, origCorr);
                                   }}
                                   className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                                  title="Modifier cette cuve"
+                                  title="Modifier cette citerne"
                                 >
                                   <Edit className="w-3.5 h-3.5" />
                                 </button>
@@ -1944,7 +2026,7 @@ export default function Tanks({ store }: TanksProps) {
               <div>
                 <h3 className="font-bold text-slate-800 font-display text-lg mb-1">Confirmer la suppression</h3>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  Êtes-vous sûr de vouloir supprimer cette livraison ? Le volume sera déduit de la cuve associée. Cette action est irréversible.
+                  Êtes-vous sûr de vouloir supprimer cette livraison ? Le volume sera déduit de la citerne associée. Cette action est irréversible.
                 </p>
               </div>
             </div>
@@ -2031,7 +2113,7 @@ export default function Tanks({ store }: TanksProps) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Cuve de réception</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Citerne de réception</label>
                   <select 
                     value={supplyTankId}
                     onChange={handleSupplyTankChange}
@@ -2120,7 +2202,7 @@ export default function Tanks({ store }: TanksProps) {
             <form onSubmit={handleCorrectionSubmit} className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Cuve à calibrer</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Citerne à calibrer</label>
                   <select 
                     value={corrTankId}
                     onChange={handleCorrectionTankChange}
@@ -2231,8 +2313,8 @@ export default function Tanks({ store }: TanksProps) {
         <div className="fixed inset-0 bg-[#0f172a99] backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6">
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Désactiver la cuve</h3>
-              <p className="text-sm text-slate-500 mb-6">Voulez-vous désactiver cette cuve ?</p>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Désactiver la citerne</h3>
+              <p className="text-sm text-slate-500 mb-6">Voulez-vous désactiver cette citerne ?</p>
               <div className="flex gap-3 justify-end">
                 <button 
                   onClick={() => setTankToDeactivate(null)}
@@ -2262,7 +2344,7 @@ export default function Tanks({ store }: TanksProps) {
               {tankToDelete.startsWith('error:') ? (
                 <>
                   <h3 className="text-lg font-bold text-rose-600 mb-2">Impossible de supprimer</h3>
-                  <p className="text-sm text-slate-500 mb-6">Impossible de supprimer une cuve qui contient du carburant ou qui est reliée à des pompes. Vous pouvez seulement la désactiver.</p>
+                  <p className="text-sm text-slate-500 mb-6">Impossible de supprimer une citerne qui contient du carburant ou qui est reliée à des pompes. Vous pouvez seulement la désactiver.</p>
                   <div className="flex gap-3 justify-end">
                     <button 
                       onClick={() => setTankToDelete(null)}
@@ -2275,7 +2357,7 @@ export default function Tanks({ store }: TanksProps) {
               ) : (
                 <>
                   <h3 className="text-lg font-bold text-slate-900 mb-2">Confirmer la suppression</h3>
-                  <p className="text-sm text-slate-500 mb-6">Voulez-vous vraiment supprimer cette cuve ? Cette action est irréversible.</p>
+                  <p className="text-sm text-slate-500 mb-6">Voulez-vous vraiment supprimer cette citerne ? Cette action est irréversible.</p>
                   <div className="flex gap-3 justify-end">
                     <button 
                       onClick={() => setTankToDelete(null)}
@@ -2364,7 +2446,7 @@ function TankFormModal({ store, tank, onClose }: TankFormModalProps) {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-[#f8fafc80]">
           <h3 className="font-black text-slate-800 text-lg">
-            {tank ? 'Modifier la cuve' : 'Ajouter une cuve'}
+            {tank ? 'Modifier la citerne' : 'Ajouter une citerne'}
           </h3>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
             <X className="w-5 h-5" />
@@ -2373,8 +2455,8 @@ function TankFormModal({ store, tank, onClose }: TankFormModalProps) {
         <div className="overflow-y-auto p-4">
           <form id="tank-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Nom / Numéro de la cuve</label>
-              <input type="text" value={number} onChange={e => setNumber(e.target.value)} required className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Ex: Cuve N°5 (Gazoil)" />
+              <label className="block text-xs font-bold text-slate-700 mb-1">Nom / Numéro de la citerne</label>
+              <input type="text" value={number} onChange={e => setNumber(e.target.value)} required className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Ex: Citerne N°5 (Gazoil)" />
             </div>
             
             <div>
@@ -2419,7 +2501,7 @@ function TankFormModal({ store, tank, onClose }: TankFormModalProps) {
                 <input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500" placeholder="Ex: Zone Nord" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Couleur de la Cuve</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Couleur de la Citerne</label>
                 <div className="flex gap-2 items-center">
                   {(() => {
                     const defaultHex = getFuelColor(store.products.find(p => p.id === productId)?.name || productId).hex;
@@ -2444,7 +2526,7 @@ function TankFormModal({ store, tank, onClose }: TankFormModalProps) {
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-700">Pompes alimentées</label>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Les pompes sélectionnées seront alimentées par cette cuve.</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Les pompes sélectionnées seront alimentées par cette citerne.</p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2652,7 +2734,7 @@ function TankDetailModal({ store, tank, onClose }: TankDetailModalProps) {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500 italic">Aucune pompe connectée à cette cuve.</p>
+                  <p className="text-sm text-slate-500 italic">Aucune pompe connectée à cette citerne.</p>
                 )}
               </div>
             </div>

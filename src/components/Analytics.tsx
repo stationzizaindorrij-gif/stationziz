@@ -580,7 +580,7 @@ export default function Analytics({ store }: AnalyticsProps) {
           <Archive className="w-6 h-6 text-indigo-600" />
           <div>
             <h3 className="font-bold text-slate-800">Valorisation du Stock Restant</h3>
-            <p className="text-xs text-slate-500">Estimation de la valeur marchande du stock actuel en cuves.</p>
+            <p className="text-xs text-slate-500">Estimation de la valeur marchande du stock actuel en citernes.</p>
           </div>
         </div>
         

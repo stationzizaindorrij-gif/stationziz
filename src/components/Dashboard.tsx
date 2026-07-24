@@ -5,9 +5,11 @@ import {
 } from 'recharts';
 import { 
   DollarSign, Droplets, ShoppingCart, Users, Fuel, AlertTriangle, 
-  Activity, TrendingUp, Award, ArrowUpRight, ArrowDownRight, Zap 
+  Activity, TrendingUp, Award, ArrowUpRight, ArrowDownRight, Zap, MonitorSmartphone
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
+import { supabase } from '../lib/supabase';
+import { useOnlineUsers } from '../lib/useOnlineUsers';
 
 interface DashboardProps {
   store: ERPStoreType;
@@ -17,6 +19,14 @@ interface DashboardProps {
 export default function Dashboard({ store, setView }: DashboardProps) {
   const [chartPeriod, setChartPeriod] = React.useState<'day' | 'month' | 'year'>('day');
   const [statsPeriod, setStatsPeriod] = React.useState<'day' | 'month' | 'year'>('day');
+  const [userId, setUserId] = React.useState<string | undefined>();
+  
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id));
+  }, []);
+  
+  const onlineCount = useOnlineUsers(userId);
+
   const { 
     sales, attendants, tanks, pumps, nozzles, supplies, cashRegistry, alerts, products 
   } = store;
@@ -194,12 +204,18 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-display">Tableau de Bord Général</h1>
           <p className="text-sm text-slate-500">Supervision en temps réel de l'activité de la station-service.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          {userId && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200" title="Utilisateurs connectés en ce moment sur votre compte">
+              <MonitorSmartphone className="w-3.5 h-3.5" />
+              <span className="font-bold">{onlineCount}</span> {onlineCount > 1 ? 'connectés' : 'connecté'}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             Connexion IoT Active
           </span>
-          <span className="text-xs text-slate-400">Dernière synchro: à l'instant</span>
+          <span className="text-xs text-slate-400 hidden lg:block">Dernière synchro: à l'instant</span>
         </div>
       </div>
 
@@ -271,7 +287,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Stock Global Cuves</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Stock Global Citernes</p>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="text-2xl font-bold text-slate-900 font-mono">{stockPercentage}%</span>
                 <span className="text-xs text-slate-500">({(totalCurrentStock / 1000).toFixed(2)}k / {(totalStockCapacity / 1000).toFixed(2)}k L)</span>
@@ -378,7 +394,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
           </div>
         </div>
 
-        {/* Liens de navigation rapide / État opérationnel des cuves */}
+        {/* Liens de navigation rapide / État opérationnel des citernes */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
             <h3 className="font-bold text-slate-900 flex items-center gap-2 font-display">
@@ -413,7 +429,7 @@ export default function Dashboard({ store, setView }: DashboardProps) {
               className="p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-left transition-colors flex items-center justify-between"
             >
               <div className="space-y-0.5">
-                <span className="block text-xs font-bold text-slate-700">Remplir Cuve</span>
+                <span className="block text-xs font-bold text-slate-700">Remplir Citerne</span>
                 <span className="block text-[10px] text-slate-400 font-medium">Réceptionner du stock</span>
               </div>
               <ArrowUpRight className="w-4 h-4 text-slate-400" />

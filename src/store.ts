@@ -340,7 +340,8 @@ export function useERPStore(): ERPStoreType {
                                   ...(s.nonCashPayments || {}),
                                   ...(s.startTankLevels ? { startTankLevels: s.startTankLevels } : {}),
                                   ...(s.endTankLevels ? { endTankLevels: s.endTankLevels } : {}),
-                                  ...(s.fuelPrices ? { fuelPrices: s.fuelPrices } : {})
+                                  ...(s.fuelPrices ? { fuelPrices: s.fuelPrices } : {}),
+                                  ...(s.gaugeCorrections ? { gaugeCorrections: s.gaugeCorrections } : {})
                               })
                           };
                       });
@@ -450,13 +451,14 @@ export function useERPStore(): ERPStoreType {
                 return val;
             };
             const rawNonCashPayments = parseJson(s.noncashpayments !== undefined ? s.noncashpayments : s.nonCashPayments) || {};
-            const { startTankLevels, endTankLevels, fuelPrices, ...nonCashPayments } = rawNonCashPayments;
+            const { startTankLevels, endTankLevels, fuelPrices, gaugeCorrections, ...nonCashPayments } = rawNonCashPayments;
             return {
                 ...s,
                 nonCashPayments,
                 startTankLevels: startTankLevels || parseJson(s.starttanklevels !== undefined ? s.starttanklevels : s.startTankLevels),
                 endTankLevels: endTankLevels || parseJson(s.endtanklevels !== undefined ? s.endtanklevels : s.endTankLevels),
                 fuelPrices: fuelPrices || parseJson(s.fuelprices !== undefined ? s.fuelprices : s.fuelPrices),
+                gaugeCorrections: gaugeCorrections || parseJson(s.gaugecorrections !== undefined ? s.gaugecorrections : s.gaugeCorrections),
                 productsSold: parseJson(s.productssold !== undefined ? s.productssold : s.productsSold),
                 servicesSold: parseJson(s.servicessold !== undefined ? s.servicessold : s.servicesSold),
                 expenses: parseJson(s.expenses),

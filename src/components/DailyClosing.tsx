@@ -651,17 +651,17 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                 </div>
               </div>
 
-              {/* CUVES */}
+              {/* CITERNES */}
               <div>
                 <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                   <Database className="w-3.5 h-3.5 text-slate-500" />
-                  État des Cuves
+                  État des Citernes
                 </h4>
                 <div className="rounded-lg border border-slate-200 overflow-hidden">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
                       <tr>
-                        <th className="px-3 py-2 font-medium">Cuve</th>
+                        <th className="px-3 py-2 font-medium">Citerne</th>
                         <th className="px-3 py-2 font-medium">Produit</th>
                         <th className="px-3 py-2 font-medium text-right">Niveau Actuel (L)</th>
                       </tr>
