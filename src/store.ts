@@ -309,34 +309,8 @@ export function useERPStore(): ERPStoreType {
                          };
                      });
                  }
-                  if (key === 'stock_corrections') {
-                      items = items.map(c => {
-                          return {
-                              id: c.id,
-                              user_id,
-                              date: c.date,
-                              endDate: c.endDate || '',
-                              tankId: c.tankId,
-                              tankNumber: c.tankNumber,
-                              productId: c.productId,
-                              qtyBefore: c.qtyBefore !== undefined ? c.qtyBefore : 0,
-                              qtyAfter: c.qtyAfter !== undefined ? c.qtyAfter : 0,
-                              reason: c.reason || '',
-                              user: c.user || ''
-                          };
-                      });
-                  }
                   if (key === 'shifts') {
                       items = items.map(s => {
-                          const nonCashObj = {
-                              ...(s.nonCashPayments || {}),
-                              ...(s.startTankLevels ? { startTankLevels: s.startTankLevels } : {}),
-                              ...(s.endTankLevels ? { endTankLevels: s.endTankLevels } : {}),
-                              ...(s.fuelPrices ? { fuelPrices: s.fuelPrices } : {}),
-                              ...(s.gaugeCorrections ? { gaugeCorrections: s.gaugeCorrections } : {})
-                          };
-                          const gcJson = JSON.stringify(s.gaugeCorrections || []);
-                          const nonCashJson = JSON.stringify(nonCashObj);
                           return {
                               id: s.id,
                               user_id,
@@ -362,78 +336,53 @@ export function useERPStore(): ERPStoreType {
                               productsSold: JSON.stringify(s.productsSold || []),
                               servicesSold: JSON.stringify(s.servicesSold || []),
                               expenses: JSON.stringify(s.expenses || []),
-                              nonCashPayments: nonCashJson,
-                              gaugeCorrections: gcJson
+                              nonCashPayments: JSON.stringify({
+                                  ...(s.nonCashPayments || {}),
+                                  ...(s.startTankLevels ? { startTankLevels: s.startTankLevels } : {}),
+                                  ...(s.endTankLevels ? { endTankLevels: s.endTankLevels } : {}),
+                                  ...(s.fuelPrices ? { fuelPrices: s.fuelPrices } : {})
+                              })
                           };
                       });
                   }
-                  // Smart sync: Upsert existing/new, delete removed
-                  let currentItems = [];
-                  let from = 0;
-                  const step = 1000;
-                  let hasMore = true;
-                  while(hasMore) {
-                    const { data: selectData, error: selectErr } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id).order('id').range(from, from + step - 1);
-                    if (selectErr) {
-                        console.warn(`Skipping smart sync for erp_${key} (table missing or error): `, selectErr);
-                        return;
-                    }
-                    if (!selectData || selectData.length === 0) {
-                      hasMore = false;
-                    } else {
-                      currentItems = [...currentItems, ...selectData];
-                      if (selectData.length < step) hasMore = false;
-                      from += step;
-                    }
-                  }
-                  if (currentItems) {
-                      const currentIds = currentItems.map(i => i.id);
-                      const newIds = items.map(i => i.id);
-                      const idsToDelete = currentIds.filter(id => !newIds.includes(id));
-                      
-                      if (idsToDelete.length > 0) {
-                          await supabase.from(`erp_${key}`).delete().in('id', idsToDelete).eq('user_id', user_id);
-                      }
-                  }
-                  
-                  if (items.length > 0) {
-                      const chunkSize = 100;
-                      const tableName = `erp_${key}`;
-                      for (let i = 0; i < items.length; i += chunkSize) {
-                          let chunk = items.slice(i, i + chunkSize);
-                          for (let attempt = 0; attempt < 4; attempt++) {
-                              const { error: upsertErr } = await supabase.from(tableName).upsert(chunk);
-                              if (!upsertErr) break;
-
-                              console.warn(`Upsert attempt ${attempt + 1} failed for ${tableName}:`, upsertErr.message);
-
-                              const match = upsertErr.message.match(/Could not find (?:the )?column ['"]?([^'"]+)['"]?/i);
-                              if (match && match[1]) {
-                                  const badCol = match[1];
-                                  chunk = chunk.map(item => {
-                                      const newItem = { ...item };
-                                      delete newItem[badCol];
-                                      return newItem;
-                                  });
-                                  continue;
-                              }
-
-                              if (attempt === 0 || attempt === 1) {
-                                  chunk = chunk.map(item => {
-                                      const newItem: any = {};
-                                      for (const k in item) {
-                                          newItem[k.toLowerCase()] = item[k];
-                                      }
-                                      return newItem;
-                                  });
-                                  continue;
-                              }
-
-                              console.error(`Error upserting to ${tableName}:`, upsertErr);
-                              break;
-                          }
-                      }
-                  }
+                 // Smart sync: Upsert existing/new, delete removed
+                 let currentItems = [];
+                 let from = 0;
+                 const step = 1000;
+                 let hasMore = true;
+                 while(hasMore) {
+                   const { data: selectData, error: selectErr } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id).order('id').range(from, from + step - 1);
+                   if (selectErr) {
+                       console.warn(`Skipping smart sync for erp_${key} (table missing or error): `, selectErr);
+                       return;
+                   }
+                   if (!selectData || selectData.length === 0) {
+                     hasMore = false;
+                   } else {
+                     currentItems = [...currentItems, ...selectData];
+                     if (selectData.length < step) hasMore = false;
+                     from += step;
+                   }
+                 }
+                 if (currentItems) {
+                     const currentIds = currentItems.map(i => i.id);
+                     const newIds = items.map(i => i.id);
+                     const idsToDelete = currentIds.filter(id => !newIds.includes(id));
+                     
+                     if (idsToDelete.length > 0) {
+                         await supabase.from(`erp_${key}`).delete().in('id', idsToDelete).eq('user_id', user_id);
+                     }
+                 }
+                 
+                 if (items.length > 0) {
+                     const chunkSize = 100;
+                     for (let i = 0; i < items.length; i += chunkSize) {
+                         const { error: upsertErr } = await supabase.from(`erp_${key}`).upsert(items.slice(i, i + chunkSize));
+                         if (upsertErr) {
+                             console.error(`Error upserting to erp_${key}:`, upsertErr);
+                         }
+                     }
+                 }
              } else if (typeof data === 'object' && data !== null) {
                  // For config and cash_registry (except config, which is handled above)
                  await supabase.from(`erp_${key}`).delete().eq('user_id', user_id);
@@ -501,19 +450,13 @@ export function useERPStore(): ERPStoreType {
                 return val;
             };
             const rawNonCashPayments = parseJson(s.noncashpayments !== undefined ? s.noncashpayments : s.nonCashPayments) || {};
-            const { startTankLevels, endTankLevels, fuelPrices, gaugeCorrections: nonCashGc, ...nonCashPayments } = rawNonCashPayments;
-            const parsedGaugeCorrections = parseJson(s.gaugecorrections !== undefined ? s.gaugecorrections : s.gaugeCorrections)
-              || nonCashGc
-              || s.gaugeCorrections
-              || [];
-
+            const { startTankLevels, endTankLevels, fuelPrices, ...nonCashPayments } = rawNonCashPayments;
             return {
                 ...s,
                 nonCashPayments,
                 startTankLevels: startTankLevels || parseJson(s.starttanklevels !== undefined ? s.starttanklevels : s.startTankLevels),
                 endTankLevels: endTankLevels || parseJson(s.endtanklevels !== undefined ? s.endtanklevels : s.endTankLevels),
                 fuelPrices: fuelPrices || parseJson(s.fuelprices !== undefined ? s.fuelprices : s.fuelPrices),
-                gaugeCorrections: Array.isArray(parsedGaugeCorrections) ? parsedGaugeCorrections : [],
                 productsSold: parseJson(s.productssold !== undefined ? s.productssold : s.productsSold),
                 servicesSold: parseJson(s.servicessold !== undefined ? s.servicessold : s.servicesSold),
                 expenses: parseJson(s.expenses),
@@ -554,15 +497,7 @@ export function useERPStore(): ERPStoreType {
         setCashRegistry(loadedCashRegistry || {
           id: 'cash_session_current', isOpen: false, openedAt: '', openedBy: '', openingCash: 0, inputs: [], outputs: [], theoreticalCash: 0
         });
-        const loadedCorrections = (data.stock_corrections || []).map((c: any) => ({
-          ...c,
-          tankId: c.tankid !== undefined ? c.tankid : c.tankId,
-          tankNumber: c.tanknumber !== undefined ? c.tanknumber : c.tankNumber,
-          productId: c.productid !== undefined ? c.productid : c.productId,
-          qtyBefore: c.qtybefore !== undefined ? Number(c.qtybefore) : Number(c.qtyBefore || 0),
-          qtyAfter: c.qtyafter !== undefined ? Number(c.qtyafter) : Number(c.qtyAfter || 0),
-        }));
-        setStockCorrections(loadedCorrections);
+        setStockCorrections(data.stock_corrections || []);
         setAuditLogs(data.audit_logs || []);
         setAlerts(data.alerts || []);
         setUsers(data.users || []);
@@ -851,8 +786,6 @@ export function useERPStore(): ERPStoreType {
 
   const deleteProduct = (id: string, author: string) => {
     saveState('products', products.filter(p => p.id !== id), setProducts);
-    saveState('tanks', tanks.filter(t => t.productId !== id), setTanks);
-    saveState('nozzles', nozzles.filter(n => n.productId !== id), setNozzles);
   };
 
   const addTank = (tank: Omit<Tank, 'id'>, author: string) => {
@@ -865,7 +798,6 @@ export function useERPStore(): ERPStoreType {
 
   const deleteTank = (id: string, author: string) => {
     saveState('tanks', tanks.filter(t => t.id !== id), setTanks);
-    saveState('nozzles', nozzles.filter(n => n.tankId !== id), setNozzles);
   };
 
   const correctTankLevel = (tankId: string, newLevel: number, reason: string, author: string, date?: string) => {
@@ -878,7 +810,6 @@ export function useERPStore(): ERPStoreType {
       tankId, tankNumber: tank.number, productId: tank.productId, qtyBefore, qtyAfter: newLevel, reason, user: author
     };
     saveState('stock_corrections', [corr, ...stockCorrections], setStockCorrections);
-    saveState('tanks', tanks.map(t => t.id === tankId ? { ...t, currentLevel: newLevel } : t), setTanks);
   };
 
   const deleteStockCorrection = (id: string, author: string) => {
@@ -900,10 +831,6 @@ export function useERPStore(): ERPStoreType {
       return c;
     });
     saveState('stock_corrections', updated, setStockCorrections);
-    const targetTankId = updates.tankId || corr.tankId;
-    if (updates.qtyAfter !== undefined && targetTankId) {
-      saveState('tanks', tanks.map(t => t.id === targetTankId ? { ...t, currentLevel: updates.qtyAfter! } : t), setTanks);
-    }
   };
 
   const addPump = (pump: Omit<Pump, 'id'>, author: string) => {
@@ -916,7 +843,6 @@ export function useERPStore(): ERPStoreType {
 
   const deletePump = (id: string, author: string) => {
     saveState('pumps', pumps.filter(p => p.id !== id), setPumps);
-    saveState('nozzles', nozzles.filter(n => n.pumpId !== id), setNozzles);
   };
 
   const reorderPumps = (newPumps: Pump[]) => {
@@ -1506,21 +1432,12 @@ return {
       saveState('sales', [...newSales, ...sales], setSales);
     }
 
-    // Save physical gauge corrections to the stock correction history & update tank levels
+    // Save physical gauge corrections to the stock correction history
     const shiftIdForCorr = shiftData.id || newShift.id;
     const cleanStockCorrections = stockCorrections.filter(c => !c.id.startsWith(`corr_shift_${shiftIdForCorr}_`));
     const newCorrections: StockCorrection[] = [];
     if ((shiftData as any).gaugeCorrections && (shiftData as any).gaugeCorrections.length > 0) {
       (shiftData as any).gaugeCorrections.forEach((gc: any) => {
-        const tankIdx = currentTanks.findIndex(t => t.id === gc.tankId);
-        if (tankIdx !== -1 && typeof gc.qtyAfter === 'number' && !isNaN(gc.qtyAfter)) {
-          currentTanks[tankIdx] = {
-            ...currentTanks[tankIdx],
-            currentLevel: Number(gc.qtyAfter.toFixed(2))
-          };
-          tanksChanged = true;
-        }
-
         const tank = tanks.find(t => t.id === gc.tankId);
         if (tank) {
           newCorrections.push({
@@ -1537,11 +1454,6 @@ return {
         }
       });
     }
-
-    if (tanksChanged) {
-      saveState('tanks', currentTanks, setTanks);
-    }
-
     if (newCorrections.length > 0 || cleanStockCorrections.length !== stockCorrections.length) {
       saveState('stock_corrections', [...newCorrections, ...cleanStockCorrections], setStockCorrections);
     }
@@ -2006,15 +1918,6 @@ return {
         const cleanStockCorrections = stockCorrections.filter(c => !c.id.startsWith(`corr_shift_${id}_`));
         const newCorrections: StockCorrection[] = [];
         updatedFields.gaugeCorrections.forEach((gc: any) => {
-          const tankIdx = currentTanks.findIndex(t => t.id === gc.tankId);
-          if (tankIdx !== -1 && typeof gc.qtyAfter === 'number' && !isNaN(gc.qtyAfter)) {
-            currentTanks[tankIdx] = {
-              ...currentTanks[tankIdx],
-              currentLevel: Number(gc.qtyAfter.toFixed(2))
-            };
-            tanksChanged = true;
-          }
-
           const tank = tanks.find(t => t.id === gc.tankId);
           if (tank) {
             newCorrections.push({
@@ -2030,11 +1933,6 @@ return {
             });
           }
         });
-
-        if (tanksChanged) {
-          saveState('tanks', currentTanks, setTanks);
-        }
-
         if (newCorrections.length > 0 || cleanStockCorrections.length !== stockCorrections.length) {
           saveState('stock_corrections', [...newCorrections, ...cleanStockCorrections], setStockCorrections);
         }

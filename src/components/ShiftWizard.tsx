@@ -164,18 +164,21 @@ export default function ShiftWizard({ store, onBack, editingShift }: ShiftWizard
   });
   const [realCashInput, setRealCashInput] = useState(draft?.realCashInput || editingShift?.realCashReceived?.toString() || '');
 
-  const [gaugeCorrections, setGaugeCorrections] = useState<{ [tankId: string]: { measuredLevel: number | '', expectedLevelOverride?: number | '', reason: string } }>(() => {
+  const [gaugeCorrections, setGaugeCorrections] = useState<{ [tankId: string]: { measuredLevel: number | '', reason: string } }>(() => {
     if (draft?.gaugeCorrections) {
       return draft.gaugeCorrections;
     }
-    if (editingShift?.gaugeCorrections && editingShift.gaugeCorrections.length > 0) {
-      const initial: { [tankId: string]: { measuredLevel: number | '', expectedLevelOverride?: number | '', reason: string } } = {};
+    if (editingShift?.gaugeCorrections) {
+      const initial: { [tankId: string]: { measuredLevel: number | '', reason: string } } = {};
       editingShift.gaugeCorrections.forEach(gc => {
-        initial[gc.tankId] = {
-          measuredLevel: gc.qtyAfter,
-          expectedLevelOverride: gc.qtyBefore,
-          reason: gc.reason || ''
-        };
+        if (editingShift.status === 'completed' || editingShift.status === 'ready_to_close') {
+          const exists = store.stockCorrections.some(c => c.id === `corr_shift_${editingShift.id}_${gc.tankId}`);
+          if (exists) {
+            initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
+          }
+        } else {
+          initial[gc.tankId] = { measuredLevel: gc.qtyAfter, reason: gc.reason };
+        }
       });
       return initial;
     }
@@ -440,13 +443,9 @@ useEffect(() => {
 
     const gcs: any[] = [];
     store.tanks.forEach(tank => {
-      const defaultExpected = getExpectedLevelForTank(tank.id);
+      const expectedLevel = getExpectedLevelForTank(tank.id);
       const gcInput = gaugeCorrections[tank.id];
       
-      const expectedLevel = (gcInput && gcInput.expectedLevelOverride !== undefined && gcInput.expectedLevelOverride !== '')
-        ? parseFloat(gcInput.expectedLevelOverride as any)
-        : defaultExpected;
-
       let qtyAfter = expectedLevel;
       let reason = gcInput?.reason || `Jaugeage Shift ${shiftName} - ${attendant.firstName} ${attendant.lastName}`;
       
@@ -464,7 +463,7 @@ useEffect(() => {
         tankNumber: tank.number,
         qtyBefore: Number(qtyBefore.toFixed(2)),
         qtyAfter: Number(qtyAfter.toFixed(2)),
-        discrepancy: Number((qtyAfter - expectedLevel).toFixed(2)),
+        discrepancy: Number((qtyAfter - qtyBefore).toFixed(2)),
         reason
       });
     });
@@ -1044,25 +1043,32 @@ useEffect(() => {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <form onSubmit={e => {
                 e.preventDefault();
-                const expDate = (document.getElementById('expDate') as HTMLInputElement)?.value || date;
                 const type = (document.getElementById('expType') as HTMLSelectElement).value;
                 const desc = (document.getElementById('expDesc') as HTMLInputElement).value;
                 const amount = parseFloat((document.getElementById('expAmount') as HTMLInputElement).value) || 0;
                 const method = (document.getElementById('expMethod') as HTMLSelectElement).value;
+                const expDateInput = (document.getElementById('expDate') as HTMLInputElement)?.value;
+                const expDateVal = expDateInput || date || new Date().toISOString().split('T')[0];
                 
                 if (type && desc && amount) {
-                  setExpenses([...expenses, { id: `exp_${Date.now()}`, date: expDate, type, description: desc, amount, method }]);
+                  setExpenses([...expenses, { id: `exp_${Date.now()}`, type, description: desc, amount, method, date: expDateVal }]);
                   (document.getElementById('expDesc') as HTMLInputElement).value = '';
                   (document.getElementById('expAmount') as HTMLInputElement).value = '';
                 }
               }} className="bg-rose-50/50 p-5 rounded-xl border border-rose-100 flex flex-wrap gap-4 items-end">
-                <div className="flex-1 min-w-[130px]">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Date</label>
-                  <input type="date" id="expDate" defaultValue={date} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white" required />
+                <div className="flex-1 min-w-[140px]">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Date Dépense</label>
+                  <input 
+                    type="date" 
+                    id="expDate" 
+                    defaultValue={date || new Date().toISOString().split('T')[0]} 
+                    className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white cursor-pointer font-medium text-slate-800" 
+                    required 
+                  />
                 </div>
-                <div className="flex-[1.5] min-w-[195px]">
+                <div className="flex-1 min-w-[140px]">
                   <label className="block text-xs font-bold text-slate-700 mb-1">Type</label>
-                  <select id="expType" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white" required>
+                  <select id="expType" className="w-full border border-slate-200 bg-white rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required>
                     <option value="avance">Avance Employé</option>
                     <option value="fourniture">Achat Fourniture</option>
                     <option value="repas">Frais de repas</option>
@@ -1071,15 +1077,15 @@ useEffect(() => {
                 </div>
                 <div className="flex-[2] min-w-[180px]">
                   <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
-                  <input type="text" id="expDesc" placeholder="Motif de la dépense..." className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
+                  <input type="text" id="expDesc" placeholder="Motif de la dépense..." className="w-full border border-slate-200 bg-white rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
                 </div>
                 <div className="flex-1 min-w-[100px]">
                   <label className="block text-xs font-bold text-slate-700 mb-1">Montant</label>
-                  <input type="number" id="expAmount" step="any" placeholder="0.00" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500" required />
+                  <input type="number" id="expAmount" step="any" placeholder="0.00" className="w-full border border-slate-200 bg-white rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 font-mono" required />
                 </div>
-                <div className="flex-[1.5] min-w-[170px]">
+                <div className="flex-1 min-w-[120px]">
                   <label className="block text-xs font-bold text-slate-700 mb-1">Paiement</label>
-                  <select id="expMethod" className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500 bg-white">
+                  <select id="expMethod" className="w-full border border-slate-200 bg-white rounded-lg p-2 text-sm focus:outline-none focus:border-rose-500">
                     <option value="cash">Espèces (Tiroir)</option>
                     <option value="card">Carte Bancaire</option>
                   </select>
@@ -1105,7 +1111,9 @@ useEffect(() => {
                     <tbody className="divide-y divide-slate-100">
                       {expenses.map(exp => (
                         <tr key={exp.id}>
-                          <td className="p-3 font-mono text-xs text-slate-600">{exp.date || date}</td>
+                          <td className="p-3 font-semibold text-slate-700 whitespace-nowrap">
+                            {exp.date ? formatToDMY(exp.date.split('T')[0]) : formatToDMY(date)}
+                          </td>
                           <td className="p-3 font-semibold text-slate-700 capitalize">{exp.type}</td>
                           <td className="p-3 text-slate-600">{exp.description}</td>
                           <td className="p-3">
@@ -1464,35 +1472,31 @@ useEffect(() => {
                       <tr className="bg-slate-50/75 border-b border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider">
                         <th className="py-3.5 px-4 font-display">Cuve / Produit</th>
                         <th className="py-3.5 px-4 font-display">Capacité & Ventes</th>
-                        <th className="py-3.5 px-4 text-right font-display">Jauge Entrée</th>
-                        <th className="py-3.5 px-4 w-44 font-display">Jauge Sortie</th>
+                        <th className="py-3.5 px-4 text-right font-display">Volume Attendu</th>
+                        <th className="py-3.5 px-4 w-44 font-display">Jauge Physique (L)</th>
                         <th className="py-3.5 px-4 text-right font-display">Écart Constaté</th>
                         <th className="py-3.5 px-4 w-60 font-display">Raison / Commentaire</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700 text-sm">
                       {store.tanks.map(tank => {
-                        const defaultExpected = getExpectedLevelForTank(tank.id);
+                        const expectedLevel = getExpectedLevelForTank(tank.id);
                         const sold = shiftLitersSoldByTank[tank.id] || 0;
-                        const gc = gaugeCorrections[tank.id] || { measuredLevel: '', expectedLevelOverride: '', reason: '' };
+                        const gc = gaugeCorrections[tank.id] || { measuredLevel: '', reason: '' };
                         
-                        const expectedLevel = (gc.expectedLevelOverride !== undefined && gc.expectedLevelOverride !== '')
-                          ? parseFloat(gc.expectedLevelOverride as any)
-                          : defaultExpected;
-
                         const measured = gc.measuredLevel !== '' && gc.measuredLevel !== undefined 
                           ? gc.measuredLevel 
                           : Number(expectedLevel.toFixed(2));
                           
                         const parsedMeasured = parseFloat(measured as any);
-                        const diff = !isNaN(parsedMeasured) && !isNaN(expectedLevel) ? parsedMeasured - expectedLevel : null;
+                        const diff = !isNaN(parsedMeasured) ? parsedMeasured - expectedLevel : null;
                         const product = store.products.find(p => p.id === tank.productId);
 
                         return (
                           <tr key={tank.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="py-4 px-4">
                               <div className="flex flex-col gap-1">
-                                <span className="font-bold text-slate-800 text-sm">Citerne {tank.number}</span>
+                                <span className="font-bold text-slate-800 text-sm">Cuve {tank.number}</span>
                                 {product && (
                                   <span className="self-start text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                                     {product.name}
@@ -1506,52 +1510,29 @@ useEffect(() => {
                                 <div>Vendu ce shift: <strong className="font-semibold text-indigo-600">{sold.toLocaleString()} L</strong></div>
                               </div>
                             </td>
-                            <td className="py-4 px-4">
-                              <div className="relative flex items-center">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder={defaultExpected.toFixed(2)}
-                                  value={gc.expectedLevelOverride !== undefined ? gc.expectedLevelOverride : Number(expectedLevel.toFixed(2))}
-                                  onChange={e => {
-                                    const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                    setGaugeCorrections({
-                                      ...gaugeCorrections,
-                                      [tank.id]: {
-                                        ...gc,
-                                        expectedLevelOverride: val
-                                      }
-                                    });
-                                  }}
-                                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-indigo-50/60 font-mono font-extrabold text-indigo-900 text-right pr-7"
-                                />
-                                <span className="absolute right-2 text-xs font-bold text-indigo-500 pointer-events-none">L</span>
-                              </div>
+                            <td className="py-4 px-4 text-right font-mono font-extrabold text-indigo-600 text-sm">
+                              {expectedLevel.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L
                             </td>
                             <td className="py-4 px-4">
-                              <div className="relative flex items-center">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="Ex: 5200"
-                                  value={measured}
-                                  onChange={e => {
-                                    const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                    setGaugeCorrections({
-                                      ...gaugeCorrections,
-                                      [tank.id]: { ...gc, measuredLevel: val }
-                                    });
-                                  }}
-                                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono font-bold text-slate-800 pr-7"
-                                />
-                                <span className="absolute right-2 text-xs font-bold text-slate-400 pointer-events-none">L</span>
-                              </div>
+                              <input
+                                type="number"
+                                placeholder="Ex: 5200"
+                                value={measured}
+                                onChange={e => {
+                                  const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                  setGaugeCorrections({
+                                    ...gaugeCorrections,
+                                    [tank.id]: { ...gc, measuredLevel: val }
+                                  });
+                                }}
+                                className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono font-bold text-slate-800"
+                              />
                             </td>
                             <td className="py-4 px-4 text-right font-mono font-bold">
                               {diff !== null && (
                                 <div className="space-y-0.5">
-                                  <span className="inline-block px-2 py-0.5 text-xs rounded-md font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                                    {diff === 0 ? '0 L' : `${Math.abs(diff).toFixed(2)} L`}
+                                  <span className={`inline-block px-2 py-0.5 text-xs rounded-md font-bold ${diff < 0 ? 'bg-rose-50 text-rose-600 border border-rose-100' : diff > 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
+                                    {diff === 0 ? '0 L' : `${diff > 0 ? '+' : ''}${diff.toFixed(2)} L`}
                                   </span>
                                   <div className="text-[10px] text-slate-400 font-normal mt-0.5">
                                     {diff === 0 ? 'Conforme' : diff < 0 ? 'Perte / Manquant' : 'Gain / Excédent'}
@@ -1603,13 +1584,9 @@ useEffect(() => {
                   
                   const gcs: any[] = [];
                   store.tanks.forEach(tank => {
-                    const defaultExpected = getExpectedLevelForTank(tank.id);
+                    const expectedLevel = getExpectedLevelForTank(tank.id);
                     const gcInput = gaugeCorrections[tank.id];
                     
-                    const expectedLevel = (gcInput && gcInput.expectedLevelOverride !== undefined && gcInput.expectedLevelOverride !== '')
-                      ? parseFloat(gcInput.expectedLevelOverride as any)
-                      : defaultExpected;
-
                     let qtyAfter = expectedLevel;
                     let reason = gcInput?.reason || `Jaugeage Shift ${shiftName} - ${attendantName}`;
                     
@@ -1627,7 +1604,7 @@ useEffect(() => {
                       tankNumber: tank.number,
                       qtyBefore: Number(qtyBefore.toFixed(2)),
                       qtyAfter: Number(qtyAfter.toFixed(2)),
-                      discrepancy: Number((qtyAfter - expectedLevel).toFixed(2)),
+                      discrepancy: Number((qtyAfter - qtyBefore).toFixed(2)),
                       reason
                     });
                   });

@@ -244,7 +244,6 @@ export interface Supply {
   invoiceNumber: string;
   date: string;
   endDate?: string;
-  imageUrl?: string;
 }
 
 export interface CashRegistry {
