@@ -363,7 +363,8 @@ export interface SimulationRecord {
     totalEntrees: number;
     totalSorties: number;
     quantiteConsommeeTotal: number;
-    totalVentesReelles: number;
+    totalAchatsReels: number;
+    totalVentesReelles?: number;
     ecartLitresTotal: number;
     coutTotalSimule: number;
     chiffreAffairesReel: number;
