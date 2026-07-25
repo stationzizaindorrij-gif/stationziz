@@ -563,9 +563,20 @@ export default function StockCalc({ store }: StockCalcProps) {
     }
   }, [groupedPumps]);
 
-  // Compute Pump-Level Simulation Results
+  // Compute Pump-Level Simulation Results (distributing delivery quantities equally among selected matching pumps)
   const pumpSimulationResults = useMemo(() => {
-    return groupedPumps.map(pump => {
+    // Helper for safe string trimming
+    const strTrimLower = (val: any) => typeof val === 'string' ? val.trim().toLowerCase() : '';
+
+    // Extract tank digit helper: e.g. "CITERNE N:5 20T G" -> "5" (ONLY matches strings with citerne/tank)
+    const getTankDigit = (str?: string): string | null => {
+      if (!str) return null;
+      const match = str.match(/(?:citerne|tank)\s*(?:n[°:#]?)?\s*(\d+)/i);
+      return match ? match[1] : null;
+    };
+
+    // 1. Prepare base metadata & simulation inputs per pump
+    const pumpMetaList = groupedPumps.map(pump => {
       const pNozzles = pump.nozzles;
       const primaryNozzle = pNozzles[0];
 
@@ -581,16 +592,6 @@ export default function StockCalc({ store }: StockCalcProps) {
       const productName = productNamesList.length > 0 ? productNamesList.join(', ') : (product?.name || 'Carburant');
       const defaultPrice = product?.purchasePrice && product.purchasePrice > 0 ? product.purchasePrice : 1.00;
       const salePrice = product?.salePrice || 0;
-
-      // Helper for safe string trimming
-      const strTrimLower = (val: any) => typeof val === 'string' ? val.trim().toLowerCase() : '';
-
-      // Extract tank digit helper: e.g. "CITERNE N:5 20T G" -> "5" (ONLY matches strings with citerne/tank)
-      const getTankDigit = (str?: string): string | null => {
-        if (!str) return null;
-        const match = str.match(/(?:citerne|tank)\s*(?:n[°:#]?)?\s*(\d+)/i);
-        return match ? match[1] : null;
-      };
 
       // Find tank directly connected to this pump/nozzles
       const pumpTank = tanks.find(t => pNozzles.some(n => n.tankId === t.id)) ||
@@ -630,97 +631,120 @@ export default function StockCalc({ store }: StockCalcProps) {
       // Coût total = Quantité consommée * Prix d'achat
       const costTotal = quantiteConsommee * purchasePrice;
 
-      // Calculate Achats réels for this pump by matching exact tank
-      let totalTankDeliveries = 0;
-      let totalTankDeliveriesCost = 0;
+      return {
+        pumpKey: pump.key,
+        pumpNumber: pump.pumpNumber,
+        pumpName: pump.name,
+        pNozzles,
+        pump,
+        product,
+        productName,
+        pumpTank,
+        tankName,
+        pTankDigit,
+        entries,
+        exits,
+        quantiteConsommee,
+        purchasePrice,
+        costTotal,
+        salePrice,
+        achatsReels: 0,
+        achatsReelsMontant: 0,
+      };
+    });
 
-      filteredSupplies.forEach(s => {
-        const sTankDigit = getTankDigit(s.tankNumber) || getTankDigit(s.tankId);
-        const sTankId = s.tankId;
-        const sTankStr = strTrimLower(s.tankNumber || '');
+    // 2. Distribute delivery quantities & costs equally among matching SELECTED pumps
+    filteredSupplies.forEach(s => {
+      const sTankDigit = getTankDigit(s.tankNumber) || getTankDigit(s.tankId);
+      const sTankId = s.tankId;
+      const sTankStr = strTrimLower(s.tankNumber || '');
+
+      const matchingSelectedPumps = pumpMetaList.filter(pMeta => {
+        if (!selectedSimPumpKeys.includes(pMeta.pumpKey)) return false;
 
         let isMatch = false;
 
         // 1. Direct ID match
         if (sTankId) {
-          if (pumpTank && pumpTank.id === sTankId) isMatch = true;
-          else if (pNozzles.some(n => n.tankId === sTankId)) isMatch = true;
+          if (pMeta.pumpTank && pMeta.pumpTank.id === sTankId) isMatch = true;
+          else if (pMeta.pNozzles.some(n => n.tankId === sTankId)) isMatch = true;
         }
 
-        // 2. Direct Tank Digit match (e.g. Supply "CITERNE N:5" vs Pump's Tank "CITERNE N:5")
+        // 2. Direct Tank Digit match (e.g. Supply "CITERNE N:7" vs Pump's Tank "CITERNE N:7")
         if (!isMatch && sTankDigit) {
-          if (pTankDigit && pTankDigit === sTankDigit) {
+          if (pMeta.pTankDigit && pMeta.pTankDigit === sTankDigit) {
             isMatch = true;
           }
         }
 
         // 3. String name containment match
-        if (!isMatch && sTankStr && pumpTank) {
-          const tName = strTrimLower(pumpTank.name);
-          const tNum = strTrimLower(pumpTank.number);
+        if (!isMatch && sTankStr && pMeta.pumpTank) {
+          const tName = strTrimLower(pMeta.pumpTank.name);
+          const tNum = strTrimLower(pMeta.pumpTank.number);
           if ((tName && sTankStr.includes(tName)) || (tNum && sTankStr.includes(tNum))) {
             isMatch = true;
           }
         }
 
         // 4. Fallback ONLY if supply has NO tank specified at all
-        if (!isMatch && !sTankDigit && !sTankId && !sTankStr && product) {
+        if (!isMatch && !sTankDigit && !sTankId && !sTankStr && pMeta.product) {
           const sProdName = strTrimLower(s.productName || '');
-          const pProdName = strTrimLower(productName || '');
-          const pName = strTrimLower(product.name || '');
-          const pType = strTrimLower(product.type || '');
+          const pProdName = strTrimLower(pMeta.productName || '');
+          const pName = strTrimLower(pMeta.product.name || '');
+          const pType = strTrimLower(pMeta.product.type || '');
 
-          if (s.productId === product.id || (sProdName && (sProdName === pProdName || sProdName === pName || sProdName === pType || sProdName.includes(pProdName) || pProdName.includes(sProdName)))) {
+          if (s.productId === pMeta.product.id || (sProdName && (sProdName === pProdName || sProdName === pName || sProdName === pType || sProdName.includes(pProdName) || pProdName.includes(sProdName)))) {
             isMatch = true;
           }
         }
 
-        if (isMatch) {
-          const qty = Number(s.qtyDelivered) || 0;
-          const pPrice = Number(s.purchasePrice) > 0 ? Number(s.purchasePrice) : purchasePrice;
-          totalTankDeliveries += qty;
-          totalTankDeliveriesCost += qty * pPrice;
-        }
+        return isMatch;
       });
 
-      // Total Achats Réels = Total des livraisons réelles de la citerne rattachee
-      const achatsReels = totalTankDeliveries;
-      const achatsReelsMontant = totalTankDeliveriesCost > 0 ? totalTankDeliveriesCost : (achatsReels * purchasePrice);
+      if (matchingSelectedPumps.length > 0) {
+        const qtyDelivered = Number(s.qtyDelivered) || 0;
+        const splitQty = qtyDelivered / matchingSelectedPumps.length;
 
-      // Chiffre d'affaires potentiel = Achats réels * Prix de vente
-      const caReel = achatsReels * salePrice;
+        matchingSelectedPumps.forEach(pMeta => {
+          const pPrice = Number(s.purchasePrice) > 0 ? Number(s.purchasePrice) : pMeta.purchasePrice;
+          const splitCost = splitQty * pPrice;
+          pMeta.achatsReels += splitQty;
+          pMeta.achatsReelsMontant += splitCost;
+        });
+      }
+    });
 
-      // Écart en litres = Quantité consommée - Achats réels
-      const ecartLitres = quantiteConsommee - achatsReels;
-
-      // Écart financier = Chiffre d'affaires réel - Coût total
-      const ecartFinancier = caReel - costTotal;
+    // 3. Construct final result objects
+    return pumpMetaList.map(item => {
+      const caReel = item.achatsReels * item.salePrice;
+      const ecartLitres = item.quantiteConsommee - item.achatsReels;
+      const ecartFinancier = caReel - item.costTotal;
 
       return {
-        pumpKey: pump.key,
-        pumpNumber: pump.pumpNumber,
-        pumpName: pump.name,
-        nozzles: pNozzles,
-        nozzleIds: pump.nozzleIds,
-        product,
-        productName,
-        tankName,
-        tankId: pumpTank?.id,
-        entries,
-        exits,
-        quantiteConsommee,
-        purchasePrice,
-        costTotal,
-        achatsReels,
-        achatsReelsMontant,
-        ventesReelles: achatsReels,
-        salePrice,
+        pumpKey: item.pumpKey,
+        pumpNumber: item.pumpNumber,
+        pumpName: item.pumpName,
+        nozzles: item.pNozzles,
+        nozzleIds: item.pump.nozzleIds,
+        product: item.product,
+        productName: item.productName,
+        tankName: item.tankName,
+        tankId: item.pumpTank?.id,
+        entries: item.entries,
+        exits: item.exits,
+        quantiteConsommee: item.quantiteConsommee,
+        purchasePrice: item.purchasePrice,
+        costTotal: item.costTotal,
+        achatsReels: item.achatsReels,
+        achatsReelsMontant: item.achatsReelsMontant > 0 ? item.achatsReelsMontant : (item.achatsReels * item.purchasePrice),
+        ventesReelles: item.achatsReels,
+        salePrice: item.salePrice,
         caReel,
         ecartLitres,
         ecartFinancier
       };
     });
-  }, [groupedPumps, products, tanks, filteredSupplies, simInputs]);
+  }, [groupedPumps, products, tanks, filteredSupplies, simInputs, selectedSimPumpKeys]);
 
   const selectedSimulationResults = useMemo(() => {
     return pumpSimulationResults.filter(item => selectedSimPumpKeys.includes(item.pumpKey));
