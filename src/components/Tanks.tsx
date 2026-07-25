@@ -779,7 +779,7 @@ export default function Tanks({ store }: TanksProps) {
                         onClick={() => handleOpenCorrectionForm(tank.id)}
                         className="py-1 border border-slate-200 bg-white hover:bg-slate-50 rounded text-[10px] font-bold text-slate-600 transition-colors"
                       >
-                        Jaugeage
+                        Jaugeage Manuel
                       </button>
                       <button 
                         onClick={() => handleOpenSupplyForm(tank.id)}

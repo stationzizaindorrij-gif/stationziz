@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { History, 
   BarChart2, LayoutDashboard, Users, Clock, Fuel, 
   Settings as SettingsIcon, Sliders, Bell, FileText, 
-  Menu, X, Landmark, User, Package, Wallet, Receipt
+  Menu, X, Landmark, User, Package, Wallet, Receipt, Calculator
 } from 'lucide-react';
 import { useERPStore } from './store';
 import { supabase } from './lib/supabase';
@@ -13,6 +13,7 @@ import Dashboard from './components/Dashboard';
 import Attendants from './components/Attendants';
 import Shifts from './components/Shifts';
 import Tanks from './components/Tanks';
+import StockCalc from './components/StockCalc';
 import Assets from './components/Assets';
 import Reports from './components/Reports';
 import Alerts from './components/Alerts';
@@ -25,7 +26,7 @@ import DailyClosing from './components/DailyClosing';
 import ExpensesModule from './components/ExpensesModule';
 
 type ActiveModule = 
-  | 'dashboard' | 'attendants' | 'shifts' | 'tanks' | 'assets' 
+  | 'dashboard' | 'attendants' | 'shifts' | 'tanks' | 'stock_calc' | 'assets' 
   | 'reports' | 'alerts' | 'settings' | 'billing' | 'daily_closing'  
   | 'analytics' | 'clients' | 'shop' | 'price_history' | 'expenses';
 
@@ -148,6 +149,7 @@ function AppContent({ session }: { session: any }) {
     { id: 'attendants', label: 'Gestion des employés', icon: Users, badge: 0 },
     { id: 'shifts', label: 'Relevé des compteurs', icon: Clock, badge: 0 },
     { id: 'tanks', label: 'Gestion Stock', icon: Fuel, badge: 0 },
+    { id: 'stock_calc', label: 'Calcul de Stock', icon: Calculator, badge: 0 },
     { id: 'assets', label: 'Calcul changements prix', icon: Sliders, badge: 0 },
     { id: 'expenses', label: 'Dépenses', icon: Wallet, badge: 0 },
     { id: 'shop', label: 'Huile Lubrifiant', icon: Package, badge: 0 },
@@ -179,6 +181,7 @@ function AppContent({ session }: { session: any }) {
           <div className="max-w-[1400px] mx-auto h-full">
             {activeModule === 'dashboard' && <Dashboard store={store} setView={setActiveModule} />}
             {activeModule === 'tanks' && <Tanks store={store} />}
+            {activeModule === 'stock_calc' && <StockCalc store={store} />}
             {activeModule === 'assets' && <Assets store={store} />}
             {activeModule === 'attendants' && <Attendants store={store} />}
             {activeModule === 'shifts' && <Shifts store={store} />}
@@ -351,6 +354,7 @@ function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuCli
     attendants: 'Gestion des employés',
     shifts: 'Relevé des compteurs',
     tanks: 'Gestion Stock',
+    stock_calc: 'Calcul de Stock',
     assets: 'Calcul changements prix',
     expenses: 'Dépenses',
     shop: 'Huile Lubrifiant',
