@@ -352,4 +352,25 @@ export interface ShopProduct {
   status: 'active' | 'inactive';
 }
 
+export interface SimulationRecord {
+  id: string;
+  date: string;
+  title: string;
+  periodLabel: string;
+  nozzleIds: string[];
+  inputs: Record<string, { entries: number; exits: number; purchasePrice: number }>;
+  totals: {
+    totalEntrees: number;
+    totalSorties: number;
+    quantiteConsommeeTotal: number;
+    totalVentesReelles: number;
+    ecartLitresTotal: number;
+    coutTotalSimule: number;
+    chiffreAffairesReel: number;
+    ecartFinancierTotal: number;
+    countPumps: number;
+  };
+  author?: string;
+}
+
 

@@ -4,7 +4,8 @@ import React, { useState
 import { 
   Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, 
   AuditLog, CashRegistry, Shift, Alert, Supply, Tank, Product, Attendant,
-  StationConfig, UserRole, User, StockCorrection, Pump, PriceHistory, Nozzle, Sale
+  StationConfig, UserRole, User, StockCorrection, Pump, PriceHistory, Nozzle, Sale,
+  SimulationRecord
 } from './types';
 import { RichDocument } from './components/BillingTypes';
 import { 
@@ -39,6 +40,9 @@ export interface ERPStoreType {
   deliveryInvoices: SalesInvoice[];
   richDocuments: RichDocument[];
   setRichDocuments: (data: RichDocument[]) => void;
+  simulationRecords: SimulationRecord[];
+  addSimulationRecord: (record: Omit<SimulationRecord, 'id'>, author: string) => void;
+  deleteSimulationRecord: (id: string, author: string) => void;
 
   switchRole: (role: UserRole) => void;
   markAlertAsRead: (id: string) => void;
@@ -162,9 +166,13 @@ export function useERPStore(): ERPStoreType {
   const [salesInvoices, setSalesInvoices] = useState<SalesInvoice[]>([]);
   const [deliveryInvoices, setDeliveryInvoices] = useState<SalesInvoice[]>([]);
   const [richDocuments, setRichDocuments] = useState<RichDocument[]>([]);
+  const [simulationRecords, setSimulationRecords] = useState<SimulationRecord[]>([]);
 
   const saveState = (key: string, data: any, setter: React.Dispatch<React.SetStateAction<any>>) => {
     setter(data);
+    try {
+      localStorage.setItem(`station_erp_${key}`, JSON.stringify(data));
+    } catch (e) {}
     
     // Ensure there is a promise chain for this key
     if (!syncQueues[key]) {
@@ -503,6 +511,14 @@ export function useERPStore(): ERPStoreType {
         });
         setStockCorrections(data.stock_corrections || []);
         setAuditLogs(data.audit_logs || []);
+        let rawSims = data.simulation_records || data.simulationRecords || [];
+        if (!rawSims || rawSims.length === 0) {
+          try {
+            const localSims = localStorage.getItem('station_erp_simulation_records');
+            if (localSims) rawSims = JSON.parse(localSims);
+          } catch (e) {}
+        }
+        setSimulationRecords(Array.isArray(rawSims) ? rawSims : []);
         setAlerts(data.alerts || []);
         setUsers(data.users || []);
         if (data.config) {
@@ -1983,7 +1999,25 @@ return {
 
     // Rich documents states
     richDocuments,
-    setRichDocuments: (data: RichDocument[]) => saveState('rich_documents', data, setRichDocuments)
+    setRichDocuments: (data: RichDocument[]) => saveState('rich_documents', data, setRichDocuments),
+
+    // Simulation Records (Database & Persistent State)
+    simulationRecords,
+    addSimulationRecord: (recordData: Omit<SimulationRecord, 'id'>, author: string) => {
+      const newRecord: SimulationRecord = {
+        ...recordData,
+        id: `sim_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        author: author || 'ADMIN'
+      };
+      const updated = [newRecord, ...simulationRecords];
+      saveState('simulation_records', updated, setSimulationRecords);
+      logAction(author, 'Enregistrement Simulation', 'Simulation', `Nouvelle simulation sauvegardée : ${newRecord.title || newRecord.id}`);
+    },
+    deleteSimulationRecord: (id: string, author: string) => {
+      const updated = simulationRecords.filter(s => s.id !== id);
+      saveState('simulation_records', updated, setSimulationRecords);
+      logAction(author, 'Suppression Simulation', 'Simulation', `Suppression simulation ID : ${id}`);
+    }
   };
 }
 
