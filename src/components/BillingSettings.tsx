@@ -235,7 +235,6 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                   value={localSettings.companyName || ''}
                   onChange={(e) => handleFieldChange('companyName', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
-                  required
                 />
               </div>
 
@@ -435,6 +434,17 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
               </div>
 
               <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">Code Client</label>
+                <input 
+                  type="text" 
+                  value={localSettings.codeClient || ''}
+                  onChange={(e) => handleFieldChange('codeClient', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
+                  placeholder="Ex: CL-1002"
+                />
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Capital Social</label>
                 <input 
                   type="text" 
@@ -442,6 +452,17 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                   onChange={(e) => handleFieldChange('capital', e.target.value)}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
                   placeholder="Ex: 100 000 MAD"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase">RIB / Coordonnées Bancaires</label>
+                <input 
+                  type="text" 
+                  value={localSettings.rib || ''}
+                  onChange={(e) => handleFieldChange('rib', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500"
+                  placeholder="Ex: 011 810 0000000000000000 00"
                 />
               </div>
             </div>

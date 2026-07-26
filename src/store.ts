@@ -319,7 +319,39 @@ export function useERPStore(): ERPStoreType {
                          };
                      });
                  }
-                  if (key === 'shifts') {
+                  if (key === 'clients') {
+                     items = items.map(c => {
+                         return {
+                             id: c.id,
+                             user_id,
+                             name: c.name,
+                             phone: c.phone,
+                             email: c.email,
+                             address: c.address,
+                             ice: c.ice,
+                             contact: c.contact,
+                             notes: c.notes,
+                             payments: JSON.stringify(c.payments || [])
+                         };
+                     });
+                 }
+                 if (key === 'suppliers') {
+                     items = items.map(s => {
+                         return {
+                             id: s.id,
+                             user_id,
+                             name: s.name,
+                             phone: s.phone,
+                             email: s.email,
+                             address: s.address,
+                             ice: s.ice,
+                             contact: s.contact,
+                             notes: s.notes,
+                             payments: JSON.stringify(s.payments || [])
+                         };
+                     });
+                 }
+                 if (key === 'shifts') {
                       items = items.map(s => {
                           return {
                               id: s.id,
@@ -621,8 +653,20 @@ export function useERPStore(): ERPStoreType {
           });
         }
         
-        setSuppliers(data.suppliers || []);
-        setClients(data.clients || []);
+        let loadedSuppliers = data.suppliers || [];
+        loadedSuppliers = loadedSuppliers.map((s: any) => ({
+            ...s,
+            payments: typeof s.payments === 'string' ? JSON.parse(s.payments) : (s.payments || [])
+        }));
+        setSuppliers(loadedSuppliers);
+
+        let loadedClients = data.clients || [];
+        loadedClients = loadedClients.map((c: any) => ({
+            ...c,
+            payments: typeof c.payments === 'string' ? JSON.parse(c.payments) : (c.payments || [])
+        }));
+        setClients(loadedClients);
+
         setPurchaseInvoices(data.purchase_invoices || []);
         setSalesInvoices(data.sales_invoices || []);
         setDeliveryInvoices(data.delivery_invoices || []);

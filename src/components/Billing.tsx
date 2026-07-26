@@ -104,14 +104,17 @@ export function Billing({ store }: { store: ERPStoreType }) {
         let base = prev;
         if (store.config.documentSettings) {
           base = { ...prev, ...store.config.documentSettings };
+        } else {
+          base = {
+            ...prev,
+            companyName: prev.companyName || (store.config.name && store.config.name !== 'Station ERP' && store.config.name !== 'ATLAS PETROLEUM SARL' ? store.config.name : ''),
+            address: prev.address || store.config.address || '',
+            phone: prev.phone || store.config.phone || '',
+            ice: prev.ice || store.config.taxId || '',
+          };
         }
         const nextSettings = {
           ...base,
-          // Only pull from store.config if base is completely empty
-          companyName: base.companyName || (store.config.name && store.config.name !== 'Station ERP' && store.config.name !== 'ATLAS PETROLEUM SARL' ? store.config.name : ''),
-          address: base.address || store.config.address || '',
-          phone: base.phone || store.config.phone || '',
-          ice: base.ice || store.config.taxId || '',
         };
         if (store.config.documentLogo !== undefined) {
           nextSettings.logoUrl = store.config.documentLogo;

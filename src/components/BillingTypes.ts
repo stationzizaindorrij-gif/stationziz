@@ -59,7 +59,9 @@ export interface DocumentSettings {
   ifNum: string; // Identifiant Fiscal
   patente: string;
   cnss: string;
+  codeClient?: string;
   capital: string;
+  rib?: string;
   primaryColor: string; // hex
   fontFamily: string; // 'Inter' | 'Space Grotesk' | 'Playfair Display' | 'Courier'
   footerText: string;
@@ -104,7 +106,9 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
   ifNum: '',
   patente: '',
   cnss: '',
+  codeClient: '',
   capital: '',
+  rib: '',
   primaryColor: '#4f46e5', // Indigo
   fontFamily: 'Inter',
   footerText: 'Merci de votre confiance.',

@@ -385,12 +385,24 @@ export function BillingDocumentView({
   const getDocTypeLabel = () => {
     switch(document.docType) {
       case 'client_devis': return 'DEVIS PRO-FORMA';
-      case 'client_facture': return 'FACTURE VENDEUR';
+      case 'client_facture': return 'FACTURE';
       case 'client_bl': return 'BON DE LIVRAISON';
       case 'supplier_devis_req': return 'DEMANDE DE DEVIS';
       case 'supplier_br': return 'BON DE RÉCEPTION';
       case 'supplier_facture': return 'FACTURE FOURNISSEUR';
       default: return 'DOCUMENT COMMERCIAL';
+    }
+  };
+
+  const getDocNumberLabel = () => {
+    switch(document.docType) {
+      case 'client_devis': return 'Devis Numéro';
+      case 'client_facture': return 'Facture Numéro';
+      case 'client_bl': return 'B.L Numéro';
+      case 'supplier_devis_req': return 'Demande Numéro';
+      case 'supplier_br': return 'B.R Numéro';
+      case 'supplier_facture': return 'Facture Numéro';
+      default: return 'N° Document';
     }
   };
 
@@ -532,11 +544,11 @@ export function BillingDocumentView({
           <div className="pt-2">
             
             {/* Header Section */}
-            <div className="grid grid-cols-2 gap-4 items-start border-b-2 pb-6" style={{ borderColor: settings.primaryColor }}>
+            <div className="flex flex-col items-center border-b-2 pb-6 space-y-6" style={{ borderColor: settings.primaryColor }}>
               
               {/* Company Info & Logo */}
-              <div className="space-y-2">
-                <div className="flex flex-col items-start gap-2">
+              <div className="space-y-2 flex flex-col items-center text-center w-full">
+                <div className="flex flex-col items-center gap-2">
                   {settings.logoUrl && (settings.logoUrl.startsWith('data:image/') || settings.logoUrl.startsWith('http')) ? (
                     <img 
                       src={settings.logoUrl} 
@@ -562,90 +574,89 @@ export function BillingDocumentView({
                   })()}
                 </div>
               </div>
+               <div className="grid grid-cols-2 gap-4 w-full items-end">
+                <div className="space-y-1.5 leading-normal text-left">
+                  <div className="mb-2">
+                    <span className="text-sm font-black uppercase tracking-wider block" style={{ color: settings.primaryColor }}>REDA QOUNA</span>
+                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wide block mt-0.5">CENTRE AIN DORRIJ LAMJAARA PROVINCE OUEZZANE</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-bold space-y-1">
+                    {settings.ice?.trim() && (
+                      <div>
+                        <span className="text-slate-400">I.C.E. : </span>
+                        <span className="font-mono text-slate-700">{settings.ice.trim()}</span>
+                      </div>
+                    )}
+                    {(() => {
+                      const row1 = [];
+                      if (settings.rc?.trim()) row1.push(<span key="rc"><span className="text-slate-400">R.C. : </span><span className="font-mono text-slate-700">{settings.rc.trim()}</span></span>);
+                      if (settings.patente?.trim()) row1.push(<span key="patente"><span className="text-slate-400">Patente : </span><span className="font-mono text-slate-700">{settings.patente.trim()}</span></span>);
+                      if (row1.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-x-2">
+                          {row1.map((item, idx) => (
+                            <React.Fragment key={idx}>
+                              {idx > 0 && <span className="text-slate-300">|</span>}
+                              {item}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    {(() => {
+                      const row2 = [];
+                      if (settings.ifNum?.trim()) row2.push(<span key="if"><span className="text-slate-400">I.F. Num : </span><span className="font-mono text-slate-700">{settings.ifNum.trim()}</span></span>);
+                      if (settings.cnss?.trim()) row2.push(<span key="cnss"><span className="text-slate-400">CNSS : </span><span className="font-mono text-slate-700">{settings.cnss.trim()}</span></span>);
+                      if (settings.codeClient?.trim()) row2.push(<span key="codeClient"><span className="text-slate-400">Code Client : </span><span className="font-mono text-slate-700">{settings.codeClient.trim()}</span></span>);
+                      if (row2.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-x-2">
+                          {row2.map((item, idx) => (
+                            <React.Fragment key={idx}>
+                              {idx > 0 && <span className="text-slate-300">|</span>}
+                              {item}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    {settings.capital?.trim() && (
+                      <div>
+                        <span className="text-slate-400">Capital : </span>
+                        <span className="text-slate-700">{settings.capital.trim()}</span>
+                      </div>
+                    )}
+                    {settings.rib?.trim() && (
+                      <div className="pt-1">
+                        <span className="text-slate-400">RIB : </span>
+                        <span className="font-mono text-slate-700 tracking-wider">{settings.rib.trim()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-              {/* Document Metadata block */}
-              <div className="flex flex-col items-end space-y-2">
-                <h1 className="text-xl font-black tracking-wider uppercase text-right" style={{ color: settings.primaryColor }}>
-                  {getDocTypeLabel()}
-                </h1>
-                <div className="w-[240px] bg-slate-50 border border-slate-100 p-3 rounded-xl text-[10px] font-bold space-y-1.5 leading-normal">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">N° Document :</span>
-                    <span className="font-mono font-black text-slate-800">{document.documentNumber}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Date d'émission :</span>
-                    <span className="text-slate-600">{document.date}</span>
-                  </div>
-                  {document.dueDate && (
+                {/* Document Metadata block */}
+                <div className="flex flex-col items-end w-full space-y-2">
+                  <h1 className="text-xl font-black tracking-wider uppercase text-right" style={{ color: settings.primaryColor }}>
+                    {document.date ? document.date.split('-').reverse().join('-') : ''}
+                  </h1>
+                  <div className="w-[240px] bg-slate-50 border border-slate-100 p-3 rounded-xl text-[10px] font-bold space-y-1.5 leading-normal">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Date d'échéance :</span>
-                      <span className="text-slate-600">{document.dueDate}</span>
+                      <span className="text-slate-500">Type :</span>
+                      <span className="text-slate-600 font-black">{getDocTypeLabel()}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Paiement :</span>
-                    <span className="text-slate-600">{paymentLabelMap[document.paymentMethod] || document.paymentMethod}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">{getDocNumberLabel()} :</span>
+                      <span className="font-mono font-black text-slate-800">{document.documentNumber}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-
             </div>
 
             {/* Bill To / Ship To Partner details */}
             <div className="grid grid-cols-2 gap-4 py-6 text-xs">
-              <div className="space-y-1.5 leading-normal">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Émetteur légal</span>
-                <div className="text-[10px] text-slate-500 font-bold space-y-1">
-                  {settings.ice?.trim() && (
-                    <div>
-                      <span className="text-slate-400">I.C.E. : </span>
-                      <span className="font-mono text-slate-700">{settings.ice.trim()}</span>
-                    </div>
-                  )}
-
-                  {(() => {
-                    const row1 = [];
-                    if (settings.rc?.trim()) row1.push(<span key="rc"><span className="text-slate-400">R.C. : </span><span className="font-mono text-slate-700">{settings.rc.trim()}</span></span>);
-                    if (settings.patente?.trim()) row1.push(<span key="patente"><span className="text-slate-400">Patente : </span><span className="font-mono text-slate-700">{settings.patente.trim()}</span></span>);
-                    if (row1.length === 0) return null;
-                    return (
-                      <div className="flex flex-wrap gap-x-2">
-                        {row1.map((item, idx) => (
-                          <React.Fragment key={idx}>
-                            {idx > 0 && <span className="text-slate-300">|</span>}
-                            {item}
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    );
-                  })()}
-
-                  {(() => {
-                    const row2 = [];
-                    if (settings.ifNum?.trim()) row2.push(<span key="if"><span className="text-slate-400">I.F. Num : </span><span className="font-mono text-slate-700">{settings.ifNum.trim()}</span></span>);
-                    if (settings.cnss?.trim()) row2.push(<span key="cnss"><span className="text-slate-400">CNSS : </span><span className="font-mono text-slate-700">{settings.cnss.trim()}</span></span>);
-                    if (row2.length === 0) return null;
-                    return (
-                      <div className="flex flex-wrap gap-x-2">
-                        {row2.map((item, idx) => (
-                          <React.Fragment key={idx}>
-                            {idx > 0 && <span className="text-slate-300">|</span>}
-                            {item}
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    );
-                  })()}
-
-                  {settings.capital?.trim() && (
-                    <div>
-                      <span className="text-slate-400">Capital : </span>
-                      <span className="text-slate-700">{settings.capital.trim()}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <div></div>
 
               <div className="bg-slate-50/50 border border-slate-100 border-l-4 p-4 rounded-2xl space-y-1 leading-normal" style={{ borderLeftColor: settings.primaryColor }}>
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Destinataire / Tiers commercial</span>
@@ -665,10 +676,6 @@ export function BillingDocumentView({
                   const hasAddress = Boolean(address && address.trim());
                   const hasPhone = Boolean(phone && phone.trim());
                   const hasEmail = Boolean(email && email.trim());
-
-                  if (!hasIce && !hasAddress && !hasPhone && !hasEmail) {
-                    return null;
-                  }
 
                   return (
                     <div className="text-[10px] text-slate-600 font-bold space-y-0.5 pt-1 border-t border-slate-200/60 mt-1.5">
@@ -696,6 +703,10 @@ export function BillingDocumentView({
                           <span className="text-slate-700">{email!.trim()}</span>
                         </div>
                       )}
+                      <div>
+                        <span className="text-slate-400 font-medium">Paiement : </span>
+                        <span className="text-slate-700">{paymentLabelMap[document.paymentMethod] || document.paymentMethod}</span>
+                      </div>
                     </div>
                   );
                 })()}
