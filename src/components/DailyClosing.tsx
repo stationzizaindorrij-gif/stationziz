@@ -4,7 +4,7 @@ import {
   CreditCard, Receipt, FileText, ChevronRight, ChevronLeft, Calendar, 
   Clock, Lock, CheckCircle, AlertTriangle, Plus, Trash2, Printer, Check
 } from 'lucide-react';
-import { useReactToPrint } from 'react-to-print';
+
 import html2pdf from 'html2pdf.js';
 import { useRef } from 'react';
 import { ERPStoreType } from '../store';
@@ -147,7 +147,7 @@ interface Expense {
 
 export default function DailyClosing({ store, shiftId, onBack }: DailyClosingProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const reactToPrintFn = useReactToPrint({ contentRef });
+
   const handlePrint = () => {
     const element = contentRef.current;
     if (!element) return;

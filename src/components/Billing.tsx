@@ -536,8 +536,8 @@ export function Billing({ store }: { store: ERPStoreType }) {
                 <table className="w-full text-left text-xs whitespace-nowrap">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="p-4">N° Pièce</th>
                       <th className="p-4">Type</th>
+                      <th className="p-4">N° Pièce</th>
                       <th className="p-4">Date</th>
                       <th className="p-4">Tiers commercial</th>
                       <th className="p-4">Mode Régl.</th>
@@ -559,6 +559,13 @@ export function Billing({ store }: { store: ERPStoreType }) {
                       (activeTab === 'client_docs' ? activeClientDocs : activeSupplierDocs).map(doc => (
                         <tr key={doc.id} className="hover:bg-slate-50/50 group transition-all">
                           
+                          {/* Type */}
+                          <td className="p-4">
+                            <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase ${getDocTypeBadge(doc.docType)}`}>
+                              {getDocTypeLabel(doc.docType)}
+                            </span>
+                          </td>
+
                           {/* Doc number links directly to detail view */}
                           <td className="p-4">
                             <button
@@ -567,13 +574,6 @@ export function Billing({ store }: { store: ERPStoreType }) {
                             >
                               {doc.documentNumber}
                             </button>
-                          </td>
-
-                          {/* Type */}
-                          <td className="p-4">
-                            <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase ${getDocTypeBadge(doc.docType)}`}>
-                              {getDocTypeLabel(doc.docType)}
-                            </span>
                           </td>
 
                           {/* Date */}

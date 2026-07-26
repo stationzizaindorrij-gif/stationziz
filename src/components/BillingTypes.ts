@@ -15,6 +15,7 @@ export interface DocumentItem {
   price: number;
   vat: number; // e.g. 20 for 20%
   discount: number; // e.g. 10 for 10%
+  totalTTCInput?: string; // the string typed by the user
 }
 
 export interface MixedPaymentRow {
@@ -34,7 +35,6 @@ export interface RichDocument {
   partnerEmail?: string;
   partnerAddress?: string;
   date: string;
-  dueDate: string;
   items: DocumentItem[];
   amountHT: number;
   vatAmount: number;
@@ -137,7 +137,7 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
     totalHT: true,
     totalTTC: true
   },
-  columnsOrder: ['code', 'name', 'description', 'qty', 'price', 'discount', 'vat', 'totalHT', 'totalTTC'],
+  columnsOrder: ['code', 'name', 'description', 'price', 'discount', 'vat', 'totalHT', 'totalTTC', 'qty'],
   customColumnLabels: {
     code: 'Réf',
     name: 'Désignation',

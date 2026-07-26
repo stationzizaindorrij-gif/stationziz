@@ -88,7 +88,6 @@ export function BillingDocumentModal({
   const [documentNumber, setDocumentNumber] = useState('');
   const [partnerId, setPartnerId] = useState('');
   const [date, setDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
   const [items, setItems] = useState<DocumentItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<RichDocument['paymentMethod']>('virement');
   const [mixedPayments, setMixedPayments] = useState<MixedPaymentRow[]>([]);
@@ -112,7 +111,6 @@ export function BillingDocumentModal({
       setDocumentNumber(editingDoc.documentNumber);
       setPartnerId(editingDoc.partnerId);
       setDate(editingDoc.date);
-      setDueDate(editingDoc.dueDate);
       setItems(editingDoc.items || []);
       setPaymentMethod(editingDoc.paymentMethod);
       setMixedPayments(editingDoc.mixedPayments || []);
@@ -122,12 +120,10 @@ export function BillingDocumentModal({
       setShowQuickPartner(false);
     } else {
       const today = new Date().toISOString().split('T')[0];
-      const plus30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
       const initialType = defaultDocType;
       setDocType(initialType);
       setDate(today);
-      setDueDate(plus30Days);
       setItems([{
         id: `item_${Date.now()}_1`,
         productId: '',
@@ -209,6 +205,7 @@ export function BillingDocumentModal({
             updated.description = pFuel.name;
             updated.price = isClientDoc ? pFuel.salePrice : pFuel.purchasePrice;
             updated.vat = 20; // Fuel TVA in Morocco is usually 20%
+            updated.totalTTCInput = undefined;
           } else {
             // Check shop products
             const pShop = shopProducts.find(p => p.id === value);
@@ -217,6 +214,7 @@ export function BillingDocumentModal({
               updated.description = pShop.name;
               updated.price = isClientDoc ? pShop.salePrice : pShop.purchasePrice;
               updated.vat = 20;
+              updated.totalTTCInput = undefined;
             }
           }
         }
@@ -228,19 +226,15 @@ export function BillingDocumentModal({
 
   // Calculations
   const calculateTotals = () => {
-    let subtotalHT = 0;
-    let totalVAT = 0;
+    let totalTTC = 0;
     
     items.forEach(item => {
-      const priceAfterDiscount = item.price * (1 - (item.discount || 0) / 100);
-      const lineHT = priceAfterDiscount * (item.qty || 0);
-      const lineVAT = lineHT * ((item.vat || 0) / 100);
-      
-      subtotalHT += lineHT;
-      totalVAT += lineVAT;
+      const lineTTC = item.price * item.qty;
+      totalTTC += lineTTC;
     });
 
-    const totalTTC = subtotalHT + totalVAT;
+    const subtotalHT = totalTTC / 1.10;
+    const totalVAT = totalTTC - subtotalHT;
 
     return {
       amountHT: Number(subtotalHT.toFixed(2)),
@@ -326,7 +320,6 @@ export function BillingDocumentModal({
       partnerEmail: selectedPartner?.email || '',
       partnerAddress: selectedPartner?.address || '',
       date,
-      dueDate,
       items,
       amountHT: totals.amountHT,
       vatAmount: totals.vatAmount,
@@ -365,7 +358,7 @@ export function BillingDocumentModal({
           <form id="billingDocForm" onSubmit={handleSubmitForm} className="space-y-6">
             
             {/* Row 1 : Type de Document, Numéro & Dates */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase">Type de document</label>
                 <select
@@ -412,14 +405,6 @@ export function BillingDocumentModal({
                 <DatePickerWrapper 
                   value={date}
                   onChange={(val) => setDate(val)}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">Date d'Échéance</label>
-                <DatePickerWrapper 
-                  value={dueDate}
-                  onChange={(val) => setDueDate(val)}
                 />
               </div>
             </div>
@@ -521,18 +506,15 @@ export function BillingDocumentModal({
                       <tr>
                         <th className="p-3 w-44">Produit/Prestation</th>
                         <th className="p-3">Désignation manuelle / Description</th>
-                        <th className="p-3 w-20 text-center">Qté</th>
-                        <th className="p-3 w-28 text-right">P.U. (HT)</th>
-                        <th className="p-3 w-20 text-center">Remise %</th>
-                        <th className="p-3 w-20 text-center">TVA %</th>
+                        <th className="p-3 w-28 text-right">P.U.</th>
                         <th className="p-3 w-28 text-right">Total TTC</th>
+                        <th className="p-3 w-20 text-center">Qté</th>
                         <th className="p-3 w-10 text-center"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {items.map((item, idx) => {
-                        const lineHT = (item.price * item.qty) * (1 - (item.discount || 0) / 100);
-                        const lineTTC = lineHT * (1 + (item.vat || 0) / 100);
+                        const lineTTC = item.price * item.qty;
 
                         return (
                           <tr key={item.id} className="hover:bg-slate-50/50">
@@ -572,19 +554,6 @@ export function BillingDocumentModal({
                               />
                             </td>
 
-                            {/* Qty */}
-                            <td className="p-2.5">
-                              <input
-                                type="number"
-                                step="any"
-                                min="0.01"
-                                value={item.qty}
-                                onChange={(e) => handleItemChange(item.id, 'qty', parseFloat(e.target.value) || 0)}
-                                className="w-full border border-slate-200 bg-white rounded-lg p-1.5 text-center focus:outline-none font-mono"
-                                required
-                              />
-                            </td>
-
                             {/* Price */}
                             <td className="p-2.5">
                               <input
@@ -592,42 +561,59 @@ export function BillingDocumentModal({
                                 step="any"
                                 min="0"
                                 value={item.price}
-                                onChange={(e) => handleItemChange(item.id, 'price', parseFloat(e.target.value) || 0)}
+                                onChange={(e) => {
+                                  const newPrice = parseFloat(e.target.value) || 0;
+                                  let updates: any = { price: newPrice };
+                                  
+                                  if (item.totalTTCInput) {
+                                    const parsedTTC = parseFloat(item.totalTTCInput) || 0;
+                                    const effectivePrice = newPrice;
+                                    if (effectivePrice > 0) {
+                                      updates.qty = Number((parsedTTC / effectivePrice).toFixed(6));
+                                    } else {
+                                      updates.qty = 0;
+                                    }
+                                  }
+                                  
+                                  handleItemChange(item.id, updates);
+                                }}
                                 className="w-full border border-slate-200 bg-white rounded-lg p-1.5 text-right focus:outline-none font-mono"
                                 required
                               />
                             </td>
 
-                            {/* Discount */}
+                            {/* Line Total */}
                             <td className="p-2.5">
                               <input
                                 type="number"
-                                min="0"
-                                max="100"
-                                value={item.discount}
-                                onChange={(e) => handleItemChange(item.id, 'discount', parseFloat(e.target.value) || 0)}
-                                className="w-full border border-slate-200 bg-white rounded-lg p-1.5 text-center focus:outline-none font-mono"
+                                step="any"
+                                value={item.totalTTCInput !== undefined ? item.totalTTCInput : (lineTTC ? Number(lineTTC.toFixed(6)) : '')}
+                                onChange={(e) => {
+                                  const rawVal = e.target.value;
+                                  const newTTC = parseFloat(rawVal) || 0;
+                                  const effectivePrice = item.price;
+                                  let newQty = item.qty;
+                                  if (effectivePrice > 0) {
+                                    newQty = Number((newTTC / effectivePrice).toFixed(6));
+                                  } else if (effectivePrice === 0 && newTTC === 0) {
+                                    newQty = 0;
+                                  }
+                                  handleItemChange(item.id, { totalTTCInput: rawVal, qty: newQty });
+                                }}
+                                placeholder="0.00"
+                                className="w-full border border-slate-200 bg-indigo-50/30 text-indigo-700 rounded-lg p-1.5 text-right font-bold focus:outline-none font-mono"
                               />
                             </td>
 
-                            {/* TVA */}
+                            {/* Qté */}
                             <td className="p-2.5">
-                              <select
-                                value={item.vat}
-                                onChange={(e) => handleItemChange(item.id, 'vat', parseInt(e.target.value) || 0)}
-                                className="w-full border border-slate-200 bg-white rounded-lg p-1.5 text-center focus:outline-none"
-                              >
-                                <option value="20">20%</option>
-                                <option value="14">14%</option>
-                                <option value="10">10%</option>
-                                <option value="7">7%</option>
-                                <option value="0">0% (Exo)</option>
-                              </select>
-                            </td>
-
-                            {/* Line Total */}
-                            <td className="p-2.5 text-right font-bold text-slate-800 font-mono">
-                              {lineTTC.toFixed(2)}
+                              <input
+                                type="number"
+                                step="any"
+                                value={item.qty}
+                                readOnly
+                                className="w-full border border-slate-200 bg-slate-50 text-slate-500 rounded-lg p-1.5 text-center focus:outline-none font-mono cursor-not-allowed"
+                              />
                             </td>
 
                             {/* Delete Action */}

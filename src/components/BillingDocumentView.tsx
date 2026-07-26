@@ -268,109 +268,38 @@ export function BillingDocumentView({
   };
 
   const handlePrint = () => {
-    const content = printAreaRef.current?.innerHTML;
-    if (!content) return;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${document.docType.toUpperCase()} - ${document.documentNumber}</title>
-          <style>
-            /* Reset all margins and clear default browser header/footer */
-            @page {
-              size: A4;
-              margin: 0 !important;
-            }
-            @media print {
-              @page {
-                size: A4;
-                margin: 0 !important;
-              }
-              html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-                height: 297mm !important;
-                width: 210mm !important;
-                background-color: white !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              .print-page {
-                width: 210mm !important;
-                height: 297mm !important;
-                min-height: 297mm !important;
-                max-height: 297mm !important;
-                padding: 15mm 20mm 15mm 20mm !important;
-                box-sizing: border-box !important;
-                position: relative !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: space-between !important;
-                background-color: white !important;
-                page-break-after: avoid !important;
-                page-break-inside: avoid !important;
-              }
-              .no-print { display: none !important; }
-            }
-            body {
-              background-color: white !important;
-              margin: 0;
-              padding: 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-page bg-white text-left leading-relaxed text-slate-800" style="font-family: ${settings.fontFamily}; margin: 0 auto;">
-            ${content}
-          </div>
-          <script>
-            window.addEventListener('load', () => {
-              // Wait for all style assets to load before opening print dialog
-              const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
-              let loadedCount = 0;
-              
-              const doPrint = () => {
-                setTimeout(() => {
-                  window.print();
-                  window.close();
-                }, 500);
-              };
-
-              if (links.length === 0) {
-                doPrint();
-              } else {
-                links.forEach((link) => {
-                  link.addEventListener('load', () => {
-                    loadedCount++;
-                    if (loadedCount === links.length) doPrint();
-                  });
-                  link.addEventListener('error', () => {
-                    loadedCount++;
-                    if (loadedCount === links.length) doPrint();
-                  });
-                });
-                // Fallback timeout to ensure it prints anyway
-                setTimeout(doPrint, 1500);
-              }
-            });
-          </script>
-        </body>
-      </html>
-    `);
-
-    // Copy style sheets and style elements to preserve Tailwind styling and custom settings
-    Array.from(window.document.querySelectorAll('link[rel="stylesheet"], style')).forEach((el) => {
-      try {
-        printWindow.document.head.appendChild(el.cloneNode(true));
-      } catch (e) {
-        console.warn("Failed to clone stylesheet", e);
+    // Inject print styles to hide everything except the document
+    const style = window.document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        #printable-document, #printable-document * {
+          visibility: visible;
+        }
+        #printable-document {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          box-shadow: none !important;
+          border: none !important;
+        }
       }
-    });
-
-    printWindow.document.close();
+    `;
+    window.document.head.appendChild(style);
+    
+    // Slight delay to ensure styles are applied
+    setTimeout(() => {
+      window.print();
+      // Clean up after print dialog is closed
+      setTimeout(() => {
+        window.document.head.removeChild(style);
+      }, 1000);
+    }, 100);
   };
 
   const handleSendEmail = () => {
@@ -535,6 +464,7 @@ export function BillingDocumentView({
         {/* Printable/exportable container */}
         <div 
           ref={printAreaRef}
+          id="printable-document"
           className="bg-white p-6 md:p-12 w-full max-w-[800px] border border-slate-200 shadow-md flex flex-col justify-between aspect-[1/1.4] text-left leading-relaxed text-slate-800 relative overflow-hidden"
           style={{ fontFamily: settings.fontFamily }}
         >
@@ -544,7 +474,7 @@ export function BillingDocumentView({
           <div className="pt-2">
             
             {/* Header Section */}
-            <div className="flex flex-col items-center border-b-2 pb-6 space-y-6" style={{ borderColor: settings.primaryColor }}>
+            <div className="flex flex-col items-center pb-6 space-y-6">
               
               {/* Company Info & Logo */}
               <div className="space-y-2 flex flex-col items-center text-center w-full">
@@ -574,142 +504,78 @@ export function BillingDocumentView({
                   })()}
                 </div>
               </div>
-               <div className="grid grid-cols-2 gap-4 w-full items-end">
-                <div className="space-y-1.5 leading-normal text-left">
-                  <div className="mb-2">
-                    <span className="text-sm font-black uppercase tracking-wider block" style={{ color: settings.primaryColor }}>REDA QOUNA</span>
-                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wide block mt-0.5">CENTRE AIN DORRIJ LAMJAARA PROVINCE OUEZZANE</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-bold space-y-1">
-                    {settings.ice?.trim() && (
-                      <div>
-                        <span className="text-slate-400">I.C.E. : </span>
-                        <span className="font-mono text-slate-700">{settings.ice.trim()}</span>
-                      </div>
-                    )}
-                    {(() => {
-                      const row1 = [];
-                      if (settings.rc?.trim()) row1.push(<span key="rc"><span className="text-slate-400">R.C. : </span><span className="font-mono text-slate-700">{settings.rc.trim()}</span></span>);
-                      if (settings.patente?.trim()) row1.push(<span key="patente"><span className="text-slate-400">Patente : </span><span className="font-mono text-slate-700">{settings.patente.trim()}</span></span>);
-                      if (row1.length === 0) return null;
-                      return (
-                        <div className="flex flex-wrap gap-x-2">
-                          {row1.map((item, idx) => (
-                            <React.Fragment key={idx}>
-                              {idx > 0 && <span className="text-slate-300">|</span>}
-                              {item}
-                            </React.Fragment>
-                          ))}
+               <div className="grid grid-cols-2 gap-4 w-full items-start mt-6">
+                {/* Bill To / Ship To Partner details */}
+                <div className="bg-slate-50/50 border border-slate-100 border-l-4 p-4 rounded-2xl space-y-1 leading-normal w-[320px]" style={{ borderLeftColor: settings.primaryColor }}>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">DOIT MR :</span>
+                  <p className="font-black text-slate-800 text-sm">{document.partnerName}</p>
+                  {(() => {
+                    const isClientDoc = ['client_devis', 'client_facture', 'client_bl'].includes(document.docType);
+                    const partner = isClientDoc 
+                      ? clients?.find(c => c.id === document.partnerId || c.name === document.partnerName)
+                      : suppliers?.find(s => s.id === document.partnerId || s.name === document.partnerName);
+
+                    const ice = document.partnerIce || partner?.ice;
+                    const address = document.partnerAddress || partner?.address;
+                    const phone = document.partnerPhone || partner?.phone;
+                    const email = document.partnerEmail || partner?.email;
+
+                    const hasIce = Boolean(ice && ice.trim() && ice.toUpperCase() !== 'N/A');
+                    const hasAddress = Boolean(address && address.trim());
+                    const hasPhone = Boolean(phone && phone.trim());
+                    const hasEmail = Boolean(email && email.trim());
+
+                    return (
+                      <div className="text-[10px] text-slate-600 font-bold space-y-0.5 pt-1 border-t border-slate-200/60 mt-1.5">
+                        {hasIce && (
+                          <div>
+                            <span className="text-slate-400 font-medium">I.C.E. : </span>
+                            <span className="font-mono text-slate-700">{ice!.trim()}</span>
+                          </div>
+                        )}
+                        {hasAddress && (
+                          <div>
+                            <span className="text-slate-400 font-medium">Adresse : </span>
+                            <span className="text-slate-700">{address!.trim()}</span>
+                          </div>
+                        )}
+                        {hasPhone && (
+                          <div>
+                            <span className="text-slate-400 font-medium">Tél : </span>
+                            <span className="font-mono text-slate-700">{phone!.trim()}</span>
+                          </div>
+                        )}
+                        {hasEmail && (
+                          <div>
+                            <span className="text-slate-400 font-medium">Email : </span>
+                            <span className="text-slate-700">{email!.trim()}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-slate-400 font-medium">Paiement : </span>
+                          <span className="text-slate-700">{paymentLabelMap[document.paymentMethod] || document.paymentMethod}</span>
                         </div>
-                      );
-                    })()}
-                    {(() => {
-                      const row2 = [];
-                      if (settings.ifNum?.trim()) row2.push(<span key="if"><span className="text-slate-400">I.F. Num : </span><span className="font-mono text-slate-700">{settings.ifNum.trim()}</span></span>);
-                      if (settings.cnss?.trim()) row2.push(<span key="cnss"><span className="text-slate-400">CNSS : </span><span className="font-mono text-slate-700">{settings.cnss.trim()}</span></span>);
-                      if (settings.codeClient?.trim()) row2.push(<span key="codeClient"><span className="text-slate-400">Code Client : </span><span className="font-mono text-slate-700">{settings.codeClient.trim()}</span></span>);
-                      if (row2.length === 0) return null;
-                      return (
-                        <div className="flex flex-wrap gap-x-2">
-                          {row2.map((item, idx) => (
-                            <React.Fragment key={idx}>
-                              {idx > 0 && <span className="text-slate-300">|</span>}
-                              {item}
-                            </React.Fragment>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                    {settings.capital?.trim() && (
-                      <div>
-                        <span className="text-slate-400">Capital : </span>
-                        <span className="text-slate-700">{settings.capital.trim()}</span>
                       </div>
-                    )}
-                    {settings.rib?.trim() && (
-                      <div className="pt-1">
-                        <span className="text-slate-400">RIB : </span>
-                        <span className="font-mono text-slate-700 tracking-wider">{settings.rib.trim()}</span>
-                      </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Document Metadata block */}
-                <div className="flex flex-col items-end w-full space-y-2">
-                  <h1 className="text-xl font-black tracking-wider uppercase text-right" style={{ color: settings.primaryColor }}>
-                    {document.date ? document.date.split('-').reverse().join('-') : ''}
+                <div className="flex flex-col items-end w-full space-y-1">
+                  <h1 className="text-2xl font-black tracking-widest uppercase text-right" style={{ color: settings.primaryColor }}>
+                    {getDocTypeLabel()}
                   </h1>
-                  <div className="w-[240px] bg-slate-50 border border-slate-100 p-3 rounded-xl text-[10px] font-bold space-y-1.5 leading-normal">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Type :</span>
-                      <span className="text-slate-600 font-black">{getDocTypeLabel()}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">{getDocNumberLabel()} :</span>
-                      <span className="font-mono font-black text-slate-800">{document.documentNumber}</span>
-                    </div>
+                  <div className="flex items-center justify-end gap-2 text-xs mt-2">
+                    <span className="text-slate-500 font-bold uppercase tracking-wider">{getDocNumberLabel()} :</span>
+                    <span className="font-mono font-black text-slate-800 text-sm">{document.documentNumber}</span>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 text-xs">
+                    <span className="text-slate-500 font-bold uppercase tracking-wider">Date :</span>
+                    <span className="font-mono font-black text-slate-800 text-sm">
+                      {document.date ? document.date.split('-').reverse().join('-') : ''}
+                    </span>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Bill To / Ship To Partner details */}
-            <div className="grid grid-cols-2 gap-4 py-6 text-xs">
-              <div></div>
-
-              <div className="bg-slate-50/50 border border-slate-100 border-l-4 p-4 rounded-2xl space-y-1 leading-normal" style={{ borderLeftColor: settings.primaryColor }}>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Destinataire / Tiers commercial</span>
-                <p className="font-black text-slate-800 text-sm">{document.partnerName}</p>
-                {(() => {
-                  const isClientDoc = ['client_devis', 'client_facture', 'client_bl'].includes(document.docType);
-                  const partner = isClientDoc 
-                    ? clients?.find(c => c.id === document.partnerId || c.name === document.partnerName)
-                    : suppliers?.find(s => s.id === document.partnerId || s.name === document.partnerName);
-
-                  const ice = document.partnerIce || partner?.ice;
-                  const address = document.partnerAddress || partner?.address;
-                  const phone = document.partnerPhone || partner?.phone;
-                  const email = document.partnerEmail || partner?.email;
-
-                  const hasIce = Boolean(ice && ice.trim() && ice.toUpperCase() !== 'N/A');
-                  const hasAddress = Boolean(address && address.trim());
-                  const hasPhone = Boolean(phone && phone.trim());
-                  const hasEmail = Boolean(email && email.trim());
-
-                  return (
-                    <div className="text-[10px] text-slate-600 font-bold space-y-0.5 pt-1 border-t border-slate-200/60 mt-1.5">
-                      {hasIce && (
-                        <div>
-                          <span className="text-slate-400 font-medium">I.C.E. : </span>
-                          <span className="font-mono text-slate-700">{ice!.trim()}</span>
-                        </div>
-                      )}
-                      {hasAddress && (
-                        <div>
-                          <span className="text-slate-400 font-medium">Adresse : </span>
-                          <span className="text-slate-700">{address!.trim()}</span>
-                        </div>
-                      )}
-                      {hasPhone && (
-                        <div>
-                          <span className="text-slate-400 font-medium">Tél : </span>
-                          <span className="font-mono text-slate-700">{phone!.trim()}</span>
-                        </div>
-                      )}
-                      {hasEmail && (
-                        <div>
-                          <span className="text-slate-400 font-medium">Email : </span>
-                          <span className="text-slate-700">{email!.trim()}</span>
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-slate-400 font-medium">Paiement : </span>
-                        <span className="text-slate-700">{paymentLabelMap[document.paymentMethod] || document.paymentMethod}</span>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             </div>
 
@@ -768,11 +634,8 @@ export function BillingDocumentView({
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {document.items && document.items.map((item, index) => {
-                        const lineHTRaw = item.price * item.qty;
-                        const discountAmt = lineHTRaw * ((item.discount || 0) / 100);
-                        const totalHT = lineHTRaw - discountAmt;
-                        const vatAmt = totalHT * ((item.vat || 0) / 100);
-                        const totalTTC = totalHT + vatAmt;
+                        const totalTTC = item.price * item.qty;
+                        const totalHT = totalTTC / 1.10;
                         const isEven = index % 2 === 1;
 
                         return (
@@ -907,8 +770,28 @@ export function BillingDocumentView({
           </div>
 
           {/* Document Footer */}
-          <div className="border-t border-slate-200/80 pt-4 mt-6 text-center text-xs font-bold text-slate-600 tracking-wide">
-            {settings.footerText && settings.footerText.trim() ? settings.footerText : "Merci de votre confiance."}
+          <div className="border-t border-slate-200/80 pt-4 mt-6 text-center text-[9px] font-bold text-slate-500 tracking-wide space-y-1">
+            {/* Footer company info */}
+            <div className="text-slate-800 font-black text-[10px] uppercase">{settings.companyName || "REDA QOUNA"}</div>
+            {settings.address?.trim() && <div>{settings.address.trim()}</div>}
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1 text-slate-400">
+              {settings.ice?.trim() && <span>I.C.E. : <span className="font-mono text-slate-600">{settings.ice.trim()}</span></span>}
+              {settings.rc?.trim() && <span>R.C. : <span className="font-mono text-slate-600">{settings.rc.trim()}</span></span>}
+              {settings.patente?.trim() && <span>Patente : <span className="font-mono text-slate-600">{settings.patente.trim()}</span></span>}
+              {settings.ifNum?.trim() && <span>I.F. : <span className="font-mono text-slate-600">{settings.ifNum.trim()}</span></span>}
+              {settings.cnss?.trim() && <span>CNSS : <span className="font-mono text-slate-600">{settings.cnss.trim()}</span></span>}
+              {settings.codeClient?.trim() && <span>Code Client : <span className="font-mono text-slate-600">{settings.codeClient.trim()}</span></span>}
+              {settings.capital?.trim() && <span>Capital : <span className="text-slate-600">{settings.capital.trim()}</span></span>}
+            </div>
+            {settings.rib?.trim() && (
+              <div className="mt-1">
+                <span>RIB : </span>
+                <span className="font-mono text-slate-600 tracking-wider">{settings.rib.trim()}</span>
+              </div>
+            )}
+            <div className="pt-2 text-slate-400">
+              {settings.footerText && settings.footerText.trim() ? settings.footerText : "Merci de votre confiance."}
+            </div>
           </div>
 
         </div>
