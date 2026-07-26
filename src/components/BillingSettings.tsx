@@ -67,6 +67,16 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
     }));
   };
 
+  const handleColumnLabelChange = (columnKey: string, value: string) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      customColumnLabels: {
+        ...(prev.customColumnLabels || {}),
+        [columnKey]: value
+      }
+    }));
+  };
+
   const moveColumn = (index: number, direction: 'up' | 'down') => {
     const newOrder = [...localSettings.columnsOrder];
     if (direction === 'up' && index > 0) {
@@ -445,7 +455,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
             </h4>
 
             <p className="text-xs text-slate-500 font-medium">
-              Cochez les colonnes à inclure dans vos documents imprimés. Utilisez les flèches pour changer l'ordre d'affichage de gauche à droite.
+              Cochez les colonnes à inclure, modifiez les intitulés pour personnaliser le nom de chaque colonne, et utilisez les flèches pour changer l'ordre d'affichage.
             </p>
 
             <div className="space-y-3">
@@ -462,27 +472,52 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                   totalTTC: 'Total TTC'
                 };
 
+                const defaultHeaderNames: Record<string, string> = {
+                  code: 'Réf',
+                  name: 'Désignation',
+                  description: 'Description',
+                  qty: 'Qté',
+                  price: 'P.U. HT (Dh)',
+                  discount: 'Rem. %',
+                  vat: 'TVA %',
+                  totalHT: 'HT Net',
+                  totalTTC: 'TTC Net'
+                };
+
                 const isVisible = localSettings.visibleColumns[colKey as keyof DocumentSettings['visibleColumns']];
+                const currentLabel = localSettings.customColumnLabels?.[colKey] ?? defaultHeaderNames[colKey] ?? colKey;
 
                 return (
-                  <div key={colKey} className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl transition-all">
-                    <div className="flex items-center gap-3">
+                  <div key={colKey} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl transition-all gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
                       <input 
                         type="checkbox"
                         checked={isVisible}
                         onChange={() => handleColumnToggle(colKey as keyof DocumentSettings['visibleColumns'])}
-                        className="w-4.5 h-4.5 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                        className="w-4.5 h-4.5 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
                       />
-                      <span className={`text-sm font-bold ${isVisible ? 'text-slate-800' : 'text-slate-400 line-through'}`}>
-                        {labelMap[colKey] || colKey}
-                      </span>
+                      <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                        <span className={`text-xs font-bold whitespace-nowrap min-w-[140px] ${isVisible ? 'text-slate-700' : 'text-slate-400 line-through'}`}>
+                          {labelMap[colKey] || colKey} :
+                        </span>
+                        <input 
+                          type="text"
+                          value={currentLabel}
+                          onChange={(e) => handleColumnLabelChange(colKey, e.target.value)}
+                          placeholder={defaultHeaderNames[colKey] || colKey}
+                          className={`w-full sm:w-60 border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-indigo-500 transition-colors ${
+                            isVisible ? 'text-slate-800' : 'text-slate-400 bg-slate-100'
+                          }`}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 self-end sm:self-auto shrink-0">
                       <button
                         type="button"
                         onClick={() => moveColumn(index, 'up')}
                         disabled={index === 0}
                         className={`p-1.5 rounded hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        title="Monter"
                       >
                         <ArrowUp className="w-3.5 h-3.5" />
                       </button>
@@ -491,6 +526,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                         onClick={() => moveColumn(index, 'down')}
                         disabled={index === localSettings.columnsOrder.length - 1}
                         className={`p-1.5 rounded hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 transition-all ${index === localSettings.columnsOrder.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        title="Descendre"
                       >
                         <ArrowDown className="w-3.5 h-3.5" />
                       </button>

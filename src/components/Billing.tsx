@@ -27,7 +27,6 @@ const oldDefaultsMap: Record<string, string> = {
   patente: '36521489',
   cnss: '85965412',
   capital: '1 000 000 MAD',
-  footerText: 'Merci pour votre confiance. ATLAS PETROLEUM - Station service certifiée.',
   termsAndConditions: 'Le règlement des factures s’effectue à la date d’échéance mentionnée sur le document. Aucun escompte n’est accordé pour paiement anticipé. Tout retard de paiement entraînera des pénalités au taux légal en vigueur.',
   stampText: 'STATION SERVICE ATLAS - REÇU ET APPROUVÉ',
 };
@@ -56,7 +55,7 @@ function sanitizeSettings(settings: DocumentSettings): DocumentSettings {
   if (copy.patente === '36521489') copy.patente = '';
   if (copy.cnss === '85965412') copy.cnss = '';
   if (copy.capital === '1 000 000 MAD') copy.capital = '';
-  if (copy.footerText && (copy.footerText.includes('ATLAS PETROLEUM') || copy.footerText.includes('Merci pour votre confiance. ATLAS'))) copy.footerText = '';
+  if (copy.footerText && copy.footerText.includes('ATLAS PETROLEUM')) copy.footerText = 'Merci de votre confiance.';
   if (copy.termsAndConditions && copy.termsAndConditions.includes('Le règlement des factures s’effectue')) copy.termsAndConditions = '';
   if (copy.stampText && (copy.stampText.includes('STATION SERVICE ATLAS') || copy.stampText === 'STATION SERVICE ATLAS - REÇU ET APPROUVÉ')) copy.stampText = '';
   if (copy.logoUrl === '⛽') copy.logoUrl = '';
@@ -427,6 +426,8 @@ export function Billing({ store }: { store: ERPStoreType }) {
         <BillingDocumentView
           document={selectedDoc}
           settings={docSettings}
+          clients={store.clients}
+          suppliers={store.suppliers}
           onClose={() => setSelectedDoc(null)}
           onEdit={() => handleEditDoc(selectedDoc)}
           onDelete={() => handleDeleteDoc(selectedDoc.id)}

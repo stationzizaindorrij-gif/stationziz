@@ -103,8 +103,10 @@ export function BillingDocumentModal({
   const [quickEmail, setQuickEmail] = useState('');
   const [quickAddress, setQuickAddress] = useState('');
 
-  // Auto-generate document number on open/change
+  // Auto-generate document number and initialize form on open or editingDoc change
   useEffect(() => {
+    if (!isOpen) return;
+
     if (editingDoc) {
       setDocType(editingDoc.docType);
       setDocumentNumber(editingDoc.documentNumber);
@@ -114,17 +116,20 @@ export function BillingDocumentModal({
       setItems(editingDoc.items || []);
       setPaymentMethod(editingDoc.paymentMethod);
       setMixedPayments(editingDoc.mixedPayments || []);
-      setNotes(editingDoc.notes);
-      setTerms(editingDoc.terms);
-      setStatus(editingDoc.status);
+      setNotes(editingDoc.notes || '');
+      setTerms(editingDoc.terms || '');
+      setStatus(editingDoc.status || 'draft');
+      setShowQuickPartner(false);
     } else {
       const today = new Date().toISOString().split('T')[0];
       const plus30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
+      const initialType = defaultDocType;
+      setDocType(initialType);
       setDate(today);
       setDueDate(plus30Days);
       setItems([{
-        id: '1',
+        id: `item_${Date.now()}_1`,
         productId: '',
         productName: '',
         description: '',
@@ -139,15 +144,27 @@ export function BillingDocumentModal({
       setTerms(settings.termsAndConditions || '');
       setStatus('draft');
       setShowQuickPartner(false);
+      setPartnerId('');
       
-      // Auto-increment draft number from settings
-      const numSettings = settings.numbering[docType];
+      const numSettings = settings.numbering[initialType];
       if (numSettings) {
         const paddedNum = String(numSettings.nextNumber).padStart(5, '0');
         setDocumentNumber(`${numSettings.prefix}${paddedNum}${numSettings.suffix}`);
+      } else {
+        setDocumentNumber('');
       }
     }
-  }, [editingDoc, docType, isOpen, settings]);
+  }, [isOpen, editingDoc]);
+
+  // Update document number when docType changes for new documents
+  useEffect(() => {
+    if (!isOpen || editingDoc) return;
+    const numSettings = settings.numbering[docType];
+    if (numSettings) {
+      const paddedNum = String(numSettings.nextNumber).padStart(5, '0');
+      setDocumentNumber(`${numSettings.prefix}${paddedNum}${numSettings.suffix}`);
+    }
+  }, [docType, settings]);
 
   if (!isOpen) return null;
 
@@ -176,17 +193,20 @@ export function BillingDocumentModal({
     }
   };
 
-  const handleItemChange = (id: string, field: keyof DocumentItem, value: any) => {
+  const handleItemChange = (id: string, fieldOrUpdates: keyof DocumentItem | Partial<DocumentItem>, value?: any) => {
     setItems(prev => prev.map(item => {
       if (item.id === id) {
-        let updated = { ...item, [field]: value };
+        let updated = typeof fieldOrUpdates === 'object' 
+          ? { ...item, ...fieldOrUpdates }
+          : { ...item, [fieldOrUpdates]: value };
         
         // If productId changed, try to auto-fill details
-        if (field === 'productId' && value) {
+        if (fieldOrUpdates === 'productId' && value) {
           // Check standard fuel products
           const pFuel = products.find(p => p.id === value);
           if (pFuel) {
             updated.productName = pFuel.name;
+            updated.description = pFuel.name;
             updated.price = isClientDoc ? pFuel.salePrice : pFuel.purchasePrice;
             updated.vat = 20; // Fuel TVA in Morocco is usually 20%
           } else {
@@ -194,6 +214,7 @@ export function BillingDocumentModal({
             const pShop = shopProducts.find(p => p.id === value);
             if (pShop) {
               updated.productName = pShop.name;
+              updated.description = pShop.name;
               updated.price = isClientDoc ? pShop.salePrice : pShop.purchasePrice;
               updated.vat = 20;
             }
@@ -300,6 +321,10 @@ export function BillingDocumentModal({
       documentNumber,
       partnerId,
       partnerName: selectedPartner ? selectedPartner.name : 'Inconnu',
+      partnerIce: selectedPartner?.ice || '',
+      partnerPhone: selectedPartner?.phone || '',
+      partnerEmail: selectedPartner?.email || '',
+      partnerAddress: selectedPartner?.address || '',
       date,
       dueDate,
       items,
@@ -500,13 +525,14 @@ export function BillingDocumentModal({
                         <th className="p-3 w-28 text-right">P.U. (HT)</th>
                         <th className="p-3 w-20 text-center">Remise %</th>
                         <th className="p-3 w-20 text-center">TVA %</th>
-                        <th className="p-3 w-24 text-right">Total HT</th>
+                        <th className="p-3 w-28 text-right">Total TTC</th>
                         <th className="p-3 w-10 text-center"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {items.map((item, idx) => {
                         const lineHT = (item.price * item.qty) * (1 - (item.discount || 0) / 100);
+                        const lineTTC = lineHT * (1 + (item.vat || 0) / 100);
 
                         return (
                           <tr key={item.id} className="hover:bg-slate-50/50">
@@ -536,10 +562,9 @@ export function BillingDocumentModal({
                             <td className="p-2.5">
                               <input
                                 type="text"
-                                value={item.productName || item.description}
+                                value={item.productName || item.description || ''}
                                 onChange={(e) => {
-                                  handleItemChange(item.id, 'productName', e.target.value);
-                                  handleItemChange(item.id, 'description', e.target.value);
+                                  handleItemChange(item.id, { productName: e.target.value, description: e.target.value });
                                 }}
                                 placeholder="Nom de l'article ou description libre..."
                                 className="w-full border border-slate-200 bg-white rounded-lg p-1.5 focus:outline-none"
@@ -602,7 +627,7 @@ export function BillingDocumentModal({
 
                             {/* Line Total */}
                             <td className="p-2.5 text-right font-bold text-slate-800 font-mono">
-                              {lineHT.toFixed(2)}
+                              {lineTTC.toFixed(2)}
                             </td>
 
                             {/* Delete Action */}

@@ -29,6 +29,10 @@ export interface RichDocument {
   documentNumber: string;
   partnerId: string; // Client ID or Supplier ID
   partnerName: string;
+  partnerIce?: string;
+  partnerPhone?: string;
+  partnerEmail?: string;
+  partnerAddress?: string;
   date: string;
   dueDate: string;
   items: DocumentItem[];
@@ -85,6 +89,7 @@ export interface DocumentSettings {
     totalTTC: boolean;
   };
   columnsOrder: string[];
+  customColumnLabels?: Record<string, string>;
 }
 
 export const DEFAULT_SETTINGS: DocumentSettings = {
@@ -102,7 +107,7 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
   capital: '',
   primaryColor: '#4f46e5', // Indigo
   fontFamily: 'Inter',
-  footerText: '',
+  footerText: 'Merci de votre confiance.',
   termsAndConditions: '',
   showSignature: true,
   showStamp: true,
@@ -128,5 +133,16 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
     totalHT: true,
     totalTTC: true
   },
-  columnsOrder: ['code', 'name', 'description', 'qty', 'price', 'discount', 'vat', 'totalHT', 'totalTTC']
+  columnsOrder: ['code', 'name', 'description', 'qty', 'price', 'discount', 'vat', 'totalHT', 'totalTTC'],
+  customColumnLabels: {
+    code: 'Réf',
+    name: 'Désignation',
+    description: 'Description',
+    qty: 'Qté',
+    price: 'P.U. HT (Dh)',
+    discount: 'Rem. %',
+    vat: 'TVA %',
+    totalHT: 'HT Net',
+    totalTTC: 'TTC Net'
+  }
 };

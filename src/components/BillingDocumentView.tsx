@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { RichDocument, DocumentSettings } from './BillingTypes';
+import { Client, Supplier } from '../types';
 import { numberToWordsFR } from '../lib/numberToWords';
 import { 
   Printer, Download, Mail, X, Check, Edit3, Trash2, 
@@ -127,6 +128,8 @@ function getLightAccentColor(hex: string, alpha: number): string {
 interface BillingDocumentViewProps {
   document: RichDocument;
   settings: DocumentSettings;
+  clients?: Client[];
+  suppliers?: Supplier[];
   onClose: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -136,6 +139,8 @@ interface BillingDocumentViewProps {
 export function BillingDocumentView({
   document,
   settings,
+  clients,
+  suppliers,
   onClose,
   onEdit,
   onDelete,
@@ -548,8 +553,13 @@ export function BillingDocumentView({
                   </h2>
                 </div>
                 <div className="text-[10px] text-slate-400 font-bold space-y-0.5">
-                  <p>{settings.address}</p>
-                  <p>Tél : {settings.phone} | Email : {settings.email}</p>
+                  {settings.address?.trim() && <p>{settings.address.trim()}</p>}
+                  {(() => {
+                    const contactParts: string[] = [];
+                    if (settings.phone?.trim()) contactParts.push(`Tél : ${settings.phone.trim()}`);
+                    if (settings.email?.trim()) contactParts.push(`Email : ${settings.email.trim()}`);
+                    return contactParts.length > 0 ? <p>{contactParts.join(' | ')}</p> : null;
+                  })()}
                 </div>
               </div>
 
@@ -587,122 +597,217 @@ export function BillingDocumentView({
               <div className="space-y-1.5 leading-normal">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Émetteur légal</span>
                 <div className="text-[10px] text-slate-500 font-bold space-y-1">
-                  <div>
-                    <span className="text-slate-400">I.C.E. : </span>
-                    <span className="font-mono text-slate-700">{settings.ice}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-2">
+                  {settings.ice?.trim() && (
                     <div>
-                      <span className="text-slate-400">R.C. Cas.: </span>
-                      <span className="font-mono text-slate-700">{settings.rc}</span>
+                      <span className="text-slate-400">I.C.E. : </span>
+                      <span className="font-mono text-slate-700">{settings.ice.trim()}</span>
                     </div>
-                    <span className="text-slate-300">|</span>
+                  )}
+
+                  {(() => {
+                    const row1 = [];
+                    if (settings.rc?.trim()) row1.push(<span key="rc"><span className="text-slate-400">R.C. : </span><span className="font-mono text-slate-700">{settings.rc.trim()}</span></span>);
+                    if (settings.patente?.trim()) row1.push(<span key="patente"><span className="text-slate-400">Patente : </span><span className="font-mono text-slate-700">{settings.patente.trim()}</span></span>);
+                    if (row1.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-x-2">
+                        {row1.map((item, idx) => (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && <span className="text-slate-300">|</span>}
+                            {item}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {(() => {
+                    const row2 = [];
+                    if (settings.ifNum?.trim()) row2.push(<span key="if"><span className="text-slate-400">I.F. Num : </span><span className="font-mono text-slate-700">{settings.ifNum.trim()}</span></span>);
+                    if (settings.cnss?.trim()) row2.push(<span key="cnss"><span className="text-slate-400">CNSS : </span><span className="font-mono text-slate-700">{settings.cnss.trim()}</span></span>);
+                    if (row2.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-x-2">
+                        {row2.map((item, idx) => (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && <span className="text-slate-300">|</span>}
+                            {item}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {settings.capital?.trim() && (
                     <div>
-                      <span className="text-slate-400">Patente : </span>
-                      <span className="font-mono text-slate-700">{settings.patente}</span>
+                      <span className="text-slate-400">Capital : </span>
+                      <span className="text-slate-700">{settings.capital.trim()}</span>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-x-2">
-                    <div>
-                      <span className="text-slate-400">I.F. Num : </span>
-                      <span className="font-mono text-slate-700">{settings.ifNum}</span>
-                    </div>
-                    <span className="text-slate-300">|</span>
-                    <div>
-                      <span className="text-slate-400">CNSS : </span>
-                      <span className="font-mono text-slate-700">{settings.cnss}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Capital : </span>
-                    <span className="text-slate-700">{settings.capital}</span>
-                  </div>
+                  )}
                 </div>
               </div>
 
               <div className="bg-slate-50/50 border border-slate-100 border-l-4 p-4 rounded-2xl space-y-1 leading-normal" style={{ borderLeftColor: settings.primaryColor }}>
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Destinataire / Tiers commercial</span>
                 <p className="font-black text-slate-800 text-sm">{document.partnerName}</p>
-                {/* Find client or supplier details if needed */}
-                <div className="text-[10px] text-slate-500 font-bold space-y-0.5 pt-1">
-                  <div>
-                    <span className="text-slate-400">ID Tiers : </span>
-                    <span className="font-mono text-slate-700">{document.partnerId}</span>
-                  </div>
-                  {/* Dynamic fallback for simulated client info */}
-                  <p className="text-slate-500">Maroc | Facturation légale</p>
-                </div>
+                {(() => {
+                  const isClientDoc = ['client_devis', 'client_facture', 'client_bl'].includes(document.docType);
+                  const partner = isClientDoc 
+                    ? clients?.find(c => c.id === document.partnerId || c.name === document.partnerName)
+                    : suppliers?.find(s => s.id === document.partnerId || s.name === document.partnerName);
+
+                  const ice = document.partnerIce || partner?.ice;
+                  const address = document.partnerAddress || partner?.address;
+                  const phone = document.partnerPhone || partner?.phone;
+                  const email = document.partnerEmail || partner?.email;
+
+                  const hasIce = Boolean(ice && ice.trim() && ice.toUpperCase() !== 'N/A');
+                  const hasAddress = Boolean(address && address.trim());
+                  const hasPhone = Boolean(phone && phone.trim());
+                  const hasEmail = Boolean(email && email.trim());
+
+                  if (!hasIce && !hasAddress && !hasPhone && !hasEmail) {
+                    return null;
+                  }
+
+                  return (
+                    <div className="text-[10px] text-slate-600 font-bold space-y-0.5 pt-1 border-t border-slate-200/60 mt-1.5">
+                      {hasIce && (
+                        <div>
+                          <span className="text-slate-400 font-medium">I.C.E. : </span>
+                          <span className="font-mono text-slate-700">{ice!.trim()}</span>
+                        </div>
+                      )}
+                      {hasAddress && (
+                        <div>
+                          <span className="text-slate-400 font-medium">Adresse : </span>
+                          <span className="text-slate-700">{address!.trim()}</span>
+                        </div>
+                      )}
+                      {hasPhone && (
+                        <div>
+                          <span className="text-slate-400 font-medium">Tél : </span>
+                          <span className="font-mono text-slate-700">{phone!.trim()}</span>
+                        </div>
+                      )}
+                      {hasEmail && (
+                        <div>
+                          <span className="text-slate-400 font-medium">Email : </span>
+                          <span className="text-slate-700">{email!.trim()}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
             {/* Document Lines Table */}
-            <div className="mt-2">
-              <table className="w-full border-collapse leading-normal">
-                <thead>
-                  <tr style={{ backgroundColor: settings.primaryColor }}>
-                    {settings.columnsOrder
-                      .filter(colKey => settings.visibleColumns[colKey as keyof DocumentSettings['visibleColumns']])
-                      .map(colKey => (
-                        <th 
-                          key={colKey}
-                          className={`p-2.5 text-[10px] font-black uppercase tracking-wider align-middle leading-normal ${
-                            ['qty', 'price', 'discount', 'vat', 'totalHT', 'totalTTC'].includes(colKey) ? 'text-right' : 'text-left'
-                          }`}
-                          style={{ color: '#ffffff' }}
-                        >
-                          {columnsHeaderMap[colKey] || colKey}
-                        </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {document.items && document.items.map((item, index) => {
-                    const lineHTRaw = item.price * item.qty;
-                    const discountAmt = lineHTRaw * ((item.discount || 0) / 100);
-                    const totalHT = lineHTRaw - discountAmt;
-                    const vatAmt = totalHT * ((item.vat || 0) / 100);
-                    const totalTTC = totalHT + vatAmt;
+            <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+              {(() => {
+                const activeColumns = settings.columnsOrder.filter(
+                  colKey => settings.visibleColumns[colKey as keyof DocumentSettings['visibleColumns']]
+                );
 
-                    return (
-                      <tr key={item.id || index} className="text-[10px] hover:bg-slate-50/30">
-                        {settings.columnsOrder
-                          .filter(colKey => settings.visibleColumns[colKey as keyof DocumentSettings['visibleColumns']])
-                          .map(colKey => {
-                            if (colKey === 'code') {
-                              return <td key={colKey} className="p-2.5 font-mono text-slate-400 align-middle leading-normal">{item.productId || 'SERV-NC'}</td>;
-                            }
-                            if (colKey === 'name') {
-                              return <td key={colKey} className="p-2.5 font-black text-slate-800 align-middle leading-normal">{item.productName || 'Article'}</td>;
-                            }
-                            if (colKey === 'description') {
-                              return <td key={colKey} className="p-2.5 text-slate-500 italic max-w-xs truncate align-middle leading-normal">{item.description || '-'}</td>;
-                            }
-                            if (colKey === 'qty') {
-                              return <td key={colKey} className="p-2.5 text-right font-mono font-bold text-slate-700 align-middle leading-normal">{item.qty}</td>;
-                            }
-                            if (colKey === 'price') {
-                              return <td key={colKey} className="p-2.5 text-right font-mono text-slate-600 align-middle leading-normal">{item.price.toFixed(2)}</td>;
-                            }
-                            if (colKey === 'discount') {
-                              return <td key={colKey} className="p-2.5 text-right font-mono text-slate-500 align-middle leading-normal">{item.discount > 0 ? `${item.discount}%` : '-'}</td>;
-                            }
-                            if (colKey === 'vat') {
-                              return <td key={colKey} className="p-2.5 text-right font-mono text-slate-500 align-middle leading-normal">{item.vat}%</td>;
-                            }
-                            if (colKey === 'totalHT') {
-                              return <td key={colKey} className="p-2.5 text-right font-mono text-slate-700 align-middle leading-normal">{totalHT.toFixed(2)}</td>;
-                            }
-                            if (colKey === 'totalTTC') {
-                              return <td key={colKey} className="p-2.5 text-right font-mono font-bold text-slate-900 align-middle leading-normal">{totalTTC.toFixed(2)}</td>;
-                            }
-                            return null;
-                          })
-                        }
+                const getColumnConfig = (colKey: string, index: number, total: number) => {
+                  let align = 'text-left';
+                  if (['price', 'discount', 'vat', 'totalHT', 'totalTTC'].includes(colKey)) {
+                    align = 'text-right';
+                  } else if (colKey === 'qty') {
+                    align = index === 0 ? 'text-left' : 'text-center';
+                  } else {
+                    align = 'text-left';
+                  }
+
+                  let widthClass = '';
+                  if (colKey === 'code') widthClass = 'w-24';
+                  else if (colKey === 'name') widthClass = 'w-auto min-w-[160px]';
+                  else if (colKey === 'description') widthClass = 'w-auto min-w-[140px]';
+                  else if (colKey === 'qty') widthClass = 'w-24 min-w-[70px]';
+                  else if (colKey === 'price') widthClass = 'w-28 min-w-[90px]';
+                  else if (colKey === 'discount') widthClass = 'w-20 min-w-[70px]';
+                  else if (colKey === 'vat') widthClass = 'w-20 min-w-[70px]';
+                  else if (colKey === 'totalHT') widthClass = 'w-28 min-w-[90px]';
+                  else if (colKey === 'totalTTC') widthClass = 'w-28 min-w-[90px]';
+
+                  return { align, widthClass };
+                };
+
+                return (
+                  <table className="w-full border-collapse leading-normal">
+                    <thead>
+                      <tr style={{ backgroundColor: settings.primaryColor }}>
+                        {activeColumns.map((colKey, index) => {
+                          const { align, widthClass } = getColumnConfig(colKey, index, activeColumns.length);
+                          const isLast = index === activeColumns.length - 1;
+
+                          return (
+                            <th 
+                              key={colKey}
+                              className={`py-2.5 px-3 text-[10px] font-black uppercase tracking-wider align-middle leading-normal ${align} ${widthClass} ${
+                                !isLast ? 'border-r border-white/20' : ''
+                              }`}
+                              style={{ color: '#ffffff' }}
+                            >
+                              {settings.customColumnLabels?.[colKey] || columnsHeaderMap[colKey] || colKey}
+                            </th>
+                          );
+                        })}
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {document.items && document.items.map((item, index) => {
+                        const lineHTRaw = item.price * item.qty;
+                        const discountAmt = lineHTRaw * ((item.discount || 0) / 100);
+                        const totalHT = lineHTRaw - discountAmt;
+                        const vatAmt = totalHT * ((item.vat || 0) / 100);
+                        const totalTTC = totalHT + vatAmt;
+                        const isEven = index % 2 === 1;
+
+                        return (
+                          <tr key={item.id || index} className={`text-[10px] transition-colors ${isEven ? 'bg-slate-50/50' : 'bg-white'} hover:bg-slate-100/40`}>
+                            {activeColumns.map((colKey, colIdx) => {
+                              const { align, widthClass } = getColumnConfig(colKey, colIdx, activeColumns.length);
+                              const isLastCol = colIdx === activeColumns.length - 1;
+                              const borderClass = !isLastCol ? 'border-r border-slate-200/80' : '';
+                              const baseTdClass = `py-2.5 px-3 align-middle leading-normal ${align} ${widthClass} ${borderClass}`;
+
+                              if (colKey === 'code') {
+                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-400`}>{item.productId || 'SERV-NC'}</td>;
+                              }
+                              if (colKey === 'name') {
+                                return <td key={colKey} className={`${baseTdClass} font-black text-slate-800`}>{item.productName || 'Article'}</td>;
+                              }
+                              if (colKey === 'description') {
+                                return <td key={colKey} className={`${baseTdClass} text-slate-500 italic max-w-xs truncate`}>{item.description || '-'}</td>;
+                              }
+                              if (colKey === 'qty') {
+                                return <td key={colKey} className={`${baseTdClass} font-mono font-bold text-slate-700`}>{item.qty}</td>;
+                              }
+                              if (colKey === 'price') {
+                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-600`}>{item.price.toFixed(2)}</td>;
+                              }
+                              if (colKey === 'discount') {
+                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-500`}>{item.discount > 0 ? `${item.discount}%` : '-'}</td>;
+                              }
+                              if (colKey === 'vat') {
+                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-500`}>{item.vat}%</td>;
+                              }
+                              if (colKey === 'totalHT') {
+                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-700`}>{totalHT.toFixed(2)}</td>;
+                              }
+                              if (colKey === 'totalTTC') {
+                                return <td key={colKey} className={`${baseTdClass} font-mono font-bold text-slate-900`}>{totalTTC.toFixed(2)}</td>;
+                              }
+                              return null;
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
 
             {/* Financial Totals & Words Section */}
@@ -751,53 +856,38 @@ export function BillingDocumentView({
             </div>
 
             {/* Signature, Stamp & Seal Section */}
-            <div className="grid grid-cols-2 gap-4 py-4 border-t border-dashed border-slate-200 items-center">
+            <div className="grid grid-cols-2 gap-4 py-4 border-t border-dashed border-slate-200 items-start">
               
-              <div className="space-y-1">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Conditions Générales de Règlement</span>
-                <p className="text-[8px] text-slate-400 leading-normal font-medium max-w-sm">
-                  {document.terms || settings.termsAndConditions}
-                </p>
-              </div>
+              {Boolean((document.terms && document.terms.trim()) || (settings.termsAndConditions && settings.termsAndConditions.trim())) ? (
+                <div className="space-y-1">
+                  <span className="text-[11px] font-extrabold text-slate-700 uppercase block tracking-wider">Conditions Générales de Règlement</span>
+                  <p className="text-[8px] text-slate-400 leading-normal font-medium max-w-sm">
+                    {document.terms?.trim() || settings.termsAndConditions?.trim()}
+                  </p>
+                </div>
+              ) : (
+                <div />
+              )}
 
               {/* Stamp or Signature placeholder */}
               {(settings.showStamp || settings.showSignature) && (
-                <div className="flex flex-col items-end justify-center min-h-[95px] pr-4 relative">
+                <div className="flex flex-col items-end justify-start min-h-[95px] pr-2 relative">
                   
-                  {/* Custom stamp / Uploaded stamp image */}
-                  {settings.showStamp && (
-                    settings.stampUrl && (settings.stampUrl.startsWith('data:image/') || settings.stampUrl.startsWith('http')) ? (
-                      <div className="rotate-[-3deg] z-10 select-none max-w-[180px] mb-1">
-                        <img 
-                          src={settings.stampUrl} 
-                          alt="Cachet d'entreprise" 
-                          className="max-h-20 max-w-full object-contain" 
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    ) : (
-                      <div 
-                        className={`border-2 border-dashed ${
-                          settings.stampColor === 'blue' ? 'border-blue-500/80 text-blue-600/80' : 'border-red-500/80 text-red-600/80'
-                        } text-[8px] font-black uppercase px-2.5 py-1.5 rounded-lg rotate-[-5deg] tracking-widest text-center shadow-xs inline-block max-w-[180px] z-10 select-none bg-white/75`}
-                      >
-                        <p className="border-b border-dashed pb-0.5 mb-0.5">{settings.companyName}</p>
-                        <p className="text-[7px]">{settings.stampText}</p>
-                        <p className="text-[6px] opacity-75 mt-0.5">Casablanca - MAROC</p>
-                      </div>
-                    )
-                  )}
+                  <span className="text-[11px] font-extrabold text-slate-700 uppercase block tracking-wider text-right">
+                    Cachet et Signature autorisés
+                  </span>
 
-                  {/* Simulated handwritten signature */}
-                  {settings.showSignature && (
-                    <div className="absolute bottom-2 right-12 z-0 opacity-40 select-none">
-                      <p className="font-cursive text-slate-600 text-lg tracking-wider italic font-bold">
-                        {settings.companyName.split(' ')[0]}
-                      </p>
+                  {/* Custom uploaded stamp image ONLY */}
+                  {settings.showStamp && settings.stampUrl && (settings.stampUrl.startsWith('data:image/') || settings.stampUrl.startsWith('http')) && (
+                    <div className="rotate-[-2deg] z-10 select-none max-w-[180px] mt-2">
+                      <img 
+                        src={settings.stampUrl} 
+                        alt="Cachet d'entreprise" 
+                        className="max-h-24 max-w-full object-contain" 
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
                   )}
-
-                  <span className="text-[7px] font-black text-slate-400 uppercase block tracking-wider mt-2 mr-6">Cachet et Signature autorisés</span>
                 </div>
               )}
 
@@ -806,9 +896,8 @@ export function BillingDocumentView({
           </div>
 
           {/* Document Footer */}
-          <div className="text-[8px] text-slate-400 font-bold border-t pt-4 text-center">
-            {settings.footerText || "Merci de votre confiance."}
-            <p className="text-[7px] text-slate-300 font-medium mt-1">ERP - Pièce comptable éditée numériquement</p>
+          <div className="border-t border-slate-200/80 pt-4 mt-6 text-center text-xs font-bold text-slate-600 tracking-wide">
+            {settings.footerText && settings.footerText.trim() ? settings.footerText : "Merci de votre confiance."}
           </div>
 
         </div>
