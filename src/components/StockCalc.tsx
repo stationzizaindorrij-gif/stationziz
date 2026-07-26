@@ -604,14 +604,14 @@ export default function StockCalc({ store }: StockCalcProps) {
           const nTankStr = (n as any).tankNumber;
           if (!nTankStr) return false;
           const nDigit = getTankDigit(nTankStr);
-          const tDigit = getTankDigit(t.number) || getTankDigit(t.name) || getTankDigit(t.id);
+          const tDigit = getTankDigit(t.number) || getTankDigit((t as any).name) || getTankDigit(t.id);
           return nDigit && tDigit && nDigit === tDigit;
         })) ||
-        tanks.find(t => t.connectedPumpIds && (t.connectedPumpIds.includes(pump.key) || t.connectedPumpIds.includes(pump.pumpNumber))) ||
+        tanks.find(t => (t as any).connectedPumpIds && ((t as any).connectedPumpIds.includes(pump.key) || (t as any).connectedPumpIds.includes(pump.pumpNumber))) ||
         tanks.find(t => product && t.productId === product.id);
 
-      const tankName = pumpTank ? (pumpTank.name || `Citerne N°${pumpTank.number}`) : '';
-      const pTankDigit = getTankDigit(pumpTank?.number) || getTankDigit(pumpTank?.name) || getTankDigit(pumpTank?.id) || getTankDigit(pNozzles[0]?.tankNumber);
+      const tankName = pumpTank ? ((pumpTank as any).name || `Citerne N°${pumpTank.number}`) : '';
+      const pTankDigit = getTankDigit(pumpTank?.number) || getTankDigit((pumpTank as any)?.name) || getTankDigit(pumpTank?.id) || getTankDigit((pNozzles[0] as any)?.tankNumber);
 
       // Inputs for this pump (keyed by pump.key or fallback)
       const pumpInput = simInputs[pump.key];

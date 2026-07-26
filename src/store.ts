@@ -1778,6 +1778,7 @@ return {
     sales,
     supplies,
     cashRegistry,
+    priceHistory,
     stockCorrections,
     auditLogs,
     alerts,

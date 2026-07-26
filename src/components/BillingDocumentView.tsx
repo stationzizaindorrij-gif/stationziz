@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { RichDocument, DocumentSettings } from './BillingTypes';
 import { Client, Supplier } from '../types';
 import { numberToWordsFR } from '../lib/numberToWords';
@@ -268,38 +268,112 @@ export function BillingDocumentView({
   };
 
   const handlePrint = () => {
-    // Inject print styles to hide everything except the document
-    const style = window.document.createElement('style');
-    style.innerHTML = `
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        #printable-document, #printable-document * {
-          visibility: visible;
-        }
-        #printable-document {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          margin: 0;
-          padding: 0;
-          box-shadow: none !important;
-          border: none !important;
-        }
+    const content = printAreaRef.current?.innerHTML;
+    if (!content) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("L'impression a été bloquée par votre navigateur. Veuillez autoriser les pop-ups pour ce site afin d'imprimer.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${document.docType.toUpperCase()} - ${document.documentNumber}</title>
+          <style>
+            /* Reset all margins and clear default browser header/footer */
+            @page {
+              size: A4;
+              margin: 0 !important;
+            }
+            @media print {
+              @page {
+                size: A4;
+                margin: 0 !important;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: 297mm !important;
+                width: 210mm !important;
+                background-color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              .print-page {
+                width: 210mm !important;
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+                padding: 15mm 20mm 15mm 20mm !important;
+                box-sizing: border-box !important;
+                position: relative !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                background-color: white !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
+              }
+              .no-print { display: none !important; }
+            }
+            body {
+              background-color: white !important;
+              margin: 0;
+              padding: 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-page bg-white text-left leading-relaxed text-slate-800" style="font-family: ${settings.fontFamily}; margin: 0 auto;">
+            ${content}
+          </div>
+          <script>
+            window.addEventListener('load', () => {
+              // Wait for all style assets to load before opening print dialog
+              const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+              let loadedCount = 0;
+              
+              const doPrint = () => {
+                setTimeout(() => {
+                  window.print();
+                  window.close();
+                }, 500);
+              };
+
+              if (links.length === 0) {
+                doPrint();
+              } else {
+                links.forEach((link) => {
+                  link.addEventListener('load', () => {
+                    loadedCount++;
+                    if (loadedCount === links.length) doPrint();
+                  });
+                  link.addEventListener('error', () => {
+                    loadedCount++;
+                    if (loadedCount === links.length) doPrint();
+                  });
+                });
+                // Fallback timeout to ensure it prints anyway
+                setTimeout(doPrint, 1500);
+              }
+            });
+          </script>
+        </body>
+      </html>
+    `);
+
+    // Copy style sheets and style elements to preserve Tailwind styling and custom settings
+    Array.from(window.document.querySelectorAll('link[rel="stylesheet"], style')).forEach((el) => {
+      try {
+        printWindow.document.head.appendChild(el.cloneNode(true));
+      } catch (e) {
+        console.warn("Failed to clone stylesheet", e);
       }
-    `;
-    window.document.head.appendChild(style);
-    
-    // Slight delay to ensure styles are applied
-    setTimeout(() => {
-      window.print();
-      // Clean up after print dialog is closed
-      setTimeout(() => {
-        window.document.head.removeChild(style);
-      }, 1000);
-    }, 100);
+    });
+
+    printWindow.document.close();
   };
 
   const handleSendEmail = () => {
