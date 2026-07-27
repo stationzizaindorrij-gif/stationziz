@@ -308,17 +308,17 @@ export function BillingDocumentModal({
       return;
     }
 
-    const selectedPartner = activePartners.find(p => p.id === partnerId);
+    const selectedPartner = activePartners.find(p => p.id === partnerId || p.name === partnerId);
 
     const docData: Omit<RichDocument, 'id'> = {
       docType,
       documentNumber,
-      partnerId,
-      partnerName: selectedPartner ? selectedPartner.name : 'Inconnu',
-      partnerIce: selectedPartner?.ice || '',
-      partnerPhone: selectedPartner?.phone || '',
-      partnerEmail: selectedPartner?.email || '',
-      partnerAddress: selectedPartner?.address || '',
+      partnerId: partnerId || (selectedPartner?.id || 'client_default'),
+      partnerName: selectedPartner ? selectedPartner.name : (editingDoc?.partnerName || partnerId || 'Client'),
+      partnerIce: selectedPartner?.ice || editingDoc?.partnerIce || '',
+      partnerPhone: selectedPartner?.phone || editingDoc?.partnerPhone || '',
+      partnerEmail: selectedPartner?.email || editingDoc?.partnerEmail || '',
+      partnerAddress: selectedPartner?.address || editingDoc?.partnerAddress || '',
       date,
       items,
       amountHT: totals.amountHT,
@@ -476,6 +476,11 @@ export function BillingDocumentModal({
                   required
                 >
                   <option value="">-- Sélectionnez un tiers --</option>
+                  {partnerId && !activePartners.some(p => p.id === partnerId) && (
+                    <option value={partnerId}>
+                      {editingDoc?.partnerName || partnerId}
+                    </option>
+                  )}
                   {activePartners.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name} {p.ice && p.ice !== 'N/A' ? `(ICE: ${p.ice})` : ''}
@@ -610,9 +615,13 @@ export function BillingDocumentModal({
                               <input
                                 type="number"
                                 step="any"
+                                min="0"
                                 value={item.qty}
-                                readOnly
-                                className="w-full border border-slate-200 bg-slate-50 text-slate-500 rounded-lg p-1.5 text-center focus:outline-none font-mono cursor-not-allowed"
+                                onChange={(e) => {
+                                  const newQty = parseFloat(e.target.value) || 0;
+                                  handleItemChange(item.id, { qty: newQty, totalTTCInput: undefined });
+                                }}
+                                className="w-full border border-slate-200 bg-white text-slate-800 font-bold rounded-lg p-1.5 text-center focus:outline-none font-mono"
                               />
                             </td>
 

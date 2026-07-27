@@ -183,11 +183,17 @@ export function Billing({ store }: { store: ERPStoreType }) {
       const index = updatedDocs.findIndex(d => d.id === editingDoc.id);
       if (index !== -1) {
         const currentLogs = updatedDocs[index].historyLogs || [];
-        updatedDocs[index] = {
+        const updatedDoc: RichDocument = {
           ...docData,
           id: editingDoc.id,
           historyLogs: [...currentLogs, { date: logDate, action: 'Modification du document', author: 'Admin' }]
         };
+        updatedDocs[index] = updatedDoc;
+
+        // Keep detail view in sync if viewing this document
+        if (selectedDoc && selectedDoc.id === editingDoc.id) {
+          setSelectedDoc(updatedDoc);
+        }
       }
       setEditingDoc(null);
     } else {
@@ -200,7 +206,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
       updatedDocs = [newDoc, ...updatedDocs];
 
       // Automatically increment numbering next counter
-      const currentCounter = docSettings.numbering[docData.docType].nextNumber;
+      const currentCounter = docSettings.numbering[docData.docType]?.nextNumber || 1;
       handleSaveSettings({
         ...docSettings,
         numbering: {
