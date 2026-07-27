@@ -4,7 +4,8 @@ import { Client, Supplier } from '../types';
 import { numberToWordsFR } from '../lib/numberToWords';
 import { 
   Printer, Download, Mail, X, Check, Edit3, Trash2, 
-  ArrowLeft, CheckCircle2, ShieldCheck, MailQuestion, Send
+  ArrowLeft, CheckCircle2, ShieldCheck, MailQuestion, Send,
+  Building2, User, MapPin, Calendar, Phone, Fuel, Info
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 
@@ -430,6 +431,13 @@ export function BillingDocumentView({
     totalTTC: 'TTC Net'
   };
 
+  const isClientDoc = ['client_devis', 'client_facture', 'client_bl'].includes(document.docType);
+  const partner = isClientDoc 
+    ? clients?.find(c => c.id === document.partnerId || c.name === document.partnerName)
+    : suppliers?.find(s => s.id === document.partnerId || s.name === document.partnerName);
+
+  const displayIce = document.partnerIce || partner?.ice;
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       
@@ -539,335 +547,220 @@ export function BillingDocumentView({
         <div 
           ref={printAreaRef}
           id="printable-document"
-          className="bg-white p-6 md:p-12 w-full max-w-[800px] border border-slate-200 shadow-md flex flex-col justify-between aspect-[1/1.4] text-left leading-relaxed text-slate-800 relative overflow-hidden"
+          className="bg-white p-8 w-full max-w-[800px] border border-slate-200 shadow-md flex flex-col aspect-[1/1.414] text-left leading-relaxed text-slate-800 relative overflow-hidden"
           style={{ fontFamily: settings.fontFamily }}
         >
-          {/* Top Brand Accent Ribbon/Bar */}
-          <div className="absolute top-0 left-0 right-0 h-1.5" style={{ backgroundColor: settings.primaryColor }} />
-
-          <div className="pt-2">
-            
-            {/* Header Section */}
-            <div className="flex flex-col items-center pb-6 space-y-6">
-              
-              {/* Company Info & Logo */}
-              <div className="space-y-2 flex flex-col items-center text-center w-full">
-                <div className="flex flex-col items-center gap-2">
-                  {settings.logoUrl && (settings.logoUrl.startsWith('data:image/') || settings.logoUrl.startsWith('http')) ? (
-                    <img 
-                      src={settings.logoUrl} 
-                      alt="Logo" 
-                      style={{ width: `${settings.logoSize || 100}px`, height: 'auto' }}
-                      className="object-contain rounded-lg" 
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="text-3xl font-black">{settings.logoUrl}</div>
-                  )}
-                  <h2 className="text-lg font-black tracking-tight" style={{ color: settings.primaryColor }}>
-                    {settings.companyName}
-                  </h2>
-                </div>
-                <div className="text-[10px] text-slate-400 font-bold space-y-0.5">
-                  {settings.address?.trim() && <p>{settings.address.trim()}</p>}
-                  {(() => {
-                    const contactParts: string[] = [];
-                    if (settings.phone?.trim()) contactParts.push(`Tél : ${settings.phone.trim()}`);
-                    if (settings.email?.trim()) contactParts.push(`Email : ${settings.email.trim()}`);
-                    return contactParts.length > 0 ? <p>{contactParts.join(' | ')}</p> : null;
-                  })()}
-                </div>
-              </div>
-               <div className="grid grid-cols-2 gap-4 w-full items-start mt-6">
-                {/* Bill To / Ship To Partner details */}
-                <div className="bg-slate-50/50 border border-slate-100 border-l-4 p-4 rounded-2xl space-y-1 leading-normal w-[320px]" style={{ borderLeftColor: settings.primaryColor }}>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">DOIT MR :</span>
-                  <p className="font-black text-slate-800 text-sm">{document.partnerName}</p>
-                  {(() => {
-                    const isClientDoc = ['client_devis', 'client_facture', 'client_bl'].includes(document.docType);
-                    const partner = isClientDoc 
-                      ? clients?.find(c => c.id === document.partnerId || c.name === document.partnerName)
-                      : suppliers?.find(s => s.id === document.partnerId || s.name === document.partnerName);
-
-                    const ice = document.partnerIce || partner?.ice;
-                    const address = document.partnerAddress || partner?.address;
-                    const phone = document.partnerPhone || partner?.phone;
-                    const email = document.partnerEmail || partner?.email;
-
-                    const hasIce = Boolean(ice && ice.trim() && ice.toUpperCase() !== 'N/A');
-                    const hasAddress = Boolean(address && address.trim());
-                    const hasPhone = Boolean(phone && phone.trim());
-                    const hasEmail = Boolean(email && email.trim());
-
-                    return (
-                      <div className="text-[10px] text-slate-600 font-bold space-y-0.5 pt-1 border-t border-slate-200/60 mt-1.5">
-                        {hasIce && (
-                          <div>
-                            <span className="text-slate-400 font-medium">I.C.E. : </span>
-                            <span className="font-mono text-slate-700">{ice!.trim()}</span>
-                          </div>
-                        )}
-                        {hasAddress && (
-                          <div>
-                            <span className="text-slate-400 font-medium">Adresse : </span>
-                            <span className="text-slate-700">{address!.trim()}</span>
-                          </div>
-                        )}
-                        {hasPhone && (
-                          <div>
-                            <span className="text-slate-400 font-medium">Tél : </span>
-                            <span className="font-mono text-slate-700">{phone!.trim()}</span>
-                          </div>
-                        )}
-                        {hasEmail && (
-                          <div>
-                            <span className="text-slate-400 font-medium">Email : </span>
-                            <span className="text-slate-700">{email!.trim()}</span>
-                          </div>
-                        )}
-                        <div>
-                          <span className="text-slate-400 font-medium">Paiement : </span>
-                          <span className="text-slate-700">{paymentLabelMap[document.paymentMethod] || document.paymentMethod}</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Document Metadata block */}
-                <div className="flex flex-col items-end w-full space-y-1">
-                  <h1 className="text-2xl font-black tracking-widest uppercase text-right" style={{ color: settings.primaryColor }}>
-                    {getDocTypeLabel()}
-                  </h1>
-                  <div className="flex items-center justify-end gap-2 text-xs mt-2">
-                    <span className="text-slate-500 font-bold uppercase tracking-wider">{getDocNumberLabel()} :</span>
-                    <span className="font-mono font-black text-slate-800 text-sm">{document.documentNumber}</span>
-                  </div>
-                  <div className="flex items-center justify-end gap-2 text-xs">
-                    <span className="text-slate-500 font-bold uppercase tracking-wider">Date :</span>
-                    <span className="font-mono font-black text-slate-800 text-sm">
-                      {document.date ? document.date.split('-').reverse().join('-') : ''}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Document Lines Table */}
-            <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-              {(() => {
-                const activeColumns = settings.columnsOrder.filter(
-                  colKey => settings.visibleColumns[colKey as keyof DocumentSettings['visibleColumns']]
-                );
-
-                const getColumnConfig = (colKey: string, index: number, total: number) => {
-                  let align = 'text-left';
-                  if (['price', 'discount', 'vat', 'totalHT', 'totalTTC'].includes(colKey)) {
-                    align = 'text-right';
-                  } else if (colKey === 'qty') {
-                    align = index === 0 ? 'text-left' : 'text-center';
-                  } else {
-                    align = 'text-left';
-                  }
-
-                  let widthClass = '';
-                  if (colKey === 'code') widthClass = 'w-24';
-                  else if (colKey === 'name') widthClass = 'w-auto min-w-[160px]';
-                  else if (colKey === 'description') widthClass = 'w-auto min-w-[140px]';
-                  else if (colKey === 'qty') widthClass = 'w-24 min-w-[70px]';
-                  else if (colKey === 'price') widthClass = 'w-28 min-w-[90px]';
-                  else if (colKey === 'discount') widthClass = 'w-20 min-w-[70px]';
-                  else if (colKey === 'vat') widthClass = 'w-20 min-w-[70px]';
-                  else if (colKey === 'totalHT') widthClass = 'w-28 min-w-[90px]';
-                  else if (colKey === 'totalTTC') widthClass = 'w-28 min-w-[90px]';
-
-                  return { align, widthClass };
-                };
-
-                return (
-                  <table className="w-full border-collapse leading-normal">
-                    <thead>
-                      <tr style={{ backgroundColor: settings.primaryColor }}>
-                        {activeColumns.map((colKey, index) => {
-                          const { align, widthClass } = getColumnConfig(colKey, index, activeColumns.length);
-                          const isLast = index === activeColumns.length - 1;
-
-                          return (
-                            <th 
-                              key={colKey}
-                              className={`py-2.5 px-3 text-[10px] font-black uppercase tracking-wider align-middle leading-normal ${align} ${widthClass} ${
-                                !isLast ? 'border-r border-white/20' : ''
-                              }`}
-                              style={{ color: '#ffffff' }}
-                            >
-                              {settings.customColumnLabels?.[colKey] || columnsHeaderMap[colKey] || colKey}
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {document.items && document.items.map((item, index) => {
-                        const totalTTC = item.price * item.qty;
-                        const totalHT = totalTTC / 1.10;
-                        const isEven = index % 2 === 1;
-
-                        return (
-                          <tr key={item.id || index} className={`text-[10px] transition-colors ${isEven ? 'bg-slate-50/50' : 'bg-white'} hover:bg-slate-100/40`}>
-                            {activeColumns.map((colKey, colIdx) => {
-                              const { align, widthClass } = getColumnConfig(colKey, colIdx, activeColumns.length);
-                              const isLastCol = colIdx === activeColumns.length - 1;
-                              const borderClass = !isLastCol ? 'border-r border-slate-200/80' : '';
-                              const baseTdClass = `py-2.5 px-3 align-middle leading-normal ${align} ${widthClass} ${borderClass}`;
-
-                              if (colKey === 'code') {
-                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-400`}>{item.productId || 'SERV-NC'}</td>;
-                              }
-                              if (colKey === 'name') {
-                                return <td key={colKey} className={`${baseTdClass} font-black text-slate-800`}>{item.productName || 'Article'}</td>;
-                              }
-                              if (colKey === 'description') {
-                                return <td key={colKey} className={`${baseTdClass} text-slate-500 italic max-w-xs truncate`}>{item.description || '-'}</td>;
-                              }
-                              if (colKey === 'qty') {
-                                return <td key={colKey} className={`${baseTdClass} font-mono font-bold text-slate-700`}>{item.qty}</td>;
-                              }
-                              if (colKey === 'price') {
-                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-600`}>{item.price.toFixed(2)}</td>;
-                              }
-                              if (colKey === 'discount') {
-                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-500`}>{item.discount > 0 ? `${item.discount}%` : '-'}</td>;
-                              }
-                              if (colKey === 'vat') {
-                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-500`}>{item.vat}%</td>;
-                              }
-                              if (colKey === 'totalHT') {
-                                return <td key={colKey} className={`${baseTdClass} font-mono text-slate-700`}>{totalHT.toFixed(2)}</td>;
-                              }
-                              if (colKey === 'totalTTC') {
-                                return <td key={colKey} className={`${baseTdClass} font-mono font-bold text-slate-900`}>{totalTTC.toFixed(2)}</td>;
-                              }
-                              return null;
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                );
-              })()}
-            </div>
-
-            {/* Financial Totals & Words Section */}
-            <div className="grid grid-cols-12 gap-4 py-6 items-start">
-              
-              {/* Left Column: Words translation */}
-              <div className="col-span-7 bg-slate-50/50 border border-slate-100 border-l-4 p-3.5 rounded-xl space-y-2 leading-normal" style={{ borderLeftColor: settings.primaryColor }}>
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Arrêt de la présente pièce commerciale</span>
-                <p className="text-[10px] font-bold text-slate-600 leading-normal italic">
-                  <span>Arrêté la présente facture à la somme de : </span><br />
-                  <span className="text-slate-800 font-black not-italic">« {numberToWordsFR(document.amountTTC)} »</span>
-                </p>
-
-                {/* Mixed payment breakdown list if applied */}
-                {document.paymentMethod === 'mixed' && document.mixedPayments && document.mixedPayments.length > 0 && (
-                  <div className="border-t border-slate-200/60 pt-2 space-y-1">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Échéancier de règlement mixte</span>
-                    <div className="space-y-0.5 text-[9px] font-bold">
-                      {document.mixedPayments.map((row, idx) => (
-                        <div key={idx} className="flex justify-between text-slate-500">
-                          <span className="capitalize">{row.method === 'especes' ? 'Espèces' : row.method} :</span>
-                          <span className="font-mono text-slate-700">{row.amount.toFixed(2)} Dh {row.ref ? `(Réf: ${row.ref})` : ''}</span>
-                        </div>
-                      ))}
-                    </div>
+          {/* Header Section */}
+          <div className="flex justify-between items-start mb-8">
+            <div className="flex items-center gap-4">
+              <div 
+                className="flex items-center justify-center overflow-hidden"
+                style={{ 
+                  width: `${settings.logoSize || 120}px`, 
+                  maxWidth: '240px',
+                  height: 'auto',
+                  maxHeight: '120px'
+                }}
+              >
+                {settings.logoUrl && (settings.logoUrl.startsWith('data:image/') || settings.logoUrl.startsWith('http')) ? (
+                  <img 
+                    src={settings.logoUrl} 
+                    alt="Logo" 
+                    className="w-full h-auto object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full border-4 flex items-center justify-center" style={{ borderColor: settings.primaryColor }}>
+                    <Fuel className="w-8 h-8" style={{ color: settings.primaryColor }} />
                   </div>
                 )}
               </div>
-
-              {/* Right Column: Totals Calculations */}
-              <div className="col-span-5 text-xs font-bold text-slate-600 space-y-2.5 pl-4 leading-normal">
-                <div className="flex justify-between items-center">
-                  <span>Total Brut HT :</span>
-                  <span className="font-mono text-slate-800">{document.amountHT.toFixed(2)} Dh</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Montant de la TVA :</span>
-                  <span className="font-mono text-slate-800">{document.vatAmount.toFixed(2)} Dh</span>
-                </div>
-                <div className="flex justify-between items-center text-xs font-black text-slate-900 border border-slate-100 border-l-4 rounded-xl p-3 leading-none" style={{ borderLeftColor: settings.primaryColor, backgroundColor: getLightAccentColor(settings.primaryColor, 0.08) }}>
-                  <span className="leading-none">Net à Payer (TTC) :</span>
-                  <span className="font-mono text-sm leading-none" style={{ color: settings.primaryColor }}>{document.amountTTC.toFixed(2)} Dh</span>
-                </div>
-              </div>
-
             </div>
 
-            {/* Signature, Stamp & Seal Section */}
-            <div className="grid grid-cols-2 gap-4 py-4 border-t border-dashed border-slate-200 items-start">
-              
-              {Boolean((document.terms && document.terms.trim()) || (settings.termsAndConditions && settings.termsAndConditions.trim())) ? (
-                <div className="space-y-1">
-                  <span className="text-[11px] font-extrabold text-slate-700 uppercase block tracking-wider">Conditions Générales de Règlement</span>
-                  <p className="text-[8px] text-slate-400 leading-normal font-medium max-w-sm">
-                    {document.terms?.trim() || settings.termsAndConditions?.trim()}
+            {/* Slanted Document Title */}
+            <div className="relative -mr-8 -mt-8">
+              <div 
+                className="text-white pt-6 pb-8 px-12 relative z-10"
+                style={{ 
+                  clipPath: 'polygon(20% 0%, 100% 0%, 100% 100%, 0% 100%)',
+                  backgroundColor: settings.primaryColor 
+                }}
+              >
+                <h2 className="text-2xl font-black uppercase tracking-wider mb-2">{getDocTypeLabel()}</h2>
+                <div className="space-y-1 text-[10px] font-bold opacity-90">
+                  <p className="flex justify-between gap-4">
+                    <span>N° :</span>
+                    <span>{document.documentNumber}</span>
+                  </p>
+                  <p className="flex justify-between gap-4">
+                    <span>Date :</span>
+                    <span>{document.date?.split('-').reverse().join('/')}</span>
                   </p>
                 </div>
-              ) : (
-                <div />
-              )}
-
-              {/* Stamp or Signature placeholder */}
-              {(settings.showStamp || settings.showSignature) && (
-                <div className="flex flex-col items-end justify-start min-h-[95px] pr-2 relative">
-                  
-                  <span className="text-[11px] font-extrabold text-slate-700 uppercase block tracking-wider text-right">
-                    Cachet et Signature autorisés
-                  </span>
-
-                  {/* Custom uploaded stamp image ONLY */}
-                  {settings.showStamp && settings.stampUrl && (settings.stampUrl.startsWith('data:image/') || settings.stampUrl.startsWith('http')) && (
-                    <div className="rotate-[-2deg] z-10 select-none max-w-[180px] mt-2">
-                      <img 
-                        src={settings.stampUrl} 
-                        alt="Cachet d'entreprise" 
-                        className="max-h-24 max-w-full object-contain" 
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-            </div>
-
-          </div>
-
-          {/* Document Footer */}
-          <div className="border-t border-slate-200/80 pt-4 mt-6 text-center text-[9px] font-bold text-slate-500 tracking-wide space-y-1">
-            {/* Footer company info */}
-            <div className="text-slate-800 font-black text-[10px] uppercase">{settings.companyName || "REDA QOUNA"}</div>
-            {settings.address?.trim() && <div>{settings.address.trim()}</div>}
-            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1 text-slate-400">
-              {settings.ice?.trim() && <span>I.C.E. : <span className="font-mono text-slate-600">{settings.ice.trim()}</span></span>}
-              {settings.rc?.trim() && <span>R.C. : <span className="font-mono text-slate-600">{settings.rc.trim()}</span></span>}
-              {settings.patente?.trim() && <span>Patente : <span className="font-mono text-slate-600">{settings.patente.trim()}</span></span>}
-              {settings.ifNum?.trim() && <span>I.F. : <span className="font-mono text-slate-600">{settings.ifNum.trim()}</span></span>}
-              {settings.cnss?.trim() && <span>CNSS : <span className="font-mono text-slate-600">{settings.cnss.trim()}</span></span>}
-              {settings.codeClient?.trim() && <span>Code Client : <span className="font-mono text-slate-600">{settings.codeClient.trim()}</span></span>}
-              {settings.capital?.trim() && <span>Capital : <span className="text-slate-600">{settings.capital.trim()}</span></span>}
-            </div>
-            {settings.rib?.trim() && (
-              <div className="mt-1">
-                <span>RIB : </span>
-                <span className="font-mono text-slate-600 tracking-wider">{settings.rib.trim()}</span>
               </div>
-            )}
-            <div className="pt-2 text-slate-400">
-              {settings.footerText && settings.footerText.trim() ? settings.footerText : "Merci de votre confiance."}
             </div>
           </div>
 
+          {/* Emitter and Client Section */}
+          <div className="grid grid-cols-2 gap-8 mb-6 relative">
+            <div className="absolute left-1/2 top-0 bottom-0 w-px border-l border-dashed border-slate-300 -translate-x-1/2" />
+            
+            {/* Emitter */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="text-white p-1.5 rounded-full" style={{ backgroundColor: settings.primaryColor }}>
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest" style={{ color: settings.primaryColor }}>Émetteur</h3>
+              </div>
+              
+              <div className="pl-6 space-y-1 text-[10px] font-bold text-slate-700">
+                <p className="text-xs font-black text-slate-900">{settings.companyName || "REDA QOUNA"}</p>
+                <p>{settings.address || "Centre Ain Dorrij Lamjaara Province OUEZZANE"}</p>
+                {settings.cnss && <p>CNSS : {settings.cnss}</p>}
+                {settings.patente && <p>Patente N : {settings.patente}</p>}
+                {settings.rc && <p>R.C : {settings.rc}</p>}
+                {settings.ifNum && <p>I.F : {settings.ifNum}</p>}
+                {settings.ice && <p>ICE : {settings.ice}</p>}
+                {settings.codeClient && <p>Code Client : {settings.codeClient}</p>}
+                {settings.rib && <p className="pt-1 border-t border-slate-100 mt-1">RIB : {settings.rib}</p>}
+              </div>
+            </div>
+
+            {/* Client */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="text-white p-1.5 rounded-full" style={{ backgroundColor: settings.primaryColor }}>
+                  <User className="w-4 h-4" />
+                </div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest" style={{ color: settings.primaryColor }}>Client</h3>
+              </div>
+
+              <div className="pl-6 space-y-2">
+                <div className="text-[10px] font-bold text-slate-700 space-y-1">
+                  <p><span className="text-slate-400">DOIT MR :</span> <span className="font-black text-slate-900">{document.partnerName}</span></p>
+                  {displayIce && displayIce.trim() && (
+                    <p><span className="text-slate-400">ICE :</span> <span className="font-mono text-slate-900">{displayIce}</span></p>
+                  )}
+                  <p><span className="text-slate-400">Mode de Paiement :</span> <span className="uppercase">{paymentLabelMap[document.paymentMethod] || document.paymentMethod}</span></p>
+                </div>
+
+                {/* Info Box */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 mt-4">
+                  <div className="flex items-center gap-2 text-[9px] font-black uppercase" style={{ color: settings.primaryColor }}>
+                    <Info className="w-4 h-4 text-slate-900" />
+                    <span>Informations</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pl-5">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <p className="text-[9px] font-bold text-slate-600 leading-tight">
+                        Station : <span className="text-slate-900">{settings.companyName} AIN DORRIJ CENTRE LAMJAARA OUEZZANE</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <p className="text-[9px] font-bold text-slate-600">
+                        Date : <span className="text-slate-900">{document.date?.split('-').reverse().join('/')}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Table Section */}
+          <div>
+            <div className="border rounded-lg overflow-hidden" style={{ borderColor: settings.primaryColor }}>
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="text-white font-black uppercase tracking-wider" style={{ backgroundColor: settings.primaryColor }}>
+                    <th className="py-2 px-4 text-left border-r border-white/10">Quantité</th>
+                    <th className="py-2 px-4 text-left border-r border-white/10">Désignation</th>
+                    <th className="py-2 px-4 text-right border-r border-white/10">Prix Unité</th>
+                    <th className="py-2 px-4 text-right">Montant</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {document.items?.map((item, idx) => (
+                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className="py-2.5 px-4 font-bold border-r border-slate-100">{item.qty.toLocaleString()}</td>
+                      <td className="py-2.5 px-4 font-black text-slate-900 border-r border-slate-100 uppercase">{item.productName}</td>
+                      <td className="py-2.5 px-4 text-right font-bold border-r border-slate-100">{item.price.toFixed(2)}</td>
+                      <td className="py-2.5 px-4 text-right font-black text-slate-900">{(item.qty * item.price).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {/* Padding rows to fill space */}
+                  {Array.from({ length: Math.max(0, 10 - (document.items?.length || 0)) }).map((_, i) => (
+                    <tr key={`pad-${i}`} className="h-8 border-b border-slate-50">
+                      <td className="border-r border-slate-100" />
+                      <td className="border-r border-slate-100" />
+                      <td className="border-r border-slate-100" />
+                      <td />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Summary Section */}
+          <div className="grid grid-cols-12 gap-6 mt-6 items-start">
+            <div className="col-span-7 space-y-4">
+              <div className="border rounded-xl p-4 min-h-[60px]" style={{ borderColor: settings.primaryColor }}>
+                <p className="text-[10px] font-black uppercase mb-1" style={{ color: settings.primaryColor }}>Arrêté la présente facture à la somme de :</p>
+                <p className="text-[12px] font-bold text-slate-700 italic leading-relaxed">
+                  {numberToWordsFR(document.amountTTC)}.
+                </p>
+              </div>
+
+              {/* Signature Box */}
+              <div className="border border-slate-300 rounded-xl p-4 w-48 min-h-[80px]">
+                <p className="text-[9px] font-black uppercase text-center text-slate-400 border-b border-slate-100 pb-1 mb-1">Visa et Cachet</p>
+              </div>
+            </div>
+
+            <div className="col-span-5">
+              <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                <div className="flex justify-between p-2 text-[10px] font-bold text-slate-600">
+                  <span>T.H.T</span>
+                  <span>{document.amountHT.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between p-2 text-[10px] font-bold text-slate-600">
+                  <span>T.V.A 10%</span>
+                  <span>{document.vatAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between p-3 text-xs font-black text-white" style={{ backgroundColor: settings.primaryColor }}>
+                  <span>TOTAL</span>
+                  <span>{document.amountTTC.toFixed(2)} MAD</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Contact Icons */}
+          <div className="grid grid-cols-3 gap-2 mt-auto border border-slate-200 rounded-xl p-3 text-[9px] font-bold text-slate-600">
+            <div className="flex items-center gap-2">
+              <Phone className="w-4 h-4" style={{ color: settings.primaryColor }} />
+              <span className="truncate">{settings.phone || "Telephone"}</span>
+            </div>
+            <div className="flex items-center gap-2 border-x border-slate-100 px-2">
+              <MapPin className="w-4 h-4" style={{ color: settings.primaryColor }} />
+              <span className="truncate">{settings.address || "Adresse"}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4" style={{ color: settings.primaryColor }} />
+              <span className="truncate">{settings.email || "Email"}</span>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="text-white text-center py-2 mt-4 -mx-8 -mb-8" style={{ backgroundColor: settings.primaryColor }}>
+            <p className="text-[11px] font-serif italic tracking-widest opacity-90">
+              Merci pour votre confiance
+            </p>
+          </div>
         </div>
       </div>
 
