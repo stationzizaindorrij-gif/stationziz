@@ -450,50 +450,6 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
           className="printable-report bg-white text-slate-900 w-full max-w-[210mm] p-8 sm:p-12 rounded-xl shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-0 print:w-full print:max-w-none text-[11px] font-sans leading-relaxed flex flex-col justify-between min-h-[297mm]"
         >
           <div>
-            {/* Header Station Info & Logo */}
-            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5 mb-6 gap-4">
-              <div className="space-y-1 max-w-[70%]">
-                <h1 className="text-xl font-black uppercase tracking-tight text-slate-900 font-sans">
-                  {settings.companyName || 'STATION ZIZ SERVICE'}
-                </h1>
-                <p className="text-[11px] font-semibold text-slate-600 uppercase font-sans">
-                  {settings.address || 'AIN DORRIJ CENTRE LAMJAARA OUEZZANE'}
-                </p>
-                {(settings.phone || settings.email) && (
-                  <p className="text-[10px] text-slate-500 font-medium">
-                    {settings.phone && <span>Tél: {settings.phone}</span>}
-                    {settings.phone && settings.email && <span> • </span>}
-                    {settings.email && <span>Email: {settings.email}</span>}
-                  </p>
-                )}
-                {/* Tax & Business IDs bar */}
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-mono text-slate-600 bg-slate-50 border border-slate-200 rounded-lg py-1 px-2.5 mt-2">
-                  {settings.ice && <span><strong>ICE:</strong> {settings.ice}</span>}
-                  {settings.ifNum && <span><strong>IF:</strong> {settings.ifNum}</span>}
-                  {settings.rc && <span><strong>RC:</strong> {settings.rc}</span>}
-                  {settings.patente && <span><strong>Patente:</strong> {settings.patente}</span>}
-                  {settings.cnss && <span><strong>CNSS:</strong> {settings.cnss}</span>}
-                </div>
-              </div>
-
-              {/* Logo if available */}
-              {settings.logoUrl ? (
-                <div className="flex-shrink-0">
-                  <img
-                    src={settings.logoUrl}
-                    alt="Logo"
-                    className="h-16 w-auto object-contain max-w-[140px]"
-                  />
-                </div>
-              ) : (
-                <div className="text-right flex flex-col items-end">
-                  <span className="text-[10px] font-mono font-bold px-2.5 py-1 bg-slate-900 text-white rounded uppercase tracking-wider">
-                    DOCUMENT COMPTABLE
-                  </span>
-                </div>
-              )}
-            </div>
-
             {/* Document Title / Subtitle Banner */}
             <div className="text-center my-6 bg-slate-50 border border-slate-200 rounded-xl py-4 px-6 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-600"></div>
@@ -563,54 +519,38 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
               </table>
             </div>
 
-            {/* Totals Section & Stamp Box */}
+            {/* Horizontal Totals Banner */}
             {filteredDocs.length > 0 && (
-              <div className="mt-6 flex flex-col sm:flex-row justify-between items-start gap-6">
-                {/* Left side: Visa / Stamp box */}
-                <div className="border border-slate-300 rounded-xl p-3 w-56 min-h-[90px] flex flex-col justify-between bg-white relative overflow-hidden">
-                  <p className="text-[9px] font-black uppercase text-center text-slate-400 border-b border-slate-100 pb-1 mb-1">
-                    Visa et Cachet
-                  </p>
-                  <div className="flex-1 flex items-center justify-center py-1">
-                    {settings.stampUrl && (settings.stampUrl.startsWith('data:image/') || settings.stampUrl.startsWith('http') || settings.stampUrl.length > 20) ? (
-                      <img 
-                        src={settings.stampUrl} 
-                        alt="Visa et Cachet" 
-                        className="max-h-16 max-w-full object-contain" 
-                      />
-                    ) : settings.showStamp && settings.stampText ? (
-                      <div className={`p-2 border-2 border-dashed rounded-lg text-center font-black text-[10px] uppercase rotate-[-3deg] ${
-                        settings.stampColor === 'red' ? 'border-rose-600 text-rose-600 bg-rose-50/50' : 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                      }`}>
-                        <p>{settings.stampText}</p>
-                        <p className="text-[7px] font-mono opacity-80 mt-0.5">{settings.companyName || 'SIGNÉ & VALIDE'}</p>
-                      </div>
-                    ) : (
-                      <div className="h-8 text-[8px] text-slate-300 font-sans italic flex items-center justify-center">
-                        Signature & Cachet
-                      </div>
-                    )}
+              <div className="mt-6 w-full bg-slate-900 text-white rounded-xl overflow-hidden shadow-sm font-sans border border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-800 items-center text-center p-3">
+                  <div className="py-1.5 sm:py-0 px-3 flex items-center justify-center sm:justify-start">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-200">
+                      TOTAL :
+                    </span>
                   </div>
-                </div>
-
-                {/* Right side: Totals Summary Table */}
-                <div className="w-full sm:w-72 bg-slate-50 border border-slate-300 rounded-xl overflow-hidden font-sans">
-                  <div className="bg-slate-800 text-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-center">
-                    Récapitulatif Financièr
+                  <div className="py-1.5 sm:py-0 px-3 flex flex-col items-center">
+                    <span className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
+                      Montant HT
+                    </span>
+                    <span className="text-xs sm:text-sm font-mono font-bold text-white">
+                      {formatAmount(totalHT)} <span className="text-[9px] text-slate-400 font-sans">MAD</span>
+                    </span>
                   </div>
-                  <div className="p-3 space-y-1.5 text-[10.5px]">
-                    <div className="flex justify-between items-center text-slate-700">
-                      <span className="font-semibold">Total HT :</span>
-                      <span className="font-mono font-bold">{formatAmount(totalHT)} MAD</span>
-                    </div>
-                    <div className="flex justify-between items-center text-slate-700 pb-1.5 border-b border-slate-200">
-                      <span className="font-semibold">Total TVA :</span>
-                      <span className="font-mono font-bold">{formatAmount(totalTVA)} MAD</span>
-                    </div>
-                    <div className="flex justify-between items-center text-slate-900 pt-1 font-black bg-slate-900 text-white -mx-3 -mb-3 p-3">
-                      <span className="uppercase text-xs tracking-wider">TOTAL TTC :</span>
-                      <span className="font-mono text-sm">{formatAmount(totalTTC)} MAD</span>
-                    </div>
+                  <div className="py-1.5 sm:py-0 px-3 flex flex-col items-center">
+                    <span className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
+                      Total TVA
+                    </span>
+                    <span className="text-xs sm:text-sm font-mono font-bold text-indigo-200">
+                      {formatAmount(totalTVA)} <span className="text-[9px] text-slate-400 font-sans">MAD</span>
+                    </span>
+                  </div>
+                  <div className="py-1.5 sm:py-0 px-3 flex flex-col items-center bg-indigo-600/30 rounded-lg sm:rounded-none">
+                    <span className="text-[9.5px] font-black text-indigo-200 uppercase tracking-wider mb-0.5">
+                      Montant TTC
+                    </span>
+                    <span className="text-sm sm:text-base font-mono font-black text-amber-300">
+                      {formatAmount(totalTTC)} <span className="text-[10px] text-amber-200 font-sans">MAD</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -621,9 +561,6 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
           <div className="mt-12 pt-4 border-t border-slate-300 flex justify-between items-center text-[10px] font-medium text-slate-500 font-sans">
             <div>
               <span>Édité le {currentFormattedDate}</span>
-            </div>
-            <div className="font-semibold text-slate-700">
-              <span>{settings.companyName || 'Station Service ERP'}</span>
             </div>
             <div>
               <span>Page 1 / 1</span>
