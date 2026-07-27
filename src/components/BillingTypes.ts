@@ -119,12 +119,12 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
   stampText: '',
   stampColor: 'blue',
   numbering: {
-    client_devis: { prefix: 'DEV-', nextNumber: 1, suffix: '' },
-    client_facture: { prefix: 'FAC-', nextNumber: 1, suffix: '' },
-    client_bl: { prefix: 'BLC-', nextNumber: 1, suffix: '' },
-    supplier_devis_req: { prefix: 'DEM-', nextNumber: 1, suffix: '' },
-    supplier_br: { prefix: 'BRF-', nextNumber: 1, suffix: '' },
-    supplier_facture: { prefix: 'FAF-', nextNumber: 1, suffix: '' }
+    client_devis: { prefix: 'DEV-', nextNumber: 1, suffix: '-2026' },
+    client_facture: { prefix: 'FAC-', nextNumber: 1, suffix: '-2026' },
+    client_bl: { prefix: 'BLC-', nextNumber: 1, suffix: '-2026' },
+    supplier_devis_req: { prefix: 'DEM-', nextNumber: 1, suffix: '-2026' },
+    supplier_br: { prefix: 'BRF-', nextNumber: 1, suffix: '-2026' },
+    supplier_facture: { prefix: 'FAF-', nextNumber: 1, suffix: '-2026' }
   },
   visibleColumns: {
     code: true,

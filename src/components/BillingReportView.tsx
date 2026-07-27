@@ -177,20 +177,24 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
                 print-color-adjust: exact !important;
               }
               .printable-report {
-                width: 210mm !important;
+                width: 100% !important;
                 min-height: 297mm !important;
-                padding: 12mm 15mm 12mm 15mm !important;
+                height: 297mm !important;
+                padding: 12mm 15mm !important;
                 box-sizing: border-box !important;
-                margin: 0 auto !important;
+                margin: 0 !important;
                 box-shadow: none !important;
                 border: none !important;
                 background-color: white !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
               }
             }
             body {
               background-color: white !important;
-              margin: 0;
-              padding: 0;
+              margin: 0 !important;
+              padding: 0 !important;
               font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             }
           </style>
@@ -422,6 +426,17 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
       {/* Custom print CSS fallback */}
       <style>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0 !important;
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background-color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           body * {
             visibility: hidden !important;
           }
@@ -433,8 +448,14 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
+            min-height: 297mm !important;
+            height: 297mm !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
             max-width: none !important;
-            padding: 10mm !important;
+            padding: 12mm 15mm !important;
             margin: 0 !important;
             box-shadow: none !important;
             border: none !important;
@@ -449,7 +470,7 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
           ref={reportRef}
           className="printable-report bg-white text-slate-900 w-full max-w-[210mm] p-8 sm:p-12 rounded-xl shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-0 print:w-full print:max-w-none text-[11px] font-sans leading-relaxed flex flex-col justify-between min-h-[297mm]"
         >
-          <div>
+          <div className="flex-1 flex flex-col justify-start">
             {/* Document Title / Subtitle Banner */}
             <div className="text-center my-6 bg-slate-50 border border-slate-200 rounded-xl py-4 px-6 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-600"></div>
@@ -558,7 +579,7 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
           </div>
 
           {/* Footer (Date generated & Page number) */}
-          <div className="mt-12 pt-4 border-t border-slate-300 flex justify-between items-center text-[10px] font-medium text-slate-500 font-sans">
+          <div className="mt-auto pt-4 border-t border-slate-300 flex justify-between items-center text-[10px] font-medium text-slate-500 font-sans">
             <div>
               <span>Édité le {currentFormattedDate}</span>
             </div>

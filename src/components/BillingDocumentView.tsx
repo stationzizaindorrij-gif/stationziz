@@ -605,13 +605,13 @@ export function BillingDocumentView({
 
                   <div className="pt-2 border-t border-slate-200/80 space-y-1.5 text-[9.5px]">
                     {displayIce && displayIce.trim() && (
-                      <div className="flex justify-between items-center text-slate-700 font-bold">
+                      <div className="flex items-center gap-2 text-slate-700 font-bold">
                         <span className="text-slate-400 font-semibold">ICE Client :</span>
                         <span className="font-mono text-slate-900 bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[9px]">{displayIce}</span>
                       </div>
                     )}
                     
-                    <div className="flex justify-between items-center text-slate-700 font-bold">
+                    <div className="flex items-center gap-2 text-slate-700 font-bold">
                       <span className="text-slate-400 font-semibold">Mode de Règlement :</span>
                       <span className="font-black uppercase text-indigo-950 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded text-[9px]">
                         {paymentLabelMap[document.paymentMethod] || document.paymentMethod}

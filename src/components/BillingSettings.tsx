@@ -623,7 +623,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 block">Bon de Livraison Client (Ex: BLC-00001)</span>
+                    <span className="text-xs font-bold text-slate-700 block">Bon de Livraison Client (Ex: BLC-00001-2026)</span>
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
@@ -654,7 +654,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                 
                 <div className="space-y-4 p-4 bg-slate-50/50 rounded-xl border border-slate-100">
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 block">Demande de Devis (Ex: DEM-00001)</span>
+                    <span className="text-xs font-bold text-slate-700 block">Demande de Devis (Ex: DEM-00001-2026)</span>
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
@@ -678,7 +678,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 block">Bon de Réception (Ex: BRF-00001)</span>
+                    <span className="text-xs font-bold text-slate-700 block">Bon de Réception (Ex: BRF-00001-2026)</span>
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 
@@ -702,7 +702,7 @@ export function BillingSettings({ settings, onSave }: BillingSettingsProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 block">Facture Fournisseur (Ex: FAF-00001)</span>
+                    <span className="text-xs font-bold text-slate-700 block">Facture Fournisseur (Ex: FAF-00001-2026)</span>
                     <div className="grid grid-cols-3 gap-2">
                       <input 
                         type="text" 

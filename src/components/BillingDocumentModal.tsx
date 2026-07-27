@@ -145,7 +145,9 @@ export function BillingDocumentModal({
       const numSettings = settings.numbering[initialType];
       if (numSettings) {
         const paddedNum = String(numSettings.nextNumber).padStart(5, '0');
-        setDocumentNumber(`${numSettings.prefix}${paddedNum}${numSettings.suffix}`);
+        const year = today.split('-')[0] || '2026';
+        const suffix = (numSettings.suffix && numSettings.suffix.trim() !== '') ? numSettings.suffix : `-${year}`;
+        setDocumentNumber(`${numSettings.prefix}${paddedNum}${suffix}`);
       } else {
         setDocumentNumber('');
       }
@@ -158,9 +160,11 @@ export function BillingDocumentModal({
     const numSettings = settings.numbering[docType];
     if (numSettings) {
       const paddedNum = String(numSettings.nextNumber).padStart(5, '0');
-      setDocumentNumber(`${numSettings.prefix}${paddedNum}${numSettings.suffix}`);
+      const year = date ? date.split('-')[0] : '2026';
+      const suffix = (numSettings.suffix && numSettings.suffix.trim() !== '') ? numSettings.suffix : `-${year}`;
+      setDocumentNumber(`${numSettings.prefix}${paddedNum}${suffix}`);
     }
-  }, [docType, settings]);
+  }, [docType, settings, date, isOpen, editingDoc]);
 
   if (!isOpen) return null;
 

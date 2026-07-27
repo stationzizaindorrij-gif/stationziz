@@ -60,7 +60,32 @@ function sanitizeSettings(settings: DocumentSettings): DocumentSettings {
   if (copy.stampText && (copy.stampText.includes('STATION SERVICE ATLAS') || copy.stampText === 'STATION SERVICE ATLAS - REÇU ET APPROUVÉ')) copy.stampText = '';
   if (copy.logoUrl === '⛽') copy.logoUrl = '';
 
+  if (copy.numbering) {
+    const defaultYearSuffix = `-${new Date().getFullYear()}`;
+    const nextNumbering = { ...copy.numbering };
+    (Object.keys(nextNumbering) as Array<keyof typeof nextNumbering>).forEach(key => {
+      const item = nextNumbering[key];
+      if (item) {
+        nextNumbering[key] = {
+          ...item,
+          suffix: (item.suffix && item.suffix.trim() !== '') ? item.suffix : defaultYearSuffix
+        };
+      }
+    });
+    copy.numbering = nextNumbering;
+  }
+
   return copy;
+}
+
+function formatDocNumberWithYear(numStr: string, dateStr?: string): string {
+  if (!numStr) return numStr;
+  const trimmed = numStr.trim();
+  if (/[-/. ]\d{4}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const year = dateStr ? dateStr.split('-')[0] : '2026';
+  return `${trimmed}-${year}`;
 }
 
 export function Billing({ store }: { store: ERPStoreType }) {
@@ -173,8 +198,30 @@ export function Billing({ store }: { store: ERPStoreType }) {
   // Confirmation actions
   const [confirmModalConfig, setConfirmModalConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void} | null>(null);
 
+  // Ensure existing richDocuments have numbers formatted with year suffix
+  useEffect(() => {
+    if (richDocuments && richDocuments.length > 0) {
+      let needsUpdate = false;
+      const normalized = richDocuments.map(doc => {
+        const formatted = formatDocNumberWithYear(doc.documentNumber, doc.date);
+        if (formatted !== doc.documentNumber) {
+          needsUpdate = true;
+          return { ...doc, documentNumber: formatted };
+        }
+        return doc;
+      });
+      if (needsUpdate) {
+        saveRichDocuments(normalized);
+      }
+    }
+  }, [richDocuments]);
+
   // Handle document submission (Create or Edit)
-  const handleDocSubmit = (docData: Omit<RichDocument, 'id'>) => {
+  const handleDocSubmit = (docDataRaw: Omit<RichDocument, 'id'>) => {
+    const docData = {
+      ...docDataRaw,
+      documentNumber: formatDocNumberWithYear(docDataRaw.documentNumber, docDataRaw.date)
+    };
     let updatedDocs = [...richDocuments];
     const logDate = new Date().toISOString().split('T')[0];
 
