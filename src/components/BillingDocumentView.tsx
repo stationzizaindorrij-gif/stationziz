@@ -397,7 +397,7 @@ export function BillingDocumentView({
     virement: 'Virement Bancaire',
     carte: 'Carte Bancaire (TPE)',
     cheque: 'Chèque',
-    especes: 'Espèces (Cash)',
+    especes: 'Espèces',
     credit: 'Compte Crédit Client',
     mixed: 'Paiement Mixte / Multiple'
   };
@@ -720,18 +720,18 @@ export function BillingDocumentView({
           </div>
 
           {/* Footer Contact Icons */}
-          <div className="grid grid-cols-3 gap-2 mt-auto border border-slate-200 rounded-xl p-3 text-[9px] font-bold text-slate-600">
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4" style={{ color: settings.primaryColor }} />
-              <span className="truncate">{settings.phone || "Telephone"}</span>
+          <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 mt-auto border border-slate-200 rounded-xl p-3 text-[9.5px] font-bold text-slate-700">
+            <div className="flex items-center gap-2 shrink-0">
+              <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: settings.primaryColor }} />
+              <span>{settings.phone || "Téléphone"}</span>
             </div>
-            <div className="flex items-center gap-2 border-x border-slate-100 px-2">
-              <MapPin className="w-4 h-4" style={{ color: settings.primaryColor }} />
-              <span className="truncate">{settings.address || "Adresse"}</span>
+            <div className="flex items-center gap-2 flex-1 min-w-[200px] sm:border-x border-slate-200/60 sm:px-3">
+              <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: settings.primaryColor }} />
+              <span className="leading-snug">{settings.address || "Adresse"}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4" style={{ color: settings.primaryColor }} />
-              <span className="truncate">{settings.email || "Email"}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <Mail className="w-3.5 h-3.5 shrink-0" style={{ color: settings.primaryColor }} />
+              <span>{settings.email || "Email"}</span>
             </div>
           </div>
 
