@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, TrendingUp, Users, Truck, Plus, Search, Filter, 
   Download, FileCheck, XCircle, CheckCircle2, Factory, FileSpreadsheet,
-  Calendar, FileBox, FileArchive, Printer, X, Eye, Edit, Copy, Trash2, Mail, Settings, History
+  Calendar, FileBox, FileArchive, Printer, X, Eye, Edit, Copy, Trash2, Mail, Settings
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { ConfirmModal } from './ConfirmModal';
@@ -14,7 +14,7 @@ import { BillingDashboard } from './BillingDashboard';
 import { BillingSettings } from './BillingSettings';
 import { BillingDocumentModal } from './BillingDocumentModal';
 import { BillingDocumentView } from './BillingDocumentView';
-import { BillingHistory } from './BillingHistory';
+import { BillingReportView } from './BillingReportView';
 
 const oldDefaultsMap: Record<string, string> = {
   companyName: 'ATLAS PETROLEUM SARL',
@@ -64,7 +64,7 @@ function sanitizeSettings(settings: DocumentSettings): DocumentSettings {
 }
 
 export function Billing({ store }: { store: ERPStoreType }) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'client_docs' | 'supplier_docs' | 'settings' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'client_docs' | 'report' | 'settings'>('dashboard');
   
   // Custom billing settings state
   const [docSettings, setDocSettings] = useState<DocumentSettings>(() => {
@@ -402,11 +402,11 @@ export function Billing({ store }: { store: ERPStoreType }) {
           Documents Clients
         </button>
         <button 
-          onClick={() => { setActiveTab('supplier_docs'); setSelectedDoc(null); setFilterDocType('all'); }}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-black border-b-2 transition-all whitespace-nowrap ${activeTab === 'supplier_docs' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+          onClick={() => { setActiveTab('report'); setSelectedDoc(null); }}
+          className={`flex items-center gap-2 px-4 py-3 text-xs font-black border-b-2 transition-all whitespace-nowrap ${activeTab === 'report' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
         >
-          <Factory className="w-4 h-4" />
-          Documents Fournisseurs
+          <FileText className="w-4 h-4" />
+          Rapport de Facturation
         </button>
         <button 
           onClick={() => { setActiveTab('settings'); setSelectedDoc(null); }}
@@ -414,13 +414,6 @@ export function Billing({ store }: { store: ERPStoreType }) {
         >
           <Settings className="w-4 h-4" />
           Paramètres des documents
-        </button>
-        <button 
-          onClick={() => { setActiveTab('history'); setSelectedDoc(null); }}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-black border-b-2 transition-all whitespace-nowrap ${activeTab === 'history' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-        >
-          <History className="w-4 h-4" />
-          Historique d'Audit
         </button>
       </div>
 
@@ -449,15 +442,15 @@ export function Billing({ store }: { store: ERPStoreType }) {
             />
           )}
 
-          {/* Client & Supplier document tables */}
-          {(activeTab === 'client_docs' || activeTab === 'supplier_docs') && (
+          {/* Client document tables */}
+          {activeTab === 'client_docs' && (
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden animate-fade-in">
               
               {/* Header inside list */}
               <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/40">
                 <div>
                   <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">
-                    {activeTab === 'client_docs' ? '📄 Gestion des Ventes & Devis' : '📥 Approvisionnements & Achats'}
+                    📄 Gestion des Ventes & Devis
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5 font-bold">Consultez, imprimez ou rééditez vos pièces comptables</p>
                 </div>
@@ -465,13 +458,13 @@ export function Billing({ store }: { store: ERPStoreType }) {
                 {/* Create button */}
                 <button
                   onClick={() => {
-                    setModalDefaultType(activeTab === 'client_docs' ? 'client_facture' : 'supplier_facture');
+                    setModalDefaultType('client_facture');
                     setShowDocModal(true);
                   }}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
-                  {activeTab === 'client_docs' ? 'Créer une pièce client' : 'Créer une pièce fournisseur'}
+                  Créer une pièce client
                 </button>
               </div>
 
@@ -499,19 +492,9 @@ export function Billing({ store }: { store: ERPStoreType }) {
                     className="border border-slate-200 bg-white rounded-xl px-2.5 py-1.5 text-xs focus:outline-none font-bold"
                   >
                     <option value="all">Tous les types</option>
-                    {activeTab === 'client_docs' ? (
-                      <>
-                        <option value="client_facture">Facture</option>
-                        <option value="client_devis">Devis</option>
-                        <option value="client_bl">Bon de Livraison</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="supplier_facture">Facture Fournisseur</option>
-                        <option value="supplier_br">Bon de Réception</option>
-                        <option value="supplier_devis_req">Demande de Devis</option>
-                      </>
-                    )}
+                    <option value="client_facture">Facture</option>
+                    <option value="client_devis">Devis</option>
+                    <option value="client_bl">Bon de Livraison</option>
                   </select>
                 </div>
 
@@ -547,7 +530,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {(activeTab === 'client_docs' ? activeClientDocs : activeSupplierDocs).length === 0 ? (
+                    {activeClientDocs.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="p-12 text-center text-slate-400">
                           <FileText className="w-12 h-12 mx-auto mb-3 opacity-20 text-indigo-500" />
@@ -556,7 +539,7 @@ export function Billing({ store }: { store: ERPStoreType }) {
                         </td>
                       </tr>
                     ) : (
-                      (activeTab === 'client_docs' ? activeClientDocs : activeSupplierDocs).map(doc => (
+                      activeClientDocs.map(doc => (
                         <tr key={doc.id} className="hover:bg-slate-50/50 group transition-all">
                           
                           {/* Type */}
@@ -641,18 +624,21 @@ export function Billing({ store }: { store: ERPStoreType }) {
             </div>
           )}
 
+          {/* Billing Report Tab */}
+          {activeTab === 'report' && (
+            <BillingReportView
+              documents={richDocuments}
+              settings={docSettings}
+              clients={store.clients}
+              suppliers={store.suppliers}
+            />
+          )}
+
           {/* Document Settings Tab */}
           {activeTab === 'settings' && (
             <BillingSettings
               settings={docSettings}
               onSave={handleSaveSettings}
-            />
-          )}
-
-          {/* Audit History Logs Tab */}
-          {activeTab === 'history' && (
-            <BillingHistory
-              documents={richDocuments}
             />
           )}
         </>

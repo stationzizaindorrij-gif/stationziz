@@ -272,6 +272,10 @@ export function BillingDocumentView({
     const content = printAreaRef.current?.innerHTML;
     if (!content) return;
 
+    const headHtml = Array.from(window.document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((el) => (el as HTMLElement).outerHTML)
+      .join('\n');
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert("L'impression a été bloquée par votre navigateur. Veuillez autoriser les pop-ups pour ce site afin d'imprimer.");
@@ -279,18 +283,20 @@ export function BillingDocumentView({
     }
 
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
           <title>${document.docType.toUpperCase()} - ${document.documentNumber}</title>
+          <meta charset="utf-8" />
+          ${headHtml}
           <style>
-            /* Reset all margins and clear default browser header/footer */
             @page {
-              size: A4;
+              size: A4 portrait;
               margin: 0 !important;
             }
             @media print {
               @page {
-                size: A4;
+                size: A4 portrait;
                 margin: 0 !important;
               }
               html, body {
@@ -304,9 +310,7 @@ export function BillingDocumentView({
               }
               .print-page {
                 width: 210mm !important;
-                height: 297mm !important;
                 min-height: 297mm !important;
-                max-height: 297mm !important;
                 padding: 15mm 20mm 15mm 20mm !important;
                 box-sizing: border-box !important;
                 position: relative !important;
@@ -314,8 +318,6 @@ export function BillingDocumentView({
                 flex-direction: column !important;
                 justify-content: space-between !important;
                 background-color: white !important;
-                page-break-after: avoid !important;
-                page-break-inside: avoid !important;
               }
               .no-print { display: none !important; }
             }
@@ -330,51 +332,20 @@ export function BillingDocumentView({
           <div class="print-page bg-white text-left leading-relaxed text-slate-800" style="font-family: ${settings.fontFamily}; margin: 0 auto;">
             ${content}
           </div>
-          <script>
-            window.addEventListener('load', () => {
-              // Wait for all style assets to load before opening print dialog
-              const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
-              let loadedCount = 0;
-              
-              const doPrint = () => {
-                setTimeout(() => {
-                  window.print();
-                  window.close();
-                }, 500);
-              };
-
-              if (links.length === 0) {
-                doPrint();
-              } else {
-                links.forEach((link) => {
-                  link.addEventListener('load', () => {
-                    loadedCount++;
-                    if (loadedCount === links.length) doPrint();
-                  });
-                  link.addEventListener('error', () => {
-                    loadedCount++;
-                    if (loadedCount === links.length) doPrint();
-                  });
-                });
-                // Fallback timeout to ensure it prints anyway
-                setTimeout(doPrint, 1500);
-              }
-            });
-          </script>
         </body>
       </html>
     `);
 
-    // Copy style sheets and style elements to preserve Tailwind styling and custom settings
-    Array.from(window.document.querySelectorAll('link[rel="stylesheet"], style')).forEach((el) => {
-      try {
-        printWindow.document.head.appendChild(el.cloneNode(true));
-      } catch (e) {
-        console.warn("Failed to clone stylesheet", e);
-      }
-    });
-
     printWindow.document.close();
+
+    setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch (e) {
+        console.error("Print error:", e);
+      }
+    }, 400);
   };
 
   const handleSendEmail = () => {
@@ -388,7 +359,7 @@ export function BillingDocumentView({
   // Human friendly label for document types
   const getDocTypeLabel = () => {
     switch(document.docType) {
-      case 'client_devis': return 'DEVIS PRO-FORMA';
+      case 'client_devis': return 'DEVIS';
       case 'client_facture': return 'FACTURE';
       case 'client_bl': return 'BON DE LIVRAISON';
       case 'supplier_devis_req': return 'DEMANDE DE DEVIS';
@@ -400,13 +371,25 @@ export function BillingDocumentView({
 
   const getDocNumberLabel = () => {
     switch(document.docType) {
-      case 'client_devis': return 'Devis Numéro';
-      case 'client_facture': return 'Facture Numéro';
-      case 'client_bl': return 'B.L Numéro';
-      case 'supplier_devis_req': return 'Demande Numéro';
-      case 'supplier_br': return 'B.R Numéro';
-      case 'supplier_facture': return 'Facture Numéro';
-      default: return 'N° Document';
+      case 'client_devis': return 'Devis N° :';
+      case 'client_facture': return 'Facture N° :';
+      case 'client_bl': return 'BL N° :';
+      case 'supplier_devis_req': return 'Demande N° :';
+      case 'supplier_br': return 'BR N° :';
+      case 'supplier_facture': return 'Facture N° :';
+      default: return 'Facture N° :';
+    }
+  };
+
+  const getAmountInWordsPhrase = () => {
+    switch(document.docType) {
+      case 'client_devis': return 'Arrêté le présent devis à la somme de :';
+      case 'client_facture': return 'Arrêté la présente facture à la somme de :';
+      case 'client_bl': return 'Arrêté le présent bon de livraison à la somme de :';
+      case 'supplier_devis_req': return 'Arrêté la présente demande à la somme de :';
+      case 'supplier_br': return 'Arrêté le présent bon de réception à la somme de :';
+      case 'supplier_facture': return 'Arrêté la présente facture à la somme de :';
+      default: return 'Arrêté le présent document à la somme de :';
     }
   };
 
@@ -459,45 +442,10 @@ export function BillingDocumentView({
           {/* Print button */}
           <button
             onClick={handlePrint}
-            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 transition-all"
+            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs transition-all"
           >
             <Printer className="w-4 h-4" />
             Imprimer
-          </button>
-
-          {/* Download PDF button */}
-          <button
-            onClick={handleDownloadPDF}
-            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs transition-all"
-          >
-            <Download className="w-4 h-4" />
-            Télécharger PDF
-          </button>
-
-          {/* Send Email simulation */}
-          <button
-            onClick={handleSendEmail}
-            disabled={emailStatus !== 'idle'}
-            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all disabled:opacity-50"
-          >
-            {emailStatus === 'idle' && (
-              <>
-                <Mail className="w-4 h-4" />
-                Envoyer par Mail
-              </>
-            )}
-            {emailStatus === 'sending' && (
-              <>
-                <Send className="w-4 h-4 animate-bounce" />
-                Envoi en cours...
-              </>
-            )}
-            {emailStatus === 'sent' && (
-              <>
-                <Check className="w-4 h-4" />
-                Envoyé avec succès !
-              </>
-            )}
           </button>
 
           {/* Quick status change buttons */}
@@ -580,16 +528,18 @@ export function BillingDocumentView({
             {/* Slanted Document Title */}
             <div className="relative -mr-8 -mt-8">
               <div 
-                className="text-white pt-6 pb-8 px-12 relative z-10"
+                className="text-white pt-6 pb-8 pl-14 pr-10 relative z-10"
                 style={{ 
-                  clipPath: 'polygon(20% 0%, 100% 0%, 100% 100%, 0% 100%)',
+                  clipPath: 'polygon(12% 0%, 100% 0%, 100% 100%, 0% 100%)',
                   backgroundColor: settings.primaryColor 
                 }}
               >
-                <h2 className="text-2xl font-black uppercase tracking-wider mb-2">{getDocTypeLabel()}</h2>
+                <h2 className={`font-black uppercase tracking-tight mb-2 whitespace-nowrap ${getDocTypeLabel().length > 14 ? 'text-lg' : 'text-2xl'}`}>
+                  {getDocTypeLabel()}
+                </h2>
                 <div className="space-y-1 text-[10px] font-bold opacity-90">
                   <p className="flex justify-between gap-4">
-                    <span>N° :</span>
+                    <span>{getDocNumberLabel()}</span>
                     <span>{document.documentNumber}</span>
                   </p>
                   <p className="flex justify-between gap-4">
@@ -628,7 +578,7 @@ export function BillingDocumentView({
             </div>
 
             {/* Client */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="text-white p-1.5 rounded-full" style={{ backgroundColor: settings.primaryColor }}>
                   <User className="w-4 h-4" />
@@ -636,34 +586,44 @@ export function BillingDocumentView({
                 <h3 className="text-[10px] font-black uppercase tracking-widest" style={{ color: settings.primaryColor }}>Client</h3>
               </div>
 
-              <div className="pl-6 space-y-2">
-                <div className="text-[10px] font-bold text-slate-700 space-y-1">
-                  <p><span className="text-slate-400">DOIT MR :</span> <span className="font-black text-slate-900">{document.partnerName}</span></p>
-                  {displayIce && displayIce.trim() && (
-                    <p><span className="text-slate-400">ICE :</span> <span className="font-mono text-slate-900">{displayIce}</span></p>
-                  )}
-                  <p><span className="text-slate-400">Mode de Paiement :</span> <span className="uppercase">{paymentLabelMap[document.paymentMethod] || document.paymentMethod}</span></p>
-                </div>
-
-                {/* Info Box */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 mt-4">
-                  <div className="flex items-center gap-2 text-[9px] font-black uppercase" style={{ color: settings.primaryColor }}>
-                    <Info className="w-4 h-4 text-slate-900" />
-                    <span>Informations</span>
+              <div className="pl-6">
+                <div className="bg-slate-50/90 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                  <div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">
+                      DOIT (CLIENT) :
+                    </span>
+                    <p className="text-xs font-black text-slate-900 uppercase leading-tight">
+                      {document.partnerName}
+                    </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pl-5">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <p className="text-[9px] font-bold text-slate-600 leading-tight">
-                        Station : <span className="text-slate-900">{settings.companyName} AIN DORRIJ CENTRE LAMJAARA OUEZZANE</span>
-                      </p>
+
+                  {document.partnerAddress && (
+                    <p className="text-[9.5px] font-medium text-slate-600 leading-tight">
+                      {document.partnerAddress}
+                    </p>
+                  )}
+
+                  <div className="pt-2 border-t border-slate-200/80 space-y-1.5 text-[9.5px]">
+                    {displayIce && displayIce.trim() && (
+                      <div className="flex justify-between items-center text-slate-700 font-bold">
+                        <span className="text-slate-400 font-semibold">ICE Client :</span>
+                        <span className="font-mono text-slate-900 bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[9px]">{displayIce}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center text-slate-700 font-bold">
+                      <span className="text-slate-400 font-semibold">Mode de Règlement :</span>
+                      <span className="font-black uppercase text-indigo-950 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded text-[9px]">
+                        {paymentLabelMap[document.paymentMethod] || document.paymentMethod}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <p className="text-[9px] font-bold text-slate-600">
-                        Date : <span className="text-slate-900">{document.date?.split('-').reverse().join('/')}</span>
-                      </p>
-                    </div>
+
+                    {(document.partnerPhone || document.partnerEmail) && (
+                      <div className="flex flex-wrap gap-2 text-[9px] font-medium text-slate-500 pt-1">
+                        {document.partnerPhone && <span>Tél: {document.partnerPhone}</span>}
+                        {document.partnerEmail && <span>Email: {document.partnerEmail}</span>}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -709,15 +669,35 @@ export function BillingDocumentView({
           <div className="grid grid-cols-12 gap-6 mt-6 items-start">
             <div className="col-span-7 space-y-4">
               <div className="border rounded-xl p-4 min-h-[60px]" style={{ borderColor: settings.primaryColor }}>
-                <p className="text-[10px] font-black uppercase mb-1" style={{ color: settings.primaryColor }}>Arrêté la présente facture à la somme de :</p>
+                <p className="text-[10px] font-black uppercase mb-1" style={{ color: settings.primaryColor }}>{getAmountInWordsPhrase()}</p>
                 <p className="text-[12px] font-bold text-slate-700 italic leading-relaxed">
                   {numberToWordsFR(document.amountTTC)}.
                 </p>
               </div>
 
               {/* Signature Box */}
-              <div className="border border-slate-300 rounded-xl p-4 w-48 min-h-[80px]">
+              <div className="border border-slate-300 rounded-xl p-3 w-56 min-h-[95px] flex flex-col justify-between bg-white relative overflow-hidden">
                 <p className="text-[9px] font-black uppercase text-center text-slate-400 border-b border-slate-100 pb-1 mb-1">Visa et Cachet</p>
+                <div className="flex-1 flex items-center justify-center py-1">
+                  {settings.stampUrl && (settings.stampUrl.startsWith('data:image/') || settings.stampUrl.startsWith('http') || settings.stampUrl.length > 20) ? (
+                    <img 
+                      src={settings.stampUrl} 
+                      alt="Visa et Cachet" 
+                      className="max-h-20 max-w-full object-contain" 
+                    />
+                  ) : settings.showStamp && settings.stampText ? (
+                    <div className={`p-2 border-2 border-dashed rounded-lg text-center font-black text-[10px] uppercase rotate-[-3deg] ${
+                      settings.stampColor === 'red' ? 'border-rose-600 text-rose-600 bg-rose-50/50' : 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                    }`}>
+                      <p>{settings.stampText}</p>
+                      <p className="text-[7px] font-mono opacity-80 mt-0.5">{settings.companyName || 'SIGNÉ & VALIDE'}</p>
+                    </div>
+                  ) : (
+                    <div className="h-10 text-[8px] text-slate-300 font-serif italic flex items-center justify-center">
+                      Signature & Tampon
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
