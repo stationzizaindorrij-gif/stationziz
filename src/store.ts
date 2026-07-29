@@ -11,7 +11,8 @@ import { RichDocument } from './components/BillingTypes';
 import { 
   INITIAL_PRODUCTS, INITIAL_TANKS, INITIAL_PUMPS, INITIAL_NOZZLES, 
   INITIAL_ATTENDANTS, INITIAL_SHIFTS, INITIAL_SALES, INITIAL_SUPPLIES, 
-  INITIAL_CASH_REGISTRY, INITIAL_CONFIG, INITIAL_SUPPLIERS, INITIAL_CLIENTS 
+  INITIAL_CASH_REGISTRY, INITIAL_CONFIG, INITIAL_SUPPLIERS, INITIAL_CLIENTS,
+  INITIAL_RICH_DOCUMENTS, INITIAL_STOCK_CORRECTIONS, INITIAL_AUDIT_LOGS, INITIAL_ALERTS
 } from './data';
 
 export interface ERPStoreType {
@@ -281,147 +282,198 @@ export function useERPStore(): ERPStoreType {
                  let items = data.map(item => ({ ...item, user_id }));
                  
                  // Strip fields that might not be in Supabase schema
-                 if (key === 'products') {
-                     items = items.map(p => {
-                         return {
-                             id: p.id,
-                             user_id,
-                             name: p.name,
-                             type: p.type,
-                             purchase_price: p.purchasePrice !== undefined ? p.purchasePrice : 0.00,
-                             sale_price: p.salePrice !== undefined ? p.salePrice : 0.00,
-                             vat_rate: p.vatRate !== undefined ? p.vatRate : 20.00,
-                             status: p.status || 'active'
-                         };
-                     });
-                 }
-                 if (key === 'rich_documents') {
-                     items = items.map(doc => {
-                         return {
-                             id: doc.id,
-                             user_id,
-                             doctype: doc.docType,
-                             document_number: doc.documentNumber,
-                             partner_id: doc.partnerId,
-                             partner_name: doc.partnerName,
-                             date: doc.date,
-                             items: JSON.stringify(doc.items || []),
-                             amount_ht: doc.amountHT,
-                             vat_amount: doc.vatAmount,
-                             amount_ttc: doc.amountTTC,
-                             payment_method: doc.paymentMethod,
-                             mixed_payments: JSON.stringify(doc.mixedPayments || []),
-                             notes: doc.notes,
-                             terms: doc.terms,
-                             status: doc.status,
-                             history_logs: JSON.stringify(doc.historyLogs || [])
-                         };
-                     });
-                 }
+                  if (key === 'products') {
+                       items = items.filter((p: any) => p.type !== 'shop' && p.type !== 'lubricant' && (!p.id || !String(p.id).startsWith('sp_'))).map(p => {
+                           return {
+                               id: p.id,
+                               user_id,
+                               name: p.name,
+                               type: p.type,
+                               purchase_price: p.purchasePrice !== undefined ? p.purchasePrice : 0.00,
+                               sale_price: p.salePrice !== undefined ? p.salePrice : 0.00,
+                               vat_rate: p.vatRate !== undefined ? p.vatRate : 20.00,
+                               status: p.status || 'active'
+                           };
+                       });
+                   }
+                   if (key === 'shop_products') {
+                       items = items.map(sp => {
+                           const cleanName = sp.name ? sp.name.split('§§')[0] : '';
+                           return {
+                               id: sp.id,
+                               user_id,
+                               name: `${cleanName}§§${sp.stockQuantity ?? 0}§§${sp.minStockAlert ?? 5}§§${sp.photo || ''}`,
+                               type: 'shop',
+                               purchase_price: sp.purchasePrice !== undefined ? sp.purchasePrice : 0.00,
+                               sale_price: sp.salePrice !== undefined ? sp.salePrice : 0.00,
+                               vat_rate: 20.00,
+                               status: sp.status || 'active'
+                           };
+                       });
+                   }
+                  if (key === 'rich_documents') {
+                      items = items.map(doc => {
+                          return {
+                              id: doc.id,
+                              user_id,
+                              doctype: doc.docType,
+                              document_number: doc.documentNumber,
+                              partner_id: doc.partnerId,
+                              partner_name: doc.partnerName,
+                              date: doc.date,
+                              items: doc.items || [],
+                              amount_ht: doc.amountHT,
+                              vat_amount: doc.vatAmount,
+                              amount_ttc: doc.amountTTC,
+                              payment_method: doc.paymentMethod,
+                              mixed_payments: doc.mixedPayments || [],
+                              notes: doc.notes,
+                              terms: doc.terms,
+                              status: doc.status,
+                              history_logs: doc.historyLogs || []
+                          };
+                      });
+                  }
                   if (key === 'clients') {
-                     items = items.map(c => {
-                         return {
-                             id: c.id,
-                             user_id,
-                             name: c.name,
-                             phone: c.phone,
-                             email: c.email,
-                             address: c.address,
-                             ice: c.ice,
-                             contact: c.contact,
-                             notes: c.notes,
-                             payments: JSON.stringify(c.payments || [])
-                         };
-                     });
-                 }
-                 if (key === 'suppliers') {
-                     items = items.map(s => {
-                         return {
-                             id: s.id,
-                             user_id,
-                             name: s.name,
-                             phone: s.phone,
-                             email: s.email,
-                             address: s.address,
-                             ice: s.ice,
-                             contact: s.contact,
-                             notes: s.notes,
-                             payments: JSON.stringify(s.payments || [])
-                         };
-                     });
-                 }
-                 if (key === 'shifts') {
+                      items = items.map(c => {
+                          return {
+                              id: c.id,
+                              user_id,
+                              name: c.name,
+                              phone: c.phone,
+                              email: c.email,
+                              address: c.address,
+                              ice: c.ice,
+                              contact: c.contact,
+                              notes: c.notes,
+                              payments: c.payments || []
+                          };
+                      });
+                  }
+                  if (key === 'suppliers') {
                       items = items.map(s => {
                           return {
                               id: s.id,
                               user_id,
-                              attendantId: s.attendantId,
-                              attendantName: s.attendantName,
-                              date: s.date,
-                              endDate: s.endDate,
-                              shiftName: s.shiftName,
-                              pumpIds: s.pumpIds || [],
-                              status: s.status,
-                              startTime: s.startTime,
-                              endTime: s.endTime,
-                              startCounters: JSON.stringify(s.startCounters || {}),
-                              endCounters: JSON.stringify(s.endCounters || {}),
-                              litersSold: JSON.stringify(s.litersSold || {}),
-                              amountSold: JSON.stringify(s.amountSold || {}),
-                              totalLiters: s.totalLiters,
-                              totalAmount: s.totalAmount,
-                              theoreticalCash: s.theoreticalCash,
-                              realCashReceived: s.realCashReceived,
-                              discrepancy: s.discrepancy,
+                              name: s.name,
+                              phone: s.phone,
+                              email: s.email,
+                              address: s.address,
+                              ice: s.ice,
+                              contact: s.contact,
                               notes: s.notes,
-                              productsSold: JSON.stringify(s.productsSold || []),
-                              servicesSold: JSON.stringify(s.servicesSold || []),
-                              expenses: JSON.stringify(s.expenses || []),
-                              nonCashPayments: JSON.stringify({
-                                  ...(s.nonCashPayments || {}),
-                                  ...(s.startTankLevels ? { startTankLevels: s.startTankLevels } : {}),
-                                  ...(s.endTankLevels ? { endTankLevels: s.endTankLevels } : {}),
-                                  ...(s.fuelPrices ? { fuelPrices: s.fuelPrices } : {}),
-                                  ...(s.gaugeCorrections ? { gaugeCorrections: s.gaugeCorrections } : {})
-                              })
+                              payments: s.payments || []
                           };
                       });
                   }
-                 // Smart sync: Upsert existing/new, delete removed
-                 let currentItems = [];
-                 let from = 0;
-                 const step = 1000;
-                 let hasMore = true;
-                 while(hasMore) {
-                   const { data: selectData, error: selectErr } = await supabase.from(`erp_${key}`).select('id').eq('user_id', user_id).order('id').range(from, from + step - 1);
-                   if (selectErr) {
-                       console.warn(`Skipping smart sync for erp_${key} (table missing or error): `, selectErr);
-                       return;
-                   }
-                   if (!selectData || selectData.length === 0) {
-                     hasMore = false;
-                   } else {
-                     currentItems = [...currentItems, ...selectData];
-                     if (selectData.length < step) hasMore = false;
-                     from += step;
-                   }
-                 }
+                  if (key === 'shifts') {
+                       items = items.map(s => {
+                           return {
+                               id: s.id,
+                               user_id,
+                               attendantId: s.attendantId,
+                               attendantName: s.attendantName,
+                               date: s.date,
+                               endDate: s.endDate,
+                               shiftName: s.shiftName,
+                               pumpIds: s.pumpIds || [],
+                               status: s.status,
+                               startTime: s.startTime,
+                               endTime: s.endTime,
+                               startCounters: s.startCounters || {},
+                               endCounters: s.endCounters || {},
+                               litersSold: s.litersSold || {},
+                               amountSold: s.amountSold || {},
+                               totalLiters: s.totalLiters,
+                               totalAmount: s.totalAmount,
+                               theoreticalCash: s.theoreticalCash,
+                               realCashReceived: s.realCashReceived,
+                               discrepancy: s.discrepancy,
+                               notes: s.notes,
+                               productsSold: s.productsSold || [],
+                               servicesSold: s.servicesSold || [],
+                               expenses: s.expenses || [],
+                               nonCashPayments: {
+                                   ...(s.nonCashPayments || {}),
+                                   ...(s.startTankLevels ? { startTankLevels: s.startTankLevels } : {}),
+                                   ...(s.endTankLevels ? { endTankLevels: s.endTankLevels } : {}),
+                                   ...(s.fuelPrices ? { fuelPrices: s.fuelPrices } : {}),
+                                   ...(s.gaugeCorrections ? { gaugeCorrections: s.gaugeCorrections } : {})
+                               }
+                           };
+                       });
+                  }
+                  if (key === 'attendants') {
+                      items = items.map(a => {
+                          return {
+                              id: a.id,
+                              user_id,
+                              first_name: a.firstName,
+                              last_name: a.lastName,
+                              phone: a.phone,
+                              matricule: a.matricule,
+                              hire_date: a.hireDate,
+                              status: a.status,
+                              notes: a.notes,
+                              photo: a.photo
+                          };
+                      });
+                  }
+                  if (key === 'pumps') {
+                      items = items.map(p => {
+                          return {
+                              id: p.id,
+                              user_id,
+                              number: p.number,
+                              manufacturer: p.manufacturer,
+                              serial_number: p.serialNumber,
+                              status: p.status,
+                              order_index: p.orderIndex
+                          };
+                      });
+                  }
+                  // Smart sync: Upsert existing/new, delete removed
+                  const targetTable = key === 'shop_products' ? 'erp_products' : `erp_${key}`;
+                  let currentItems: any[] = [];
+                  let from = 0;
+                  const step = 1000;
+                  let hasMore = true;
+                  while(hasMore) {
+                    const { data: selectData, error: selectErr } = await supabase.from(targetTable).select('id, type').eq('user_id', user_id).order('id').range(from, from + step - 1);
+                    if (selectErr) {
+                        console.warn(`Skipping smart sync for ${targetTable} (table missing or error): `, selectErr);
+                        return;
+                    }
+                    if (!selectData || selectData.length === 0) {
+                      hasMore = false;
+                    } else {
+                      currentItems = [...currentItems, ...selectData];
+                      if (selectData.length < step) hasMore = false;
+                      from += step;
+                    }
+                  }
                  if (currentItems) {
-                     const currentIds = currentItems.map(i => i.id);
+                     let relevantCurrent = currentItems;
+                     if (key === 'products') {
+                         relevantCurrent = currentItems.filter(i => i.type !== 'shop' && i.type !== 'lubricant' && (!i.id || !String(i.id).startsWith('sp_')));
+                     } else if (key === 'shop_products') {
+                         relevantCurrent = currentItems.filter(i => i.type === 'shop' || i.type === 'lubricant' || (i.id && String(i.id).startsWith('sp_')));
+                     }
+                     const currentIds = relevantCurrent.map(i => i.id);
                      const newIds = items.map(i => i.id);
                      const idsToDelete = currentIds.filter(id => !newIds.includes(id));
                      
                      if (idsToDelete.length > 0) {
-                         await supabase.from(`erp_${key}`).delete().in('id', idsToDelete).eq('user_id', user_id);
+                         await supabase.from(targetTable).delete().in('id', idsToDelete).eq('user_id', user_id);
                      }
                  }
                  
                  if (items.length > 0) {
                      const chunkSize = 100;
                      for (let i = 0; i < items.length; i += chunkSize) {
-                         const { error: upsertErr } = await supabase.from(`erp_${key}`).upsert(items.slice(i, i + chunkSize));
+                         const { error: upsertErr } = await supabase.from(targetTable).upsert(items.slice(i, i + chunkSize));
                          if (upsertErr) {
-                             console.error(`Error upserting to erp_${key}:`, upsertErr);
+                             console.error(`Error upserting to ${targetTable}:`, upsertErr);
                          }
                      }
                  }
@@ -447,18 +499,93 @@ export function useERPStore(): ERPStoreType {
       let data = externalData;
 
       if (data) {
-        let loadedProducts = data.products || [];
-        loadedProducts = loadedProducts.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          type: p.type,
-          purchasePrice: p.purchase_price !== undefined ? Number(p.purchase_price) : (p.purchasePrice !== undefined ? Number(p.purchasePrice) : 0),
-          salePrice: p.sale_price !== undefined ? Number(p.sale_price) : (p.salePrice !== undefined ? Number(p.salePrice) : 0),
-          vatRate: p.vat_rate !== undefined ? Number(p.vat_rate) : (p.vatRate !== undefined ? Number(p.vatRate) : 20),
-          status: p.status || 'active'
-        }));
-        setProducts(loadedProducts);
-        setShopProducts(data.shop_products || []);
+        let rawProducts = data.products || [];
+        let fuelProds: Product[] = [];
+        let shopProdsFromTable: ShopProduct[] = [];
+
+        rawProducts.forEach((p: any) => {
+          const isShop = p.type === 'shop' || p.type === 'lubricant' || (p.id && String(p.id).startsWith('sp_')) || (p.name && p.name.includes('§§'));
+          if (isShop) {
+            let name = p.name || '';
+            let stockQuantity = 0;
+            let minStockAlert = 5;
+            let photo = '';
+            if (name.includes('§§')) {
+              const parts = name.split('§§');
+              name = parts[0] || '';
+              stockQuantity = Number(parts[1]) || 0;
+              minStockAlert = Number(parts[2]) || 5;
+              photo = parts[3] || '';
+            }
+            shopProdsFromTable.push({
+              id: p.id,
+              name,
+              purchasePrice: p.purchase_price !== undefined ? Number(p.purchase_price) : (p.purchasePrice !== undefined ? Number(p.purchasePrice) : 0),
+              salePrice: p.sale_price !== undefined ? Number(p.sale_price) : (p.salePrice !== undefined ? Number(p.salePrice) : 0),
+              stockQuantity,
+              minStockAlert,
+              photo,
+              status: p.status || 'active'
+            });
+          } else {
+            fuelProds.push({
+              id: p.id,
+              name: p.name,
+              type: p.type,
+              purchasePrice: p.purchase_price !== undefined ? Number(p.purchase_price) : (p.purchasePrice !== undefined ? Number(p.purchasePrice) : 0),
+              salePrice: p.sale_price !== undefined ? Number(p.sale_price) : (p.salePrice !== undefined ? Number(p.salePrice) : 0),
+              vatRate: p.vat_rate !== undefined ? Number(p.vat_rate) : (p.vatRate !== undefined ? Number(p.vatRate) : 20),
+              status: p.status || 'active'
+            });
+          }
+        });
+
+        setProducts(fuelProds);
+
+        let loadedShopProducts: ShopProduct[] = [...shopProdsFromTable];
+
+        if (data.shop_products && Array.isArray(data.shop_products) && data.shop_products.length > 0) {
+          data.shop_products.forEach((sp: any) => {
+            if (!loadedShopProducts.some(p => p.id === sp.id)) {
+              let name = sp.name ? sp.name.split('§§')[0] : '';
+              loadedShopProducts.push({
+                id: sp.id,
+                name,
+                photo: sp.photo || '',
+                purchasePrice: sp.purchase_price !== undefined ? Number(sp.purchase_price) : (sp.purchasePrice !== undefined ? Number(sp.purchasePrice) : 0),
+                salePrice: sp.sale_price !== undefined ? Number(sp.sale_price) : (sp.salePrice !== undefined ? Number(sp.salePrice) : 0),
+                stockQuantity: sp.stock_quantity !== undefined ? Number(sp.stock_quantity) : (sp.stockQuantity !== undefined ? Number(sp.stockQuantity) : 0),
+                minStockAlert: sp.min_stock_alert !== undefined ? Number(sp.min_stock_alert) : (sp.minStockAlert !== undefined ? Number(sp.minStockAlert) : 5),
+                status: sp.status || 'active'
+              });
+            }
+          });
+        }
+
+        if (loadedShopProducts.length === 0) {
+          try {
+            const localSp = localStorage.getItem('station_erp_shop_products');
+            if (localSp) {
+              const parsed = JSON.parse(localSp);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                loadedShopProducts = parsed;
+              }
+            }
+          } catch (e) {
+            console.error("Failed to parse local station_erp_shop_products", e);
+          }
+        }
+
+        setShopProducts(loadedShopProducts);
+        try {
+          localStorage.setItem('station_erp_shop_products', JSON.stringify(loadedShopProducts));
+        } catch (e) {}
+
+        if (shopProdsFromTable.length === 0 && loadedShopProducts.length > 0) {
+          setTimeout(() => {
+            saveState('shop_products', loadedShopProducts, setShopProducts);
+          }, 1000);
+        }
         let loadedTanks = data.tanks || [];
         let tanksUpdated = false;
         loadedTanks = loadedTanks.map((t: any) => {
@@ -480,9 +607,30 @@ export function useERPStore(): ERPStoreType {
             saveState('tanks', loadedTanks, setTanks);
           }, 1000);
         }
-        setPumps(data.pumps || []);
+        let loadedPumps = data.pumps || [];
+        loadedPumps = loadedPumps.map((p: any) => ({
+          id: p.id,
+          number: p.number,
+          manufacturer: p.manufacturer,
+          serialNumber: p.serial_number || p.serialNumber,
+          status: p.status,
+          orderIndex: p.order_index || p.orderIndex
+        }));
+        setPumps(loadedPumps);
         setNozzles(data.nozzles || []);
-        setAttendants(data.attendants || []);
+        let loadedAttendants = data.attendants || [];
+        loadedAttendants = loadedAttendants.map((a: any) => ({
+          id: a.id,
+          firstName: a.first_name || a.firstName,
+          lastName: a.last_name || a.lastName,
+          phone: a.phone,
+          matricule: a.matricule,
+          hireDate: a.hire_date || a.hireDate,
+          status: a.status,
+          notes: a.notes,
+          photo: a.photo
+        }));
+        setAttendants(loadedAttendants);
         let loadedShifts = data.shifts || [];
         loadedShifts = loadedShifts.map((s: any) => {
             const parseJson = (val: any) => {
@@ -1631,19 +1779,74 @@ return {
   };
 
   const loadDemoData = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const uid = session.user.id.substring(0, 5);
+    
+    // Helper to make IDs unique per user to avoid PK conflicts in multi-tenant setup
+    const u = <T extends { id: string }>(items: T[]): T[] => 
+      items.map(item => ({ ...item, id: `${item.id}_${uid}` }));
+
+    const products = u(INITIAL_PRODUCTS);
+    const tanks = u(INITIAL_TANKS);
+    const pumps = u(INITIAL_PUMPS);
+    const nozzles = u(INITIAL_NOZZLES).map(n => ({
+      ...n,
+      pumpId: `${n.pumpId}_${uid}`,
+      productId: `${n.productId}_${uid}`,
+      tankId: `${n.tankId}_${uid}`
+    }));
+    const attendants = u(INITIAL_ATTENDANTS);
+    const suppliers = u(INITIAL_SUPPLIERS);
+    const clients = u(INITIAL_CLIENTS);
+    
+    const shifts = u(INITIAL_SHIFTS).map(s => {
+      const newStartCounters: any = {};
+      Object.keys(s.startCounters || {}).forEach(nid => {
+        newStartCounters[`${nid}_${uid}`] = s.startCounters[nid];
+      });
+      return {
+        ...s,
+        attendantId: `${s.attendantId}_${uid}`,
+        pumpIds: (s.pumpIds || []).map(pid => `${pid}_${uid}`),
+        startCounters: newStartCounters
+      };
+    });
+
+    const sales = u(INITIAL_SALES).map(s => ({
+      ...s,
+      productId: `${s.productId}_${uid}`,
+      pumpId: `${s.pumpId}_${uid}`,
+      nozzleId: `${s.nozzleId}_${uid}`,
+      attendantId: `${s.attendantId}_${uid}`,
+      shiftId: `${s.shiftId}_${uid}`
+    }));
+
+    const supplies = u(INITIAL_SUPPLIES).map(s => ({
+      ...s,
+      productId: `${s.productId}_${uid}`,
+      tankId: `${s.tankId}_${uid}`
+    }));
+
+    const richDocs = u(INITIAL_RICH_DOCUMENTS);
+
     const promises = [
-      saveState('products', INITIAL_PRODUCTS, setProducts),
-      saveState('tanks', INITIAL_TANKS, setTanks),
-      saveState('pumps', INITIAL_PUMPS, setPumps),
-      saveState('nozzles', INITIAL_NOZZLES, setNozzles),
-      saveState('attendants', INITIAL_ATTENDANTS, setAttendants),
-      saveState('suppliers', INITIAL_SUPPLIERS, setSuppliers),
-      saveState('clients', INITIAL_CLIENTS, setClients),
-      saveState('shifts', INITIAL_SHIFTS, setShifts),
-      saveState('sales', INITIAL_SALES, setSales),
-      saveState('supplies', INITIAL_SUPPLIES, setSupplies),
+      saveState('products', products, setProducts),
+      saveState('tanks', tanks, setTanks),
+      saveState('pumps', pumps, setPumps),
+      saveState('nozzles', nozzles, setNozzles),
+      saveState('attendants', attendants, setAttendants),
+      saveState('suppliers', suppliers, setSuppliers),
+      saveState('clients', clients, setClients),
+      saveState('shifts', shifts, setShifts),
+      saveState('sales', sales, setSales),
+      saveState('supplies', supplies, setSupplies),
       saveState('cash_registry', INITIAL_CASH_REGISTRY, setCashRegistry),
-      saveState('config', INITIAL_CONFIG, setConfig)
+      saveState('config', INITIAL_CONFIG, setConfig),
+      saveState('rich_documents', richDocs, setRichDocuments),
+      saveState('stock_corrections', INITIAL_STOCK_CORRECTIONS, setStockCorrections),
+      saveState('audit_logs', INITIAL_AUDIT_LOGS, setAuditLogs),
+      saveState('alerts', INITIAL_ALERTS, setAlerts)
     ];
     await Promise.all(promises);
   };

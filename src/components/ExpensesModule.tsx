@@ -584,7 +584,7 @@ export function ExpensesModule({ store }: { store: any }) {
 
             {/* Modal Body - Printable Content */}
             <div className="p-6 overflow-y-auto flex-1 bg-slate-100 print:p-0 print:bg-white">
-              <div ref={reportRef} className="printable-expense-report bg-white text-slate-900 w-full max-w-[210mm] mx-auto p-8 rounded-xl shadow-lg border border-slate-200 print:shadow-none print:border-none print:p-0 print:w-full print:max-w-none text-[11px] font-sans leading-relaxed flex flex-col justify-between min-h-[297mm]">
+              <div ref={reportRef} className="printable-expense-report bg-white text-slate-900 w-full max-w-[210mm] mx-auto p-10 rounded-xl shadow-lg border border-slate-200 print:shadow-none print:border-none print:p-0 print:w-full print:max-w-none text-[11px] font-sans leading-relaxed flex flex-col justify-between min-h-[297mm]">
                 <style>{`
                   @page {
                     size: A4 portrait;
@@ -631,13 +631,37 @@ export function ExpensesModule({ store }: { store: any }) {
                 `}</style>
 
                 <div className="flex-1 flex flex-col justify-start">
+                  {/* Station Header */}
+                  <div className="flex justify-between items-start mb-6 pb-6 border-b-2 border-slate-100">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        {config?.logo && (config.logo.startsWith('data:') || config.logo.startsWith('http') || config.logo.length > 5) ? (
+                          <img src={config.logo} alt="Logo" className="w-8 h-8 object-cover rounded" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center text-white font-bold text-xs">
+                            <Building2 className="w-4 h-4" />
+                          </div>
+                        )}
+                        <h1 className="text-lg font-black text-slate-900 tracking-tight uppercase">{config?.name || 'STATION SERVICE'}</h1>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-500 max-w-[250px] leading-snug">{config?.address}</p>
+                      <p className="text-[10px] font-bold text-slate-400">Tél : {config?.phone || '-'}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest inline-block mb-2">
+                        Note de Frais
+                      </div>
+                      <p className="text-[9px] font-mono text-slate-400 uppercase">Édité le {new Date().toLocaleDateString('fr-FR')}</p>
+                    </div>
+                  </div>
+
                   {/* Document Title Banner */}
-                  <div className="text-center mb-4 bg-slate-50 border border-slate-200 rounded-xl py-4 px-6 relative overflow-hidden">
+                  <div className="text-center mb-6 bg-slate-50 border border-slate-200 rounded-xl py-4 px-6 relative overflow-hidden">
                     <div className="absolute top-0 left-0 right-0 h-1 bg-rose-600"></div>
                     <h2 className="text-xl font-black uppercase text-slate-900 tracking-wider">
-                      RAPPORT DES DÉPENSES
+                      RAPPORT DÉTAILLÉ DES DÉPENSES
                     </h2>
-                    <p className="text-xs font-semibold text-slate-600 mt-1 font-mono">
+                    <p className="text-[10px] font-bold text-slate-600 mt-1 font-mono uppercase tracking-tight">
                       {selectedDate && selectedEndDate && selectedDate === selectedEndDate ? (
                         <>Date : {formatDateDisplay(selectedDate)}</>
                       ) : selectedDate || selectedEndDate ? (
@@ -646,7 +670,7 @@ export function ExpensesModule({ store }: { store: any }) {
                         <>Période Globale (Toutes les dates)</>
                       )}
                       {selectedAttendant && (
-                        <span className="ml-3 text-indigo-600">
+                        <span className="ml-3 text-rose-600">
                           • Pompiste : {attendants.find(a => a.id === selectedAttendant)?.firstName} {attendants.find(a => a.id === selectedAttendant)?.lastName}
                         </span>
                       )}
@@ -654,33 +678,36 @@ export function ExpensesModule({ store }: { store: any }) {
                   </div>
 
                   {/* Summary Cards */}
-                  <div className="grid grid-cols-3 gap-3 my-4 text-center">
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                      <p className="text-[9px] font-bold text-slate-500 uppercase">Nombre de dépense(s)</p>
-                      <p className="text-base font-mono font-black text-slate-900 mt-0.5">{filteredExpenses.length}</p>
+                  <div className="grid grid-cols-3 gap-4 my-6 text-center">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Opérations</p>
+                      <p className="text-lg font-mono font-black text-slate-900">{filteredExpenses.length}</p>
                     </div>
-                    <div className="p-3 bg-rose-50/60 border border-rose-200 rounded-xl">
-                      <p className="text-[9px] font-bold text-rose-700 uppercase">Total Dépenses</p>
-                      <p className="text-base font-mono font-black text-rose-600 mt-0.5">{formatAmount(totalExpenses)} MAD</p>
+                    <div className="p-4 bg-rose-50/60 border border-rose-200 rounded-2xl shadow-sm">
+                      <p className="text-[9px] font-black text-rose-700 uppercase tracking-widest mb-1">Montant Cumulé</p>
+                      <p className="text-lg font-mono font-black text-rose-600">{formatAmount(totalExpenses)} MAD</p>
                     </div>
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                      <p className="text-[9px] font-bold text-slate-500 uppercase">Payé en Espèces</p>
-                      <p className="text-base font-mono font-black text-emerald-700 mt-0.5">{formatAmount(methodTotals.cash)} MAD</p>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Payé en Espèces</p>
+                      <p className="text-lg font-mono font-black text-emerald-700">{formatAmount(methodTotals.cash)} MAD</p>
                     </div>
                   </div>
 
                   {/* Category Breakdown if applicable */}
                   {categoryTotals.length > 0 && (
-                    <div className="my-4">
-                      <h4 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-2">Répartition par type de dépense</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="my-6">
+                      <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-rose-600"></div>
+                        Répartition par nature de frais
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {categoryTotals.map(([cat, data]) => (
-                          <div key={cat} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center">
+                          <div key={cat} className="p-3 bg-white border border-slate-100 rounded-xl flex justify-between items-center shadow-xs">
                             <div>
-                              <p className="font-bold text-slate-800 text-[10px]">{cat}</p>
-                              <p className="text-[8.5px] text-slate-500">{data.count} opération(s)</p>
+                              <p className="font-black text-slate-800 text-[10px] uppercase tracking-tighter">{cat}</p>
+                              <p className="text-[8.5px] font-bold text-slate-400">{data.count} opération(s)</p>
                             </div>
-                            <span className="font-mono font-bold text-rose-600 text-[11px]">{formatAmount(data.amount)} MAD</span>
+                            <span className="font-mono font-black text-rose-600 text-[11px]">{formatAmount(data.amount)}</span>
                           </div>
                         ))}
                       </div>
@@ -688,89 +715,68 @@ export function ExpensesModule({ store }: { store: any }) {
                   )}
 
                   {/* Expense Items Table */}
-                  <div className="my-4 border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="my-6 border-2 border-slate-900 rounded-xl overflow-hidden shadow-sm">
                     <table className="w-full text-left text-[10px] font-sans">
-                      <thead className="bg-slate-900 text-white font-bold uppercase text-[8.5px] tracking-wider">
+                      <thead className="bg-slate-900 text-white font-black uppercase text-[8.5px] tracking-widest">
                         <tr>
-                          <th className="p-2.5 text-center w-8">#</th>
-                          <th className="p-2.5">Date & Shift</th>
-                          <th className="p-2.5">Pompiste</th>
-                          <th className="p-2.5">Type</th>
-                          <th className="p-2.5">Description</th>
-                          <th className="p-2.5 text-center">Méthode</th>
-                          <th className="p-2.5 text-right">Montant (MAD)</th>
+                          <th className="p-3 text-center w-8">#</th>
+                          <th className="p-3">Date & Shift</th>
+                          <th className="p-3">Pompiste</th>
+                          <th className="p-3">Désignation</th>
+                          <th className="p-3 text-center">Méthode</th>
+                          <th className="p-3 text-right">Montant (MAD)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200">
                         {filteredExpenses.length > 0 ? (
                           filteredExpenses.map((exp, idx) => (
                             <tr key={exp.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                              <td className="p-2.5 text-center font-mono text-slate-400 font-bold">{idx + 1}</td>
-                              <td className="p-2.5 font-semibold text-slate-900 whitespace-nowrap">
+                              <td className="p-3 text-center font-mono text-slate-300 font-black">{idx + 1}</td>
+                              <td className="p-3 font-bold text-slate-900 whitespace-nowrap">
                                 <div>{exp.date ? formatDateDisplay(exp.date.split('T')[0]) : '-'}</div>
-                                <div className="text-[8.5px] text-slate-500 font-normal">{exp.shiftName}</div>
+                                <div className="text-[8.5px] text-slate-400 font-bold uppercase">{exp.shiftName}</div>
                               </td>
-                              <td className="p-2.5 font-medium text-slate-800">{exp.attendantName}</td>
-                              <td className="p-2.5">
-                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 font-semibold rounded text-[8.5px]">
-                                  {exp.type}
+                              <td className="p-3 font-black text-slate-700 uppercase">{exp.attendantName}</td>
+                              <td className="p-3 text-slate-700">
+                                <div className="font-black text-[9px] uppercase text-slate-900">{exp.type}</div>
+                                <div className="text-slate-500 italic max-w-[250px] leading-tight mt-0.5">{exp.description}</div>
+                              </td>
+                              <td className="p-3 text-center uppercase text-[8.5px] font-black">
+                                <span className={`px-1.5 py-0.5 rounded ${exp.method === 'cash' ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'}`}>
+                                  {exp.method === 'cash' ? 'Espèce' : 'Carte'}
                                 </span>
                               </td>
-                              <td className="p-2.5 text-slate-700 max-w-[180px]">{exp.description}</td>
-                              <td className="p-2.5 text-center uppercase text-[8.5px] font-bold">
-                                {exp.method === 'cash' ? 'Espèce' : 'Carte'}
-                              </td>
-                              <td className="p-2.5 text-right font-mono font-bold text-rose-600 whitespace-nowrap">
+                              <td className="p-3 text-right font-mono font-black text-rose-600 whitespace-nowrap text-xs">
                                 -{formatAmount(exp.amount)}
                               </td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={7} className="p-6 text-center text-slate-400 italic">
-                              Aucune dépense à afficher pour cette sélection.
+                            <td colSpan={6} className="p-10 text-center text-slate-400 italic font-bold">
+                              Aucun enregistrement trouvé pour cette sélection.
                             </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
-
-                  {/* Horizontal Totals Banner */}
-                  {filteredExpenses.length > 0 && (
-                    <div className="mt-4 w-full bg-slate-900 text-white rounded-xl overflow-hidden shadow-sm font-sans border border-slate-800">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-800 items-center text-center p-3">
-                        <div className="py-1 px-3 flex items-center justify-center sm:justify-start">
-                          <span className="text-xs font-black uppercase tracking-wider text-slate-200">
-                            TOTAL DÉPENSES :
-                          </span>
-                        </div>
-                        <div className="py-1 px-3 flex flex-col items-center">
-                          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                            Nombre d'opérations
-                          </span>
-                          <span className="text-xs font-mono font-bold text-white">
-                            {filteredExpenses.length}
-                          </span>
-                        </div>
-                        <div className="py-1 px-3 flex flex-col items-center bg-rose-950/40">
-                          <span className="text-[9px] font-black text-rose-300 uppercase tracking-wider mb-0.5">
-                            Montant Total
-                          </span>
-                          <span className="text-sm font-mono font-black text-rose-400">
-                            {formatAmount(totalExpenses)} MAD
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                {/* Footer timestamp */}
-                <div className="mt-auto pt-3 border-t border-slate-200 flex justify-between items-center text-[8.5px] text-slate-400 font-mono">
-                  <div>Édité le {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</div>
-                  <div>Rapport de Dépenses ERP</div>
-                  <div>Page 1 / 1</div>
+                {/* Footer Legal Info - CONSISTENT WITH BILLING */}
+                <div className="mt-auto pt-8 border-t-2 border-slate-100">
+                  <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[10px] font-black text-slate-500 uppercase tracking-tight text-center">
+                    {config?.taxId && <span>ICE: <span className="text-slate-900 font-mono">{config.taxId}</span></span>}
+                    <span>SYSTÈME DE GESTION ERP - RAPPORT CERTIFIÉ</span>
+                    <span>PAGE 1 / 1</span>
+                  </div>
+                  
+                  {/* Bottom Bar */}
+                  <div className="text-white text-center py-2.5 mt-6 -mx-10 -mb-10 bg-rose-600">
+                    <p className="text-[11px] font-black tracking-[0.3em] uppercase opacity-95">
+                      Document interne de gestion
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

@@ -5,15 +5,16 @@ import {
 } from './types';
 
 export const INITIAL_PRODUCTS: Product[] = [
-  { id: 'prod_gazoil', name: 'Gazoil', type: 'gazoil', purchasePrice: 0.00, salePrice: 0.00, vatRate: 20, status: 'active' },
-  { id: 'prod_sans_plomb', name: 'Sans Plomb', type: 'sans_plomb', purchasePrice: 0.00, salePrice: 0.00, vatRate: 20, status: 'active' },
-  { id: 'prod_melange', name: 'Mélange', type: 'melange', purchasePrice: 0.00, salePrice: 0.00, vatRate: 20, status: 'active' },
+  { id: 'prod_gazoil', name: 'Gazoil Premium', type: 'gazoil', purchasePrice: 12.50, salePrice: 14.50, vatRate: 20, status: 'active' },
+  { id: 'prod_sans_plomb', name: 'Super Sans Plomb', type: 'sans_plomb', purchasePrice: 13.80, salePrice: 15.60, vatRate: 20, status: 'active' },
+  { id: 'prod_melange', name: 'Mélange 2T', type: 'melange', purchasePrice: 14.20, salePrice: 16.10, vatRate: 20, status: 'active' },
 ];
 
 export const INITIAL_TANKS: Tank[] = [
-  { id: 'tank_1', number: 'Citerne N°1 (Gazoil)', productId: 'prod_gazoil', productName: 'Gazoil', capacity: 30000, currentLevel: 24500, minLevel: 5000, maxLevel: 29500 },
-  { id: 'tank_2', number: 'Citerne N°2 (Sans Plomb)', productId: 'prod_sans_plomb', productName: 'Sans Plomb', capacity: 20000, currentLevel: 14200, minLevel: 4000, maxLevel: 19500 },
-  { id: 'tank_3', number: 'Citerne N°3 (Mélange)', productId: 'prod_melange', productName: 'Mélange', capacity: 20000, currentLevel: 4200, minLevel: 4000, maxLevel: 19500 }, // Low Stock Alarm triggered soon!
+  { id: 'tank_1', number: 'Citerne Gazoil 1 (30T)', productId: 'prod_gazoil', productName: 'Gazoil Premium', capacity: 30000, currentLevel: 18500, minLevel: 5000, maxLevel: 29500 },
+  { id: 'tank_2', number: 'Citerne Gazoil 2 (20T)', productId: 'prod_gazoil', productName: 'Gazoil Premium', capacity: 20000, currentLevel: 4200, minLevel: 4000, maxLevel: 19500 },
+  { id: 'tank_3', number: 'Citerne Sans Plomb (20T)', productId: 'prod_sans_plomb', productName: 'Super Sans Plomb', capacity: 20000, currentLevel: 12400, minLevel: 4000, maxLevel: 19500 },
+  { id: 'tank_4', number: 'Citerne Mélange (10T)', productId: 'prod_melange', productName: 'Mélange 2T', capacity: 10000, currentLevel: 2800, minLevel: 2000, maxLevel: 9500 },
 ];
 
 export const INITIAL_PUMPS: Pump[] = [
@@ -25,22 +26,22 @@ export const INITIAL_PUMPS: Pump[] = [
 
 export const INITIAL_NOZZLES: Nozzle[] = [
   // Pompe 1
-  { id: 'noz_1a', name: 'Pistolet 1-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', currentMechCounter: 152430, currentElecCounter: 152432.1, status: 'active' },
-  { id: 'noz_1b', name: 'Pistolet 1-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', currentMechCounter: 98210, currentElecCounter: 98211.5, status: 'active' },
-  { id: 'noz_1c', name: 'Pistolet 1-C', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_3', tankNumber: 'Citerne N°3 (Mélange)', currentMechCounter: 64150, currentElecCounter: 64152.0, status: 'active' },
+  { id: 'noz_1a', name: 'Pistolet 1-A', productId: 'prod_gazoil', productName: 'Gazoil Premium', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_1', tankNumber: 'Citerne Gazoil 1 (30T)', currentMechCounter: 152430, currentElecCounter: 152432.1, status: 'active' },
+  { id: 'noz_1b', name: 'Pistolet 1-B', productId: 'prod_sans_plomb', productName: 'Super Sans Plomb', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_3', tankNumber: 'Citerne Sans Plomb (20T)', currentMechCounter: 98210, currentElecCounter: 98211.5, status: 'active' },
+  { id: 'noz_1c', name: 'Pistolet 1-C', productId: 'prod_melange', productName: 'Mélange 2T', pumpId: 'pump_1', pumpNumber: 'Pompe 01', tankId: 'tank_4', tankNumber: 'Citerne Mélange (10T)', currentMechCounter: 64150, currentElecCounter: 64152.0, status: 'active' },
   
   // Pompe 2
-  { id: 'noz_2a', name: 'Pistolet 2-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', currentMechCounter: 184200, currentElecCounter: 184203.4, status: 'active' },
-  { id: 'noz_2b', name: 'Pistolet 2-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', currentMechCounter: 74100, currentElecCounter: 74102.2, status: 'active' },
-  { id: 'noz_2c', name: 'Pistolet 2-C', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_3', tankNumber: 'Citerne N°3 (Mélange)', currentMechCounter: 41200, currentElecCounter: 41200.8, status: 'active' },
+  { id: 'noz_2a', name: 'Pistolet 2-A', productId: 'prod_gazoil', productName: 'Gazoil Premium', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_1', tankNumber: 'Citerne Gazoil 1 (30T)', currentMechCounter: 184200, currentElecCounter: 184203.4, status: 'active' },
+  { id: 'noz_2b', name: 'Pistolet 2-B', productId: 'prod_sans_plomb', productName: 'Super Sans Plomb', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_3', tankNumber: 'Citerne Sans Plomb (20T)', currentMechCounter: 74100, currentElecCounter: 74102.2, status: 'active' },
+  { id: 'noz_2c', name: 'Pistolet 2-C', productId: 'prod_melange', productName: 'Mélange 2T', pumpId: 'pump_2', pumpNumber: 'Pompe 02', tankId: 'tank_4', tankNumber: 'Citerne Mélange (10T)', currentMechCounter: 41200, currentElecCounter: 41200.8, status: 'active' },
 
   // Pompe 3
-  { id: 'noz_3a', name: 'Pistolet 3-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_3', pumpNumber: 'Pompe 03', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', currentMechCounter: 211450, currentElecCounter: 211452.9, status: 'active' },
-  { id: 'noz_3b', name: 'Pistolet 3-B', productId: 'prod_sans_plomb', productName: 'Sans Plomb', pumpId: 'pump_3', pumpNumber: 'Pompe 03', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', currentMechCounter: 82300, currentElecCounter: 82301.1, status: 'active' },
+  { id: 'noz_3a', name: 'Pistolet 3-A', productId: 'prod_gazoil', productName: 'Gazoil Premium', pumpId: 'pump_3', pumpNumber: 'Pompe 03', tankId: 'tank_1', tankNumber: 'Citerne Gazoil 1 (30T)', currentMechCounter: 211450, currentElecCounter: 211452.9, status: 'active' },
+  { id: 'noz_3b', name: 'Pistolet 3-B', productId: 'prod_sans_plomb', productName: 'Super Sans Plomb', pumpId: 'pump_3', pumpNumber: 'Pompe 03', tankId: 'tank_3', tankNumber: 'Citerne Sans Plomb (20T)', currentMechCounter: 82300, currentElecCounter: 82301.1, status: 'active' },
 
   // Pompe 4
-  { id: 'noz_4a', name: 'Pistolet 4-A', productId: 'prod_gazoil', productName: 'Gazoil', pumpId: 'pump_4', pumpNumber: 'Pompe 04', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', currentMechCounter: 35000, currentElecCounter: 35000.0, status: 'defective' },
-  { id: 'noz_4b', name: 'Pistolet 4-B', productId: 'prod_melange', productName: 'Mélange', pumpId: 'pump_4', pumpNumber: 'Pompe 04', tankId: 'tank_3', tankNumber: 'Citerne N°3 (Mélange)', currentMechCounter: 22100, currentElecCounter: 22100.0, status: 'active' },
+  { id: 'noz_4a', name: 'Pistolet 4-A', productId: 'prod_gazoil', productName: 'Gazoil Premium', pumpId: 'pump_4', pumpNumber: 'Pompe 04', tankId: 'tank_2', tankNumber: 'Citerne Gazoil 2 (20T)', currentMechCounter: 35000, currentElecCounter: 35000.0, status: 'defective' },
+  { id: 'noz_4b', name: 'Pistolet 4-B', productId: 'prod_melange', productName: 'Mélange 2T', pumpId: 'pump_4', pumpNumber: 'Pompe 04', tankId: 'tank_4', tankNumber: 'Citerne Mélange (10T)', currentMechCounter: 22100, currentElecCounter: 22100.0, status: 'active' },
 ];
 
 export const INITIAL_ATTENDANTS: Attendant[] = [
@@ -82,13 +83,13 @@ export const INITIAL_SHIFTS: Shift[] = [
       'noz_2a': 180, 'noz_2b': 70, 'noz_2c': 60
     },
     amountSold: {
-      'noz_1a': 291.2, 'noz_1b': 195, 'noz_1c': 164,
-      'noz_2a': 327.6, 'noz_2b': 136.5, 'noz_2c': 123
+      'noz_1a': 2320, 'noz_1b': 1560, 'noz_1c': 1288,
+      'noz_2a': 2610, 'noz_2b': 1092, 'noz_2c': 966
     },
     totalLiters: 650,
-    totalAmount: 1237.3,
-    theoreticalCash: 1237.3,
-    realCashReceived: 1237.3,
+    totalAmount: 9836,
+    theoreticalCash: 9836,
+    realCashReceived: 9836,
     discrepancy: 0,
     duration: 8,
     notes: 'Shift calme, aucun écart.'
@@ -129,14 +130,14 @@ export const INITIAL_SHIFTS: Shift[] = [
       'noz_3a': 250, 'noz_3b': 120
     },
     amountSold: {
-      'noz_1a': 273, 'noz_1b': 195, 'noz_1c': 143.5,
-      'noz_2a': 218.4, 'noz_2b': 156, 'noz_2c': 123,
-      'noz_3a': 455, 'noz_3b': 234
+      'noz_1a': 2175, 'noz_1b': 1560, 'noz_1c': 1127,
+      'noz_2a': 1740, 'noz_2b': 1248, 'noz_2c': 966,
+      'noz_3a': 3625, 'noz_3b': 1872
     },
     totalLiters: 950,
-    totalAmount: 1797.9,
-    theoreticalCash: 1797.9,
-    realCashReceived: 1792.9,
+    totalAmount: 14313,
+    theoreticalCash: 14313,
+    realCashReceived: 14308,
     discrepancy: -5, // -5 MAD discrepancy!
     duration: 8,
     notes: 'Différence de -5 MAD expliquée par une erreur de monnaie rendue à un client pressé.'
@@ -145,20 +146,20 @@ export const INITIAL_SHIFTS: Shift[] = [
 
 export const INITIAL_SALES: Sale[] = [
   // Seeded sales from July 2nd
-  { id: 'sale_1', date: '2026-07-05', time: '08:32', productId: 'prod_gazoil', productName: 'Gazoil', qty: 50, price: 1.82, total: 91, pumpId: 'pump_1', pumpNumber: 'Pompe 01', nozzleId: 'noz_1a', nozzleName: 'Pistolet 1-A', attendantId: 'att_1', attendantName: 'Yassine El Amrani', shiftId: 'shift_past_1' },
-  { id: 'sale_2', date: '2026-07-05', time: '09:15', productId: 'prod_sans_plomb', productName: 'Sans Plomb', qty: 40, price: 1.95, total: 78, pumpId: 'pump_1', pumpNumber: 'Pompe 01', nozzleId: 'noz_1b', nozzleName: 'Pistolet 1-B', attendantId: 'att_1', attendantName: 'Yassine El Amrani', shiftId: 'shift_past_1' },
-  { id: 'sale_3', date: '2026-07-05', time: '10:45', productId: 'prod_melange', productName: 'Mélange', qty: 45, price: 2.05, total: 92.25, pumpId: 'pump_2', pumpNumber: 'Pompe 02', nozzleId: 'noz_2c', nozzleName: 'Pistolet 2-C', attendantId: 'att_1', attendantName: 'Yassine El Amrani', shiftId: 'shift_past_1' },
-  { id: 'sale_4', date: '2026-07-05', time: '11:20', productId: 'prod_gazoil', productName: 'Gazoil', qty: 65, price: 1.82, total: 118.3, pumpId: 'pump_2', pumpNumber: 'Pompe 02', nozzleId: 'noz_2a', nozzleName: 'Pistolet 2-A', attendantId: 'att_1', attendantName: 'Yassine El Amrani', shiftId: 'shift_past_1' },
-  { id: 'sale_5', date: '2026-07-05', time: '15:10', productId: 'prod_gazoil', productName: 'Gazoil', qty: 120, price: 1.82, total: 218.4, pumpId: 'pump_3', pumpNumber: 'Pompe 03', nozzleId: 'noz_3a', nozzleName: 'Pistolet 3-A', attendantId: 'att_2', attendantName: 'Khadija Bennani', shiftId: 'shift_past_2' },
-  { id: 'sale_6', date: '2026-07-05', time: '16:40', productId: 'prod_sans_plomb', productName: 'Sans Plomb', qty: 35, price: 1.95, total: 68.25, pumpId: 'pump_3', pumpNumber: 'Pompe 03', nozzleId: 'noz_3b', nozzleName: 'Pistolet 3-B', attendantId: 'att_2', attendantName: 'Khadija Bennani', shiftId: 'shift_past_2' },
-  { id: 'sale_7', date: '2026-07-05', time: '18:55', productId: 'prod_melange', productName: 'Mélange', qty: 55, price: 2.05, total: 112.75, pumpId: 'pump_1', pumpNumber: 'Pompe 01', nozzleId: 'noz_1c', nozzleName: 'Pistolet 1-C', attendantId: 'att_2', attendantName: 'Khadija Bennani', shiftId: 'shift_past_2' },
-  { id: 'sale_8', date: '2026-07-05', time: '20:12', productId: 'prod_gazoil', productName: 'Gazoil', qty: 80, price: 1.82, total: 145.6, pumpId: 'pump_3', pumpNumber: 'Pompe 03', nozzleId: 'noz_3a', nozzleName: 'Pistolet 3-A', attendantId: 'att_2', attendantName: 'Khadija Bennani', shiftId: 'shift_past_2' },
+  { id: 'sale_1', date: '2026-07-05', time: '08:32', productId: 'prod_gazoil', productName: 'Gazoil Premium', qty: 50, price: 14.50, total: 725, pumpId: 'pump_1', pumpNumber: 'Pompe 01', nozzleId: 'noz_1a', nozzleName: 'Pistolet 1-A', attendantId: 'att_1', attendantName: 'Yassine El Amrani', shiftId: 'shift_past_1' },
+  { id: 'sale_2', date: '2026-07-05', time: '09:15', productId: 'prod_sans_plomb', productName: 'Super Sans Plomb', qty: 40, price: 15.60, total: 624, pumpId: 'pump_1', pumpNumber: 'Pompe 01', nozzleId: 'noz_1b', nozzleName: 'Pistolet 1-B', attendantId: 'att_1', attendantName: 'Yassine El Amrani', shiftId: 'shift_past_1' },
+  { id: 'sale_3', date: '2026-07-05', time: '10:45', productId: 'prod_melange', productName: 'Mélange 2T', qty: 45, price: 16.10, total: 724.5, pumpId: 'pump_2', pumpNumber: 'Pompe 02', nozzleId: 'noz_2c', nozzleName: 'Pistolet 2-C', attendantId: 'att_1', attendantName: 'Yassine El Amrani', shiftId: 'shift_past_1' },
+  { id: 'sale_4', date: '2026-07-05', time: '11:20', productId: 'prod_gazoil', productName: 'Gazoil Premium', qty: 65, price: 14.50, total: 942.5, pumpId: 'pump_2', pumpNumber: 'Pompe 02', nozzleId: 'noz_2a', nozzleName: 'Pistolet 2-A', attendantId: 'att_1', attendantName: 'Yassine El Amrani', shiftId: 'shift_past_1' },
+  { id: 'sale_5', date: '2026-07-05', time: '15:10', productId: 'prod_gazoil', productName: 'Gazoil Premium', qty: 120, price: 14.50, total: 1740, pumpId: 'pump_3', pumpNumber: 'Pompe 03', nozzleId: 'noz_3a', nozzleName: 'Pistolet 3-A', attendantId: 'att_2', attendantName: 'Khadija Bennani', shiftId: 'shift_past_2' },
+  { id: 'sale_6', date: '2026-07-05', time: '16:40', productId: 'prod_sans_plomb', productName: 'Super Sans Plomb', qty: 35, price: 15.60, total: 546, pumpId: 'pump_3', pumpNumber: 'Pompe 03', nozzleId: 'noz_3b', nozzleName: 'Pistolet 3-B', attendantId: 'att_2', attendantName: 'Khadija Bennani', shiftId: 'shift_past_2' },
+  { id: 'sale_7', date: '2026-07-05', time: '18:55', productId: 'prod_melange', productName: 'Mélange 2T', qty: 55, price: 16.10, total: 885.5, pumpId: 'pump_1', pumpNumber: 'Pompe 01', nozzleId: 'noz_1c', nozzleName: 'Pistolet 1-C', attendantId: 'att_2', attendantName: 'Khadija Bennani', shiftId: 'shift_past_2' },
+  { id: 'sale_8', date: '2026-07-05', time: '20:12', productId: 'prod_gazoil', productName: 'Gazoil Premium', qty: 80, price: 14.50, total: 1160, pumpId: 'pump_3', pumpNumber: 'Pompe 03', nozzleId: 'noz_3a', nozzleName: 'Pistolet 3-A', attendantId: 'att_2', attendantName: 'Khadija Bennani', shiftId: 'shift_past_2' },
 ];
 
 export const INITIAL_SUPPLIES: Supply[] = [
-  { id: 'sup_1', supplier: 'TotalEnergies Distribution', productId: 'prod_gazoil', productName: 'Gazoil', tankId: 'tank_1', tankNumber: 'Citerne N°1 (Gazoil)', qtyDelivered: 12000, purchasePrice: 1.41, invoiceNumber: 'INV-2026-0689', date: '2026-06-28' },
-  { id: 'sup_2', supplier: 'Esso Cargo France', productId: 'prod_sans_plomb', productName: 'Sans Plomb', tankId: 'tank_2', tankNumber: 'Citerne N°2 (Sans Plomb)', qtyDelivered: 8000, purchasePrice: 1.51, invoiceNumber: 'INV-2026-0711', date: '2026-06-30' },
-  { id: 'sup_3', supplier: 'TotalEnergies Distribution', productId: 'prod_melange', productName: 'Mélange', tankId: 'tank_3', tankNumber: 'Citerne N°3 (Mélange)', qtyDelivered: 6000, purchasePrice: 1.58, invoiceNumber: 'INV-2026-0715', date: '2026-07-01' },
+  { id: 'sup_1', supplier: 'TotalEnergies Distribution', productId: 'prod_gazoil', productName: 'Gazoil Premium', tankId: 'tank_1', tankNumber: 'Citerne Gazoil 1 (30T)', qtyDelivered: 12000, purchasePrice: 12.50, invoiceNumber: 'INV-2026-0689', date: '2026-06-28' },
+  { id: 'sup_2', supplier: 'Esso Cargo France', productId: 'prod_sans_plomb', productName: 'Super Sans Plomb', tankId: 'tank_3', tankNumber: 'Citerne Sans Plomb (20T)', qtyDelivered: 8000, purchasePrice: 13.80, invoiceNumber: 'INV-2026-0711', date: '2026-06-30' },
+  { id: 'sup_3', supplier: 'TotalEnergies Distribution', productId: 'prod_melange', productName: 'Mélange 2T', tankId: 'tank_4', tankNumber: 'Citerne Mélange (10T)', qtyDelivered: 6000, purchasePrice: 14.20, invoiceNumber: 'INV-2026-0715', date: '2026-07-01' },
 ];
 
 export const INITIAL_CASH_REGISTRY: CashRegistry = {
@@ -199,17 +200,65 @@ export const INITIAL_USERS: User[] = [
 ];
 
 export const INITIAL_CONFIG: StationConfig = {
-  name: 'Station-Service AutoGlow Casablanca',
+  name: 'STATION SERVICE ATLAS - DEMO',
   logo: '⛽',
-  address: "Boulevard d'Anfa, 20000 Casablanca",
-  phone: '+212 5 22 45 67 89',
-  taxId: 'MA-88923849102',
+  address: "Quartier Industriel, Route d'Ouezzane, Maroc",
+  phone: '+212 5 37 12 34 56',
+  taxId: 'ICE: 001234567890123',
   autoBackup: true,
   language: 'fr',
   theme: 'light',
-  printerIp: '192.168.1.150',
+  printerIp: '192.168.1.100',
   iotConfigured: true,
+  documentLogo: '⛽',
+  documentColor: '#4f46e5',
+  documentFooter: 'Merci de votre confiance. STATION SERVICE ATLAS - Votre partenaire route.',
+  documentNumbering: {
+    facture: { prefix: 'FAC-', nextNumber: 152 },
+    devis: { prefix: 'DEV-', nextNumber: 45 },
+    bonLivraison: { prefix: 'BL-', nextNumber: 89 }
+  }
 };
+
+export const INITIAL_RICH_DOCUMENTS: any[] = [
+  {
+    id: 'doc_demo_1',
+    docType: 'facture',
+    documentNumber: 'FAC-2026-0150',
+    partnerId: 'client_1',
+    partnerName: 'Transports Express',
+    date: '2026-07-20',
+    items: [
+      { id: 'item_1', description: 'Gazoil Premium', quantity: 500, unitPrice: 14.50, vatRate: 20, amountHT: 7250, vatAmount: 1450, amountTTC: 8700 },
+      { id: 'item_2', description: 'Lubrifiant 5W40 5L', quantity: 2, unitPrice: 450, vatRate: 20, amountHT: 900, vatAmount: 180, amountTTC: 1080 }
+    ],
+    amountHT: 8150,
+    vatAmount: 1630,
+    amountTTC: 9780,
+    paymentMethod: 'virement',
+    status: 'paid',
+    notes: 'Facture mensuelle Juillet 2026',
+    historyLogs: [{ date: '2026-07-20T10:00:00', user: 'Admin', action: 'Création', details: 'Facture générée' }]
+  },
+  {
+    id: 'doc_demo_2',
+    docType: 'devis',
+    documentNumber: 'DEV-2026-0044',
+    partnerId: 'client_1',
+    partnerName: 'Transports Express',
+    date: '2026-07-25',
+    items: [
+      { id: 'item_3', description: 'Contrat Maintenance Flotte (Annuel)', quantity: 1, unitPrice: 15000, vatRate: 20, amountHT: 15000, vatAmount: 3000, amountTTC: 18000 }
+    ],
+    amountHT: 15000,
+    vatAmount: 3000,
+    amountTTC: 18000,
+    paymentMethod: 'virement',
+    status: 'draft',
+    notes: 'Offre spéciale annuelle',
+    historyLogs: [{ date: '2026-07-25T14:30:00', user: 'Admin', action: 'Création', details: 'Devis envoyé pour validation' }]
+  }
+];
 
 export const INITIAL_SUPPLIERS: Supplier[] = [
   { id: 'supp_1', name: 'TotalEnergies', phone: '+212 5 22 11 22 33', email: 'contact@total.ma', address: 'Casablanca', ice: '1122334455', contact: 'M. Ali', notes: 'Fournisseur principal' }

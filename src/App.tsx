@@ -39,7 +39,7 @@ function AppContent({ session }: { session: any }) {
     const fetchData = async () => {
       try {
         const arrayKeys = [
-          'products', 'tanks', 'pumps', 'nozzles', 'attendants', 'shifts', 
+          'products', 'shop_products', 'tanks', 'pumps', 'nozzles', 'attendants', 'shifts', 
           'sales', 'supplies', 'stock_corrections', 'audit_logs', 
           'alerts', 'users', 'suppliers', 'clients', 'purchase_invoices', 'sales_invoices',
           'rich_documents'
@@ -118,6 +118,14 @@ function AppContent({ session }: { session: any }) {
 
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Auto-seed demo data for test@gmail.com if account is empty
+  useEffect(() => {
+    if (dataLoaded && session?.user?.email === 'test@gmail.com' && store.products.length === 0) {
+      console.log("Auto-seeding demo data for test account...");
+      store.loadDemoData();
+    }
+  }, [dataLoaded, session?.user?.email, store.products.length]);
 
   if (!dataLoaded) {
     return (

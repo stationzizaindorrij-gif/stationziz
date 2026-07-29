@@ -468,14 +468,38 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
       <div className="bg-slate-100 p-4 sm:p-8 rounded-2xl flex justify-center print:p-0 print:bg-white">
         <div
           ref={reportRef}
-          className="printable-report bg-white text-slate-900 w-full max-w-[210mm] p-8 sm:p-12 rounded-xl shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-0 print:w-full print:max-w-none text-[11px] font-sans leading-relaxed flex flex-col justify-between min-h-[297mm]"
+          className="printable-report bg-white text-slate-900 w-full max-w-[210mm] p-10 sm:p-12 rounded-xl shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-0 print:w-full print:max-w-none text-[11px] font-sans leading-relaxed flex flex-col justify-between min-h-[297mm]"
         >
           <div className="flex-1 flex flex-col justify-start">
+            {/* Station Header */}
+            <div className="flex justify-between items-start mb-6 pb-6 border-b-2 border-slate-100">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 mb-1">
+                  {settings.logoUrl && (settings.logoUrl.startsWith('data:') || settings.logoUrl.startsWith('http') || settings.logoUrl.length > 5) ? (
+                    <img src={settings.logoUrl} alt="Logo" className="w-8 h-8 object-cover rounded" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+                      <span className="text-xl">⛽</span>
+                    </div>
+                  )}
+                  <h1 className="text-lg font-black text-slate-900 tracking-tight uppercase">{settings.companyName || 'STATION SERVICE'}</h1>
+                </div>
+                <p className="text-[10px] font-bold text-slate-500 max-w-[250px] leading-snug">{settings.address}</p>
+                <p className="text-[10px] font-bold text-slate-400">Tél : {settings.phone || '-'}</p>
+              </div>
+              <div className="text-right">
+                <div className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest inline-block mb-2">
+                  Bilan de Facturation
+                </div>
+                <p className="text-[9px] font-mono text-slate-400 uppercase">Édité le {new Date().toLocaleDateString('fr-FR')}</p>
+              </div>
+            </div>
+
             {/* Document Title / Subtitle Banner */}
-            <div className="text-center my-6 bg-slate-50 border border-slate-200 rounded-xl py-4 px-6 relative overflow-hidden">
+            <div className="text-center mb-6 bg-slate-50 border border-slate-200 rounded-xl py-4 px-6 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-600"></div>
               <h2 className="text-base font-black tracking-widest uppercase font-sans text-slate-900">
-                Rapport Des Pièces Comptables
+                LISTE RÉCAPITULATIVE DES PIÈCES COMPTABLES
               </h2>
               <div className="mt-1.5 inline-block bg-white border border-slate-200 px-3 py-0.5 rounded-full text-[10px] font-bold text-slate-700 shadow-2xs">
                 {startDate && endDate
@@ -488,103 +512,92 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
               </div>
             </div>
 
+            {/* Stats Cards */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm text-center">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombre de Pièces</p>
+                <p className="text-lg font-black text-slate-900 font-mono">{filteredDocs.length}</p>
+              </div>
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 shadow-sm text-center">
+                <p className="text-[9px] font-black text-indigo-700 uppercase tracking-widest mb-1">Montant H.T</p>
+                <p className="text-lg font-black text-indigo-900 font-mono">{formatAmount(totalHT)}</p>
+              </div>
+              <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 shadow-sm text-center">
+                <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest mb-1">Chiffre d'Affaires (TTC)</p>
+                <p className="text-lg font-black text-emerald-900 font-mono">{formatAmount(totalTTC)}</p>
+              </div>
+            </div>
+
             {/* Main Table */}
-            <div className="mt-6 overflow-hidden rounded-lg border border-slate-300">
+            <div className="mt-2 overflow-hidden rounded-xl border-2 border-slate-900 shadow-sm">
               <table className="w-full border-collapse text-[10px] font-sans">
                 <thead>
                   <tr className="bg-slate-900 text-white font-black uppercase text-left tracking-wider">
-                    <th className="py-2.5 px-2 text-left w-[12%] border-r border-slate-800">DATE</th>
-                    <th className="py-2.5 px-2 text-left w-[14%] border-r border-slate-800">N° Facture</th>
-                    <th className="py-2.5 px-2 text-left w-[32%] border-r border-slate-800">CLIENT / TIERS</th>
-                    <th className="py-2.5 px-2 text-left w-[14%] border-r border-slate-800">Règlement</th>
-                    <th className="py-2.5 px-2 text-right w-[12%] border-r border-slate-800">Montant HT</th>
-                    <th className="py-2.5 px-2 text-right w-[6%] border-r border-slate-800">TVA</th>
-                    <th className="py-2.5 px-2 text-right w-[10%]">MONTANT TTC</th>
+                    <th className="py-2.5 px-3 text-left w-[12%] border-r border-slate-800">DATE</th>
+                    <th className="py-2.5 px-3 text-left w-[14%] border-r border-slate-800">N° Facture</th>
+                    <th className="py-2.5 px-3 text-left w-[32%] border-r border-slate-800">CLIENT / TIERS</th>
+                    <th className="py-2.5 px-3 text-left w-[14%] border-r border-slate-800">Règlement</th>
+                    <th className="py-2.5 px-3 text-right w-[12%] border-r border-slate-800">Montant HT</th>
+                    <th className="py-2.5 px-3 text-right w-[10%]">MONTANT TTC</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {filteredDocs.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center italic text-slate-400 font-sans">
+                      <td colSpan={6} className="py-12 text-center italic text-slate-400 font-sans">
                         Aucune pièce comptable trouvée pour la période sélectionnée.
                       </td>
                     </tr>
                   ) : (
                     filteredDocs.map((doc, idx) => (
                       <tr key={doc.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
-                        <td className="py-2 px-2 font-mono text-[9.5px] text-slate-700 border-r border-slate-100">
+                        <td className="py-2 px-3 font-mono text-[9.5px] text-slate-700 border-r border-slate-100">
                           {formatDateFR(doc.date)}
                         </td>
-                        <td className="py-2 px-2 font-mono text-[9.5px] font-bold text-slate-800 border-r border-slate-100">
+                        <td className="py-2 px-3 font-mono text-[9.5px] font-black text-indigo-900 border-r border-slate-100">
                           {doc.documentNumber}
                         </td>
-                        <td className="py-2 px-2 font-bold uppercase text-slate-900 border-r border-slate-100 truncate max-w-[220px]">
+                        <td className="py-2 px-3 font-black uppercase text-slate-900 border-r border-slate-100 truncate max-w-[220px]">
                           {doc.partnerName}
                         </td>
-                        <td className="py-2 px-2 italic text-slate-700 text-[9.5px] border-r border-slate-100">
+                        <td className="py-2 px-3 text-slate-700 text-[9.5px] border-r border-slate-100 font-bold uppercase">
                           {paymentMethodLabels[doc.paymentMethod] || doc.paymentMethod || 'Espèce'}
                         </td>
-                        <td className="py-2 px-2 text-right font-mono text-[9.5px] text-slate-800 border-r border-slate-100">
+                        <td className="py-2 px-3 text-right font-mono text-[9.5px] text-slate-800 border-r border-slate-100 font-bold">
                           {formatAmount(doc.amountHT || 0)}
                         </td>
-                        <td className="py-2 px-2 text-right font-mono text-[9.5px] text-slate-800 border-r border-slate-100">
-                          {formatAmount(doc.vatAmount || 0)}
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono text-[9.5px] font-black text-slate-900">
+                        <td className="py-2 px-3 text-right font-mono text-[9.5px] font-black text-slate-950">
                           {formatAmount(doc.amountTTC || 0)}
                         </td>
                       </tr>
                     ))
                   )}
+                  {/* Fill empty space */}
+                  {Array.from({ length: Math.max(0, 15 - filteredDocs.length) }).map((_, i) => (
+                    <tr key={`fill-${i}`} className="h-8 border-b border-slate-50">
+                      <td className="border-r border-slate-50" /><td className="border-r border-slate-50" /><td className="border-r border-slate-50" /><td className="border-r border-slate-50" /><td className="border-r border-slate-50" /><td />
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-
-            {/* Horizontal Totals Banner */}
-            {filteredDocs.length > 0 && (
-              <div className="mt-6 w-full bg-slate-900 text-white rounded-xl overflow-hidden shadow-sm font-sans border border-slate-800">
-                <div className="grid grid-cols-1 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-800 items-center text-center p-3">
-                  <div className="py-1.5 sm:py-0 px-3 flex items-center justify-center sm:justify-start">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-200">
-                      TOTAL :
-                    </span>
-                  </div>
-                  <div className="py-1.5 sm:py-0 px-3 flex flex-col items-center">
-                    <span className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                      Montant HT
-                    </span>
-                    <span className="text-xs sm:text-sm font-mono font-bold text-white">
-                      {formatAmount(totalHT)} <span className="text-[9px] text-slate-400 font-sans">MAD</span>
-                    </span>
-                  </div>
-                  <div className="py-1.5 sm:py-0 px-3 flex flex-col items-center">
-                    <span className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                      Total TVA
-                    </span>
-                    <span className="text-xs sm:text-sm font-mono font-bold text-indigo-200">
-                      {formatAmount(totalTVA)} <span className="text-[9px] text-slate-400 font-sans">MAD</span>
-                    </span>
-                  </div>
-                  <div className="py-1.5 sm:py-0 px-3 flex flex-col items-center bg-indigo-600/30 rounded-lg sm:rounded-none">
-                    <span className="text-[9.5px] font-black text-indigo-200 uppercase tracking-wider mb-0.5">
-                      Montant TTC
-                    </span>
-                    <span className="text-sm sm:text-base font-mono font-black text-amber-300">
-                      {formatAmount(totalTTC)} <span className="text-[10px] text-amber-200 font-sans">MAD</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Footer (Date generated & Page number) */}
-          <div className="mt-auto pt-4 border-t border-slate-300 flex justify-between items-center text-[10px] font-medium text-slate-500 font-sans">
-            <div>
-              <span>Édité le {currentFormattedDate}</span>
+          {/* Footer Legal Info - MOVED DOWN AND GROUPED */}
+          <div className="mt-auto pt-8 border-t-2 border-slate-100">
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[10px] font-black text-slate-500 uppercase tracking-tight text-center">
+              {settings.rc && <span>R.C: <span className="text-slate-900 font-mono">{settings.rc}</span></span>}
+              {settings.ifNum && <span>I.F: <span className="text-slate-900 font-mono">{settings.ifNum}</span></span>}
+              {settings.ice && <span>ICE: <span className="text-slate-900 font-mono">{settings.ice}</span></span>}
+              {settings.patente && <span>Patente: <span className="text-slate-900 font-mono">{settings.patente}</span></span>}
+              {settings.cnss && <span>CNSS: <span className="text-slate-900 font-mono">{settings.cnss}</span></span>}
             </div>
-            <div>
-              <span>Page 1 / 1</span>
+            
+            {/* Bottom Bar */}
+            <div className="text-white text-center py-2.5 mt-6 -mx-10 -mb-10 bg-indigo-600">
+              <p className="text-[11px] font-black tracking-[0.3em] uppercase opacity-95">
+                Rapport Certifié StationERP - Page 1 / 1
+              </p>
             </div>
           </div>
         </div>

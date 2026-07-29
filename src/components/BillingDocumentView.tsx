@@ -310,8 +310,8 @@ export function BillingDocumentView({
               }
               .print-page {
                 width: 210mm !important;
-                min-height: 297mm !important;
-                padding: 15mm 20mm 15mm 20mm !important;
+                height: 297mm !important;
+                padding: 10mm 15mm !important;
                 box-sizing: border-box !important;
                 position: relative !important;
                 display: flex !important;
@@ -435,7 +435,7 @@ export function BillingDocumentView({
           <ArrowLeft className="w-4 h-4" />
           Retour à la liste
         </button>
-
+ 
         {/* Actions bar */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           
@@ -447,12 +447,12 @@ export function BillingDocumentView({
             <Printer className="w-4 h-4" />
             Imprimer
           </button>
-
+ 
           {/* Quick status change buttons */}
           {onStatusChange && (
             <div className="h-6 w-px bg-slate-200 hidden md:block mx-2" />
           )}
-
+ 
           {onStatusChange && document.status === 'pending' && (
             <button
               onClick={() => onStatusChange('paid')}
@@ -462,7 +462,7 @@ export function BillingDocumentView({
               Marquer comme Payé
             </button>
           )}
-
+ 
           {/* Edit / Delete action triggers */}
           {onEdit && (
             <button
@@ -473,7 +473,7 @@ export function BillingDocumentView({
               <Edit3 className="w-4 h-4" />
             </button>
           )}
-
+ 
           {onDelete && (
             <button
               onClick={onDelete}
@@ -483,11 +483,11 @@ export function BillingDocumentView({
               <Trash2 className="w-4 h-4" />
             </button>
           )}
-
+ 
         </div>
-
+ 
       </div>
-
+ 
       {/* Main A4 Document Layout */}
       <div className="bg-slate-100 p-2 md:p-8 rounded-3xl border border-slate-200 flex justify-center shadow-inner">
         
@@ -495,8 +495,8 @@ export function BillingDocumentView({
         <div 
           ref={printAreaRef}
           id="printable-document"
-          className="bg-white p-8 w-full max-w-[800px] border border-slate-200 shadow-md flex flex-col aspect-[1/1.414] text-left leading-relaxed text-slate-800 relative overflow-hidden"
-          style={{ fontFamily: settings.fontFamily }}
+          className="bg-white p-10 w-full max-w-[800px] border border-slate-200 shadow-md flex flex-col aspect-[1/1.414] text-left leading-relaxed text-slate-800 relative overflow-hidden"
+          style={{ fontFamily: settings.fontFamily, minHeight: '1120px' }}
         >
           {/* Header Section */}
           <div className="flex justify-between items-start mb-8">
@@ -524,11 +524,11 @@ export function BillingDocumentView({
                 )}
               </div>
             </div>
-
+ 
             {/* Slanted Document Title */}
-            <div className="relative -mr-8 -mt-8">
+            <div className="relative -mr-10 -mt-10">
               <div 
-                className="text-white pt-6 pb-8 pl-14 pr-10 relative z-10"
+                className="text-white pt-8 pb-10 pl-16 pr-10 relative z-10"
                 style={{ 
                   clipPath: 'polygon(12% 0%, 100% 0%, 100% 100%, 0% 100%)',
                   backgroundColor: settings.primaryColor 
@@ -537,12 +537,12 @@ export function BillingDocumentView({
                 <h2 className={`font-black uppercase tracking-tight mb-2 whitespace-nowrap ${getDocTypeLabel().length > 14 ? 'text-lg' : 'text-2xl'}`}>
                   {getDocTypeLabel()}
                 </h2>
-                <div className="space-y-1 text-[10px] font-bold opacity-90">
-                  <p className="flex justify-between gap-4">
+                <div className="space-y-1 text-[11px] font-bold opacity-90">
+                  <p className="flex justify-between gap-6">
                     <span>{getDocNumberLabel()}</span>
                     <span>{document.documentNumber}</span>
                   </p>
-                  <p className="flex justify-between gap-4">
+                  <p className="flex justify-between gap-6">
                     <span>Date :</span>
                     <span>{document.date?.split('-').reverse().join('/')}</span>
                   </p>
@@ -550,9 +550,9 @@ export function BillingDocumentView({
               </div>
             </div>
           </div>
-
+ 
           {/* Emitter and Client Section */}
-          <div className="grid grid-cols-2 gap-8 mb-6 relative">
+          <div className="grid grid-cols-2 gap-8 mb-8 relative">
             <div className="absolute left-1/2 top-0 bottom-0 w-px border-l border-dashed border-slate-300 -translate-x-1/2" />
             
             {/* Emitter */}
@@ -564,96 +564,92 @@ export function BillingDocumentView({
                 <h3 className="text-[10px] font-black uppercase tracking-widest" style={{ color: settings.primaryColor }}>Émetteur</h3>
               </div>
               
-              <div className="pl-6 space-y-1 text-[10px] font-bold text-slate-700">
-                <p className="text-xs font-black text-slate-900">{settings.companyName || "REDA QOUNA"}</p>
-                <p>{settings.address || "Centre Ain Dorrij Lamjaara Province OUEZZANE"}</p>
-                {settings.cnss && <p>CNSS : {settings.cnss}</p>}
-                {settings.patente && <p>Patente N : {settings.patente}</p>}
-                {settings.rc && <p>R.C : {settings.rc}</p>}
-                {settings.ifNum && <p>I.F : {settings.ifNum}</p>}
-                {settings.ice && <p>ICE : {settings.ice}</p>}
-                {settings.codeClient && <p>Code Client : {settings.codeClient}</p>}
-                {settings.rib && <p className="pt-1 border-t border-slate-100 mt-1">RIB : {settings.rib}</p>}
+              <div className="pl-6 space-y-1.5 text-[11px] font-bold text-slate-700">
+                <p className="text-sm font-black text-slate-900 mb-1">{settings.companyName || "REDA QOUNA"}</p>
+                <p className="leading-snug">{settings.address || "Centre Ain Dorrij Lamjaara Province OUEZZANE"}</p>
+                <p className="flex items-center gap-2 mt-1">
+                  <Phone className="w-3 h-3" style={{ color: settings.primaryColor }} />
+                  {settings.phone || "Téléphone"}
+                </p>
+                {settings.email && (
+                  <p className="flex items-center gap-2">
+                    <Mail className="w-3 h-3" style={{ color: settings.primaryColor }} />
+                    {settings.email}
+                  </p>
+                )}
               </div>
             </div>
-
+ 
             {/* Client */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="text-white p-1.5 rounded-full" style={{ backgroundColor: settings.primaryColor }}>
                   <User className="w-4 h-4" />
                 </div>
                 <h3 className="text-[10px] font-black uppercase tracking-widest" style={{ color: settings.primaryColor }}>Client</h3>
               </div>
-
+ 
               <div className="pl-6">
-                <div className="bg-slate-50/90 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                <div className="bg-slate-50/90 border border-slate-200 rounded-xl p-4 space-y-3">
                   <div>
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">
                       DOIT (CLIENT) :
                     </span>
-                    <p className="text-xs font-black text-slate-900 uppercase leading-tight">
+                    <p className="text-sm font-black text-slate-900 uppercase leading-tight">
                       {document.partnerName}
                     </p>
                   </div>
-
+ 
                   {document.partnerAddress && (
-                    <p className="text-[9.5px] font-medium text-slate-600 leading-tight">
+                    <p className="text-[10px] font-medium text-slate-600 leading-snug">
                       {document.partnerAddress}
                     </p>
                   )}
-
-                  <div className="pt-2 border-t border-slate-200/80 space-y-1.5 text-[9.5px]">
+ 
+                  <div className="pt-2.5 border-t border-slate-200/80 space-y-2 text-[10px]">
                     {displayIce && displayIce.trim() && (
                       <div className="flex items-center gap-2 text-slate-700 font-bold">
                         <span className="text-slate-400 font-semibold">ICE Client :</span>
-                        <span className="font-mono text-slate-900 bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[9px]">{displayIce}</span>
+                        <span className="font-mono text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded text-[10px]">{displayIce}</span>
                       </div>
                     )}
                     
                     <div className="flex items-center gap-2 text-slate-700 font-bold">
                       <span className="text-slate-400 font-semibold">Mode de Règlement :</span>
-                      <span className="font-black uppercase text-indigo-950 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded text-[9px]">
+                      <span className="font-black uppercase text-indigo-950 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded text-[10px]">
                         {paymentLabelMap[document.paymentMethod] || document.paymentMethod}
                       </span>
                     </div>
-
-                    {(document.partnerPhone || document.partnerEmail) && (
-                      <div className="flex flex-wrap gap-2 text-[9px] font-medium text-slate-500 pt-1">
-                        {document.partnerPhone && <span>Tél: {document.partnerPhone}</span>}
-                        {document.partnerEmail && <span>Email: {document.partnerEmail}</span>}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
+ 
           {/* Table Section */}
-          <div>
-            <div className="border rounded-lg overflow-hidden" style={{ borderColor: settings.primaryColor }}>
-              <table className="w-full text-[10px]">
+          <div className="flex-1">
+            <div className="border-2 rounded-xl overflow-hidden" style={{ borderColor: settings.primaryColor }}>
+              <table className="w-full text-[11px]">
                 <thead>
                   <tr className="text-white font-black uppercase tracking-wider" style={{ backgroundColor: settings.primaryColor }}>
-                    <th className="py-2 px-4 text-left border-r border-white/10">Quantité</th>
-                    <th className="py-2 px-4 text-left border-r border-white/10">Désignation</th>
-                    <th className="py-2 px-4 text-right border-r border-white/10">Prix Unité</th>
-                    <th className="py-2 px-4 text-right">Montant</th>
+                    <th className="py-3 px-4 text-left border-r border-white/10">Quantité</th>
+                    <th className="py-3 px-4 text-left border-r border-white/10">Désignation</th>
+                    <th className="py-3 px-4 text-right border-r border-white/10">Prix Unité</th>
+                    <th className="py-3 px-4 text-right">Montant</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {document.items?.map((item, idx) => (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                      <td className="py-2.5 px-4 font-bold border-r border-slate-100">{item.qty.toLocaleString()}</td>
-                      <td className="py-2.5 px-4 font-black text-slate-900 border-r border-slate-100 uppercase">{item.productName}</td>
-                      <td className="py-2.5 px-4 text-right font-bold border-r border-slate-100">{item.price.toFixed(2)}</td>
-                      <td className="py-2.5 px-4 text-right font-black text-slate-900">{(item.qty * item.price).toFixed(2)}</td>
+                      <td className="py-3 px-4 font-bold border-r border-slate-100">{item.qty.toLocaleString()}</td>
+                      <td className="py-3 px-4 font-black text-slate-900 border-r border-slate-100 uppercase">{item.productName}</td>
+                      <td className="py-3 px-4 text-right font-bold border-r border-slate-100">{item.price.toFixed(2)}</td>
+                      <td className="py-3 px-4 text-right font-black text-slate-900">{(item.qty * item.price).toFixed(2)}</td>
                     </tr>
                   ))}
                   {/* Padding rows to fill space */}
-                  {Array.from({ length: Math.max(0, 10 - (document.items?.length || 0)) }).map((_, i) => (
-                    <tr key={`pad-${i}`} className="h-8 border-b border-slate-50">
+                  {Array.from({ length: Math.max(0, 8 - (document.items?.length || 0)) }).map((_, i) => (
+                    <tr key={`pad-${i}`} className="h-10 border-b border-slate-50">
                       <td className="border-r border-slate-100" />
                       <td className="border-r border-slate-100" />
                       <td className="border-r border-slate-100" />
@@ -664,82 +660,83 @@ export function BillingDocumentView({
               </table>
             </div>
           </div>
-
+ 
           {/* Summary Section */}
-          <div className="grid grid-cols-12 gap-6 mt-6 items-start">
-            <div className="col-span-7 space-y-4">
-              <div className="border rounded-xl p-4 min-h-[60px]" style={{ borderColor: settings.primaryColor }}>
-                <p className="text-[10px] font-black uppercase mb-1" style={{ color: settings.primaryColor }}>{getAmountInWordsPhrase()}</p>
-                <p className="text-[12px] font-bold text-slate-700 italic leading-relaxed">
+          <div className="grid grid-cols-12 gap-8 mt-8 items-start">
+            <div className="col-span-7 space-y-6">
+              <div className="border-2 rounded-xl p-5 min-h-[70px]" style={{ borderColor: settings.primaryColor }}>
+                <p className="text-[10px] font-black uppercase mb-1.5" style={{ color: settings.primaryColor }}>{getAmountInWordsPhrase()}</p>
+                <p className="text-[13px] font-bold text-slate-800 italic leading-relaxed">
                   {numberToWordsFR(document.amountTTC)}.
                 </p>
               </div>
-
+ 
               {/* Signature Box */}
-              <div className="border border-slate-300 rounded-xl p-3 w-56 min-h-[95px] flex flex-col justify-between bg-white relative overflow-hidden">
-                <p className="text-[9px] font-black uppercase text-center text-slate-400 border-b border-slate-100 pb-1 mb-1">Visa et Cachet</p>
+              <div className="border border-slate-300 rounded-2xl p-4 w-64 min-h-[110px] flex flex-col justify-between bg-white relative overflow-hidden shadow-sm">
+                <p className="text-[9px] font-black uppercase text-center text-slate-400 border-b border-slate-100 pb-1.5 mb-1.5">Visa et Cachet</p>
                 <div className="flex-1 flex items-center justify-center py-1">
                   {settings.stampUrl && (settings.stampUrl.startsWith('data:image/') || settings.stampUrl.startsWith('http') || settings.stampUrl.length > 20) ? (
                     <img 
                       src={settings.stampUrl} 
                       alt="Visa et Cachet" 
-                      className="max-h-20 max-w-full object-contain" 
+                      className="max-h-24 max-w-full object-contain" 
                     />
                   ) : settings.showStamp && settings.stampText ? (
-                    <div className={`p-2 border-2 border-dashed rounded-lg text-center font-black text-[10px] uppercase rotate-[-3deg] ${
+                    <div className={`p-3 border-2 border-dashed rounded-xl text-center font-black text-[11px] uppercase rotate-[-3deg] ${
                       settings.stampColor === 'red' ? 'border-rose-600 text-rose-600 bg-rose-50/50' : 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
                     }`}>
                       <p>{settings.stampText}</p>
-                      <p className="text-[7px] font-mono opacity-80 mt-0.5">{settings.companyName || 'SIGNÉ & VALIDE'}</p>
+                      <p className="text-[8px] font-mono opacity-80 mt-1">{settings.companyName || 'SIGNÉ & VALIDE'}</p>
                     </div>
                   ) : (
-                    <div className="h-10 text-[8px] text-slate-300 font-serif italic flex items-center justify-center">
+                    <div className="h-10 text-[9px] text-slate-300 font-serif italic flex items-center justify-center">
                       Signature & Tampon
                     </div>
                   )}
                 </div>
               </div>
             </div>
-
+ 
             <div className="col-span-5">
-              <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
-                <div className="flex justify-between p-2 text-[10px] font-bold text-slate-600">
-                  <span>T.H.T</span>
+              <div className="border-2 border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 shadow-sm">
+                <div className="flex justify-between p-3 text-[11px] font-bold text-slate-600">
+                  <span>TOTAL H.T</span>
                   <span>{document.amountHT.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between p-2 text-[10px] font-bold text-slate-600">
-                  <span>T.V.A 10%</span>
+                <div className="flex justify-between p-3 text-[11px] font-bold text-slate-600">
+                  <span>T.V.A (10%)</span>
                   <span>{document.vatAmount.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between p-3 text-xs font-black text-white" style={{ backgroundColor: settings.primaryColor }}>
-                  <span>TOTAL</span>
+                <div className="flex justify-between p-4 text-sm font-black text-white" style={{ backgroundColor: settings.primaryColor }}>
+                  <span>TOTAL T.T.C</span>
                   <span>{document.amountTTC.toFixed(2)} MAD</span>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Footer Contact Icons */}
-          <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 mt-auto border border-slate-200 rounded-xl p-3 text-[9.5px] font-bold text-slate-700">
-            <div className="flex items-center gap-2 shrink-0">
-              <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: settings.primaryColor }} />
-              <span>{settings.phone || "Téléphone"}</span>
+ 
+          {/* Footer Legal Info - MOVED DOWN AND GROUPED */}
+          <div className="mt-auto pt-6 border-t-2 border-slate-100">
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[10px] font-black text-slate-500 uppercase tracking-tight text-center">
+              {settings.rc && <span>R.C: <span className="text-slate-900 font-mono">{settings.rc}</span></span>}
+              {settings.ifNum && <span>I.F: <span className="text-slate-900 font-mono">{settings.ifNum}</span></span>}
+              {settings.ice && <span>ICE: <span className="text-slate-900 font-mono">{settings.ice}</span></span>}
+              {settings.patente && <span>Patente: <span className="text-slate-900 font-mono">{settings.patente}</span></span>}
+              {settings.cnss && <span>CNSS: <span className="text-slate-900 font-mono">{settings.cnss}</span></span>}
             </div>
-            <div className="flex items-center gap-2 flex-1 min-w-[200px] sm:border-x border-slate-200/60 sm:px-3">
-              <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: settings.primaryColor }} />
-              <span className="leading-snug">{settings.address || "Adresse"}</span>
+            
+            {settings.rib && (
+              <div className="mt-2 text-center text-[10px] font-bold text-slate-400 border-t border-slate-50 pt-2">
+                <span>RIB : <span className="font-mono text-slate-700 tracking-wider">{settings.rib}</span></span>
+              </div>
+            )}
+ 
+            {/* Bottom Slogan Bar */}
+            <div className="text-white text-center py-2.5 mt-4 -mx-10 -mb-10" style={{ backgroundColor: settings.primaryColor }}>
+              <p className="text-[11px] font-bold tracking-[0.2em] uppercase opacity-90">
+                Merci pour votre confiance
+              </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Mail className="w-3.5 h-3.5 shrink-0" style={{ color: settings.primaryColor }} />
-              <span>{settings.email || "Email"}</span>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="text-white text-center py-2 mt-4 -mx-8 -mb-8" style={{ backgroundColor: settings.primaryColor }}>
-            <p className="text-[11px] font-serif italic tracking-widest opacity-90">
-              Merci pour votre confiance
-            </p>
           </div>
         </div>
       </div>
