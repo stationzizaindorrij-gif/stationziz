@@ -30,7 +30,7 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                 const chiffreAffaires = carburantsTotal + produitsTotal + servicesTotal;
                 const depensesTotal = selectedDetailShift.expenses?.filter(e => e.method === 'cash').reduce((sum, exp) => sum + exp.amount, 0) || 0;
                 const expensesTotal = selectedDetailShift.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
-                const encaissementTotalCalculated = nonCashTotal + expensesTotal;
+                const encaissementTotalCalculated = nonCashTotal;
                 const especeARemettre = chiffreAffaires - nonCashTotal - depensesTotal;
 
                 // Calculs Carburants par produit dynamique
@@ -528,20 +528,65 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                         <Wallet className="w-3.5 h-3.5 text-slate-500" />
                         Bilan Financier
                       </h4>
-                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
-                          <div className="p-4 flex flex-col">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Encaissement</div>
-                            <div className="font-mono font-bold text-indigo-600 text-lg">+{encaissementTotalCalculated.toFixed(2)} DH</div>
+                      <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm divide-y divide-slate-200">
+                        {/* CASE BOUTIQUE ET CASE LAVAGE & GRAISSAGE */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-slate-50/50">
+                          <div className="p-4 flex flex-col justify-between">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold flex items-center gap-1">
+                                <Package className="w-3.5 h-3.5 text-amber-500" />
+                                Boutique (Huiles & Produits)
+                              </span>
+                              <span className="text-[10px] font-medium text-slate-400">Ventes</span>
+                            </div>
+                            <div className="font-mono font-bold text-amber-600 text-lg">
+                              +{produitsTotal.toFixed(2)} DH
+                            </div>
                           </div>
-                          <div className="p-4 flex flex-col">
-                            <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses / Manquant</div>
-                            <div className={`font-mono font-bold text-lg ${(() => {
-                              const diff = chiffreAffaires - encaissementTotalCalculated;
+
+                          <div className="p-4 flex flex-col justify-between">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold flex items-center gap-1">
+                                <Settings className="w-3.5 h-3.5 text-blue-500" />
+                                Lavage & Graissage
+                              </span>
+                              <span className="text-[10px] font-medium text-slate-400">Services</span>
+                            </div>
+                            <div className="font-mono font-bold text-blue-600 text-lg">
+                              +{servicesTotal.toFixed(2)} DH
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ENCAISSEMENT AU-DESSUS DE DÉPENSES / MANQUANT */}
+                        <div className="divide-y divide-slate-200">
+                          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between bg-white">
+                            <div>
+                              <div className="text-[10px] uppercase text-slate-500 mb-0.5 font-bold flex items-center gap-1">
+                                <Banknote className="w-3.5 h-3.5 text-indigo-500" />
+                                Encaissement
+                              </div>
+                              <div className="text-[11px] text-slate-400">Paiements enregistrés (Espèces + Non-Espèces)</div>
+                            </div>
+                            <div className="font-mono font-bold text-indigo-600 text-xl mt-1 sm:mt-0">
+                              +{encaissementTotalCalculated.toFixed(2)} DH
+                            </div>
+                          </div>
+
+                          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50/30">
+                            <div>
+                              <div className="text-[10px] uppercase text-slate-500 mb-0.5 font-bold flex items-center gap-1">
+                                <Receipt className="w-3.5 h-3.5 text-rose-500" />
+                                Dépenses / Manquant
+                              </div>
+                              <div className="text-[11px] text-slate-400">Dépenses engagées & Écart de caisse carburant</div>
+                            </div>
+                            <div className={`font-mono font-bold text-xl mt-1 sm:mt-0 ${(() => {
+                              const diff = carburantsTotal - encaissementTotalCalculated;
                               return diff < 0 ? 'text-emerald-600' : diff > 0 ? 'text-rose-600' : 'text-slate-600';
                             })()}`}>
                               {(() => {
-                                const diff = chiffreAffaires - encaissementTotalCalculated;
+                                const diff = carburantsTotal - encaissementTotalCalculated;
                                 if (diff > 0) return `-${diff.toFixed(2)} DH`;
                                 if (diff < 0) return `+${Math.abs(diff).toFixed(2)} DH`;
                                 return `0.00 DH`;
@@ -549,9 +594,16 @@ export default function SharedShiftReport({ shift: selectedDetailShift, store }:
                             </div>
                           </div>
                         </div>
-                        <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
-                          <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Global</div>
-                          <div className="font-mono font-black text-white text-2xl">{chiffreAffaires.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
+
+                        {/* TOTAL GLOBAL */}
+                        <div className="p-4 bg-slate-800 flex flex-col sm:flex-row sm:items-center justify-between text-white gap-2">
+                          <div>
+                            <div className="text-xs uppercase text-slate-300 font-black tracking-widest">Total Global (Carburant)</div>
+                            <div className="text-[10px] text-slate-400">Total Ventes Carburant (Encaissement + Dépenses/Manquant)</div>
+                          </div>
+                          <div className="font-mono font-black text-white text-2xl">
+                            {carburantsTotal.toFixed(2)} <span className="text-slate-400 text-lg">DH</span>
+                          </div>
                         </div>
                       </div>
                     </div>

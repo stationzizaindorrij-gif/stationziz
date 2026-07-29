@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, CheckCircle2, DollarSign, Fuel, Package, Database, Settings, Users, User, Droplet, Wallet, 
   CreditCard, Receipt, FileText, ChevronRight, ChevronLeft, Calendar, 
-  Clock, Lock, CheckCircle, AlertTriangle, Plus, Trash2, Printer, Check
+  Clock, Lock, CheckCircle, AlertTriangle, Plus, Trash2, Printer, Check, Banknote
 } from 'lucide-react';
 
 import html2pdf from 'html2pdf.js';
@@ -762,22 +762,67 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                   <Wallet className="w-3.5 h-3.5 text-slate-500" />
                   Bilan Financier
                 </h4>
-                <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
-                    <div className="p-4 flex flex-col">
-                      <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Encaissement</div>
-                      <div className="font-mono font-bold text-indigo-600 text-lg">+{((totalNonCashPayments + paymentsBreakdown.cash) + totalExpenses).toFixed(2)} DH</div>
+                <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm divide-y divide-slate-200">
+                  {/* CASE BOUTIQUE ET CASE LAVAGE & GRAISSAGE */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-slate-50/50">
+                    <div className="p-4 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] uppercase text-slate-500 font-bold flex items-center gap-1">
+                          <Package className="w-3.5 h-3.5 text-amber-500" />
+                          Boutique (Huiles & Produits)
+                        </span>
+                        <span className="text-[10px] font-medium text-slate-400">Ventes</span>
+                      </div>
+                      <div className="font-mono font-bold text-amber-600 text-lg">
+                        +{totalProductSales.toFixed(2)} DH
+                      </div>
                     </div>
-                    <div className="p-4 flex flex-col">
-                      <div className="text-[10px] uppercase text-slate-500 mb-1 font-bold">Dépenses / Manquant</div>
-                      <div className={`font-mono font-bold text-lg ${(() => {
-                        const totalEnc = (totalNonCashPayments + paymentsBreakdown.cash) + totalExpenses;
-                        const diff = grandTotalSales - totalEnc;
+
+                    <div className="p-4 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] uppercase text-slate-500 font-bold flex items-center gap-1">
+                          <Settings className="w-3.5 h-3.5 text-blue-500" />
+                          Lavage & Graissage
+                        </span>
+                        <span className="text-[10px] font-medium text-slate-400">Services</span>
+                      </div>
+                      <div className="font-mono font-bold text-blue-600 text-lg">
+                        +{totalServiceSales.toFixed(2)} DH
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ENCAISSEMENT AU-DESSUS DE DÉPENSES / MANQUANT */}
+                  <div className="divide-y divide-slate-200">
+                    <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between bg-white">
+                      <div>
+                        <div className="text-[10px] uppercase text-slate-500 mb-0.5 font-bold flex items-center gap-1">
+                          <Banknote className="w-3.5 h-3.5 text-indigo-500" />
+                          Encaissement
+                        </div>
+                        <div className="text-[11px] text-slate-400">Paiements enregistrés (Espèces + Non-Espèces)</div>
+                      </div>
+                      <div className="font-mono font-bold text-indigo-600 text-xl mt-1 sm:mt-0">
+                        +{((totalNonCashPayments + paymentsBreakdown.cash)).toFixed(2)} DH
+                      </div>
+                    </div>
+
+                    <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50/30">
+                      <div>
+                        <div className="text-[10px] uppercase text-slate-500 mb-0.5 font-bold flex items-center gap-1">
+                          <Receipt className="w-3.5 h-3.5 text-rose-500" />
+                          Dépenses / Manquant
+                        </div>
+                        <div className="text-[11px] text-slate-400">Dépenses engagées & Écart de caisse carburant</div>
+                      </div>
+                      <div className={`font-mono font-bold text-xl mt-1 sm:mt-0 ${(() => {
+                        const totalEnc = totalNonCashPayments + paymentsBreakdown.cash;
+                        const diff = fuelSalesDetails.totalFuelAmount - totalEnc;
                         return diff < 0 ? 'text-emerald-600' : diff > 0 ? 'text-rose-600' : 'text-slate-600';
                       })()}`}>
                         {(() => {
-                          const totalEnc = (totalNonCashPayments + paymentsBreakdown.cash) + totalExpenses;
-                          const diff = grandTotalSales - totalEnc;
+                          const totalEnc = totalNonCashPayments + paymentsBreakdown.cash;
+                          const diff = fuelSalesDetails.totalFuelAmount - totalEnc;
                           if (diff > 0) return `-${diff.toFixed(2)} DH`;
                           if (diff < 0) return `+${Math.abs(diff).toFixed(2)} DH`;
                           return `0.00 DH`;
@@ -785,9 +830,16 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
                       </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-slate-800 flex justify-between items-center text-white">
-                    <div className="text-sm uppercase text-slate-300 font-black tracking-widest">Total Global</div>
-                    <div className="font-mono font-black text-white text-2xl">{grandTotalSales.toFixed(2)} <span className="text-slate-400 text-lg">DH</span></div>
+
+                  {/* TOTAL GLOBAL */}
+                  <div className="p-4 bg-slate-800 flex flex-col sm:flex-row sm:items-center justify-between text-white gap-2">
+                    <div>
+                      <div className="text-xs uppercase text-slate-300 font-black tracking-widest">Total Global (Carburant)</div>
+                      <div className="text-[10px] text-slate-400">Total Ventes Carburant (Encaissement + Dépenses/Manquant)</div>
+                    </div>
+                    <div className="font-mono font-black text-white text-2xl">
+                      {fuelSalesDetails.totalFuelAmount.toFixed(2)} <span className="text-slate-400 text-lg">DH</span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -1636,40 +1636,50 @@ return {
 
     // Also include product sales if any
     let updatedShopProducts = [...shopProducts];
-    shiftData.productsSold.forEach((p, idx) => {
-       newSales.push({
-         ...p,
-         id: `sale_${Date.now()}_prod_${idx}`,
-         date: shiftData.date,
-         time: shiftData.endTime || shiftData.startTime,
-         attendantId: shiftData.attendantId,
-         attendantName: shiftData.attendantName,
-         shiftId: newShift.id
-       });
-       
-       if (p.shopProductId) {
-         updatedShopProducts = updatedShopProducts.map(sp => {
-            if (sp.id === p.shopProductId) {
-                const newStock = Math.max(0, sp.stockQuantity - p.qty);
-                // Trigger alert if stock falls below or equals minStockAlert
-                if (sp.minStockAlert !== undefined && newStock <= sp.minStockAlert && sp.stockQuantity > sp.minStockAlert) {
-                    triggerAlert('warning', `Le produit ${sp.name} est en rupture ou proche de la rupture de stock (${newStock} restants).`, 'low_stock');
-                } else if (sp.minStockAlert !== undefined && newStock <= sp.minStockAlert && sp.stockQuantity <= sp.minStockAlert) {
-                    // Already alerted, but maybe still trigger or not. We'll trigger it anyway to be safe, or only when it crosses the threshold.
-                    // Actually, let's only trigger if it crossed the threshold to avoid spamming alerts on every sale.
-                    // Wait, if they sell it again while it's low, they might still want an alert. 
-                    // Let's keep it simple: trigger it every time if they sell a low stock item.
-                    triggerAlert('warning', `Le produit ${sp.name} est en rupture ou proche de la rupture de stock (${newStock} restants).`, 'low_stock');
-                }
-                return { ...sp, stockQuantity: newStock };
-            }
-            return sp;
+    let shopProductsChanged = false;
+
+    if (shiftData.productsSold && Array.isArray(shiftData.productsSold) && shiftData.productsSold.length > 0) {
+      shiftData.productsSold.forEach((p, idx) => {
+         newSales.push({
+           ...p,
+           id: `sale_${Date.now()}_prod_${idx}`,
+           date: shiftData.date,
+           time: shiftData.endTime || shiftData.startTime,
+           attendantId: shiftData.attendantId,
+           attendantName: shiftData.attendantName,
+           shiftId: newShift.id
          });
-       }
-    });
+         
+         const targetId = p.shopProductId || p.productId || p.id;
+         const spIndex = updatedShopProducts.findIndex(sp => 
+           (targetId && sp.id === targetId) || 
+           (sp.name && p.name && sp.name.trim().toLowerCase() === p.name.trim().toLowerCase())
+         );
+
+         if (spIndex !== -1) {
+           const sp = updatedShopProducts[spIndex];
+           const currentStock = Number(sp.stockQuantity) || 0;
+           const qtySold = Number(p.qty) || 0;
+           const newStock = Math.max(0, currentStock - qtySold);
+
+           if (sp.minStockAlert !== undefined && newStock <= sp.minStockAlert) {
+             triggerAlert('warning', `Le produit ${sp.name} est en rupture ou proche de la rupture de stock (${newStock} restants).`, 'low_stock');
+           }
+
+           updatedShopProducts[spIndex] = {
+             ...sp,
+             stockQuantity: newStock
+           };
+           shopProductsChanged = true;
+         }
+      });
+    }
     
-    if (shiftData.productsSold.some(p => p.shopProductId)) {
+    if (shopProductsChanged) {
        saveState('shop_products', updatedShopProducts, setShopProducts);
+       try {
+         localStorage.setItem('station_erp_shop_products', JSON.stringify(updatedShopProducts));
+       } catch (e) {}
     }
 
     if (newSales.length > 0) {
@@ -2123,19 +2133,30 @@ return {
 
       // 3. Rollback Shop Products
       let nextShopProducts = [...shopProducts];
-      if (shift.productsSold && shift.productsSold.length > 0) {
+      let shopProductsChanged = false;
+      if (shift.productsSold && Array.isArray(shift.productsSold) && shift.productsSold.length > 0) {
         shift.productsSold.forEach(p => {
-          if (p.shopProductId) {
-             const spIndex = nextShopProducts.findIndex(sp => sp.id === p.shopProductId);
-             if (spIndex !== -1) {
-                nextShopProducts[spIndex] = {
-                  ...nextShopProducts[spIndex],
-                  stockQuantity: nextShopProducts[spIndex].stockQuantity + p.qty
-                };
-             }
+          const targetId = p.shopProductId || p.productId || p.id;
+          const spIndex = nextShopProducts.findIndex(sp => 
+            (targetId && sp.id === targetId) || 
+            (sp.name && p.name && sp.name.trim().toLowerCase() === p.name.trim().toLowerCase())
+          );
+          if (spIndex !== -1) {
+             const currentStock = Number(nextShopProducts[spIndex].stockQuantity) || 0;
+             const qtySold = Number(p.qty) || 0;
+             nextShopProducts[spIndex] = {
+               ...nextShopProducts[spIndex],
+               stockQuantity: currentStock + qtySold
+             };
+             shopProductsChanged = true;
           }
         });
-        saveState('shop_products', nextShopProducts, setShopProducts);
+        if (shopProductsChanged) {
+          saveState('shop_products', nextShopProducts, setShopProducts);
+          try {
+            localStorage.setItem('station_erp_shop_products', JSON.stringify(nextShopProducts));
+          } catch (e) {}
+        }
       }
 
       // 4. Rollback Sales
@@ -2204,6 +2225,59 @@ return {
                }
              }
         });
+      }
+
+      // Handle shop product stock updates if productsSold was modified
+      if (updatedFields.productsSold !== undefined) {
+        let currentShopProds = [...shopProducts];
+        let shopProdsChanged = false;
+
+        // Rollback old productsSold if any
+        if (oldShift.productsSold && Array.isArray(oldShift.productsSold)) {
+          oldShift.productsSold.forEach(p => {
+            const targetId = p.shopProductId || p.productId || p.id;
+            const spIdx = currentShopProds.findIndex(sp =>
+              (targetId && sp.id === targetId) ||
+              (sp.name && p.name && sp.name.trim().toLowerCase() === p.name.trim().toLowerCase())
+            );
+            if (spIdx !== -1) {
+              const currentStock = Number(currentShopProds[spIdx].stockQuantity) || 0;
+              const qtySold = Number(p.qty) || 0;
+              currentShopProds[spIdx] = {
+                ...currentShopProds[spIdx],
+                stockQuantity: currentStock + qtySold
+              };
+              shopProdsChanged = true;
+            }
+          });
+        }
+
+        // Apply new productsSold if any
+        if (Array.isArray(updatedFields.productsSold)) {
+          updatedFields.productsSold.forEach(p => {
+            const targetId = p.shopProductId || p.productId || p.id;
+            const spIdx = currentShopProds.findIndex(sp =>
+              (targetId && sp.id === targetId) ||
+              (sp.name && p.name && sp.name.trim().toLowerCase() === p.name.trim().toLowerCase())
+            );
+            if (spIdx !== -1) {
+              const currentStock = Number(currentShopProds[spIdx].stockQuantity) || 0;
+              const qtySold = Number(p.qty) || 0;
+              currentShopProds[spIdx] = {
+                ...currentShopProds[spIdx],
+                stockQuantity: Math.max(0, currentStock - qtySold)
+              };
+              shopProdsChanged = true;
+            }
+          });
+        }
+
+        if (shopProdsChanged) {
+          saveState('shop_products', currentShopProds, setShopProducts);
+          try {
+            localStorage.setItem('station_erp_shop_products', JSON.stringify(currentShopProds));
+          } catch (e) {}
+        }
       }
 
       if (tanksChanged) {

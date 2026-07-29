@@ -726,10 +726,7 @@ export default function Shifts({ store }: ShiftsProps) {
                         <td className="p-3.5 font-mono text-slate-600">
                           {(() => {
                             const carburantsTotal = s.totalAmount || 0;
-                            const produitsTotal = s.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
-                            const servicesTotal = s.servicesSold?.reduce((sum, item) => sum + item.total, 0) || 0;
-                            const totalSales = carburantsTotal + produitsTotal + servicesTotal;
-                            return totalSales.toFixed(2);
+                            return carburantsTotal.toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono text-slate-600">
@@ -744,8 +741,7 @@ export default function Shifts({ store }: ShiftsProps) {
                             const virement = s.nonCashPayments?.virement?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const autre = s.nonCashPayments?.autre?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const nonCashTotal = carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre;
-                            const expensesTotal = s.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
-                            return (nonCashTotal + expensesTotal).toFixed(2);
+                            return nonCashTotal.toFixed(2);
                           })()} MAD
                         </td>
                         <td className="p-3.5 font-mono font-semibold">
@@ -760,15 +756,11 @@ export default function Shifts({ store }: ShiftsProps) {
                             const virement = s.nonCashPayments?.virement?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const autre = s.nonCashPayments?.autre?.reduce((sum, item) => sum + item.amount, 0) || 0;
                             const nonCashTotal = carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre;
-                            const expensesTotal = s.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
-                            const encaissements = nonCashTotal + expensesTotal;
+                            const encaissements = nonCashTotal;
                             
                             const carburantsTotal = s.totalAmount || 0;
-                            const produitsTotal = s.productsSold?.reduce((sum, item) => sum + item.total, 0) || 0;
-                            const servicesTotal = s.servicesSold?.reduce((sum, item) => sum + item.total, 0) || 0;
-                            const totalSales = carburantsTotal + produitsTotal + servicesTotal;
                             
-                            const ecart = totalSales - encaissements;
+                            const ecart = carburantsTotal - encaissements;
                             const surplus = ecart < 0;
                             return (
                                 <span className={surplus ? "text-emerald-600" : ecart > 0 ? "text-rose-600" : "text-slate-600"}>
