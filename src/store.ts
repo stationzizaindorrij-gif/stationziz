@@ -438,8 +438,9 @@ export function useERPStore(): ERPStoreType {
                   let from = 0;
                   const step = 1000;
                   let hasMore = true;
+                  const selectCols = (key === 'products' || key === 'shop_products') ? 'id, type' : 'id';
                   while(hasMore) {
-                    const { data: selectData, error: selectErr } = await supabase.from(targetTable).select('id, type').eq('user_id', user_id).order('id').range(from, from + step - 1);
+                    const { data: selectData, error: selectErr } = await supabase.from(targetTable).select(selectCols).eq('user_id', user_id).order('id').range(from, from + step - 1);
                     if (selectErr) {
                         console.warn(`Skipping smart sync for ${targetTable} (table missing or error): `, selectErr);
                         return;

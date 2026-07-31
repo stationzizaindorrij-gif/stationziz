@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { History, 
   BarChart2, LayoutDashboard, Users, Clock, Fuel, 
   Settings as SettingsIcon, Sliders, Bell, FileText, 
-  Menu, X, Landmark, User, Package, Wallet, Receipt, Calculator
+  Menu, X, Landmark, User, Package, Wallet, Receipt, Calculator, Droplets
 } from 'lucide-react';
 import { useERPStore } from './store';
 import { supabase } from './lib/supabase';
@@ -24,11 +24,12 @@ import Analytics from './components/Analytics';
 import Clients from './components/Clients';
 import DailyClosing from './components/DailyClosing';
 import ExpensesModule from './components/ExpensesModule';
+import LavageGraissage from './components/LavageGraissage';
 
 type ActiveModule = 
   | 'dashboard' | 'attendants' | 'shifts' | 'tanks' | 'stock_calc' | 'assets' 
   | 'reports' | 'alerts' | 'settings' | 'billing' | 'daily_closing'  
-  | 'analytics' | 'clients' | 'shop' | 'price_history' | 'expenses';
+  | 'analytics' | 'clients' | 'shop' | 'price_history' | 'expenses' | 'lavage_graissage';
 
 function AppContent({ session }: { session: any }) {
   const store = useERPStore();
@@ -161,6 +162,7 @@ function AppContent({ session }: { session: any }) {
     { id: 'assets', label: 'Calcul changements prix', icon: Sliders, badge: 0 },
     { id: 'expenses', label: 'Dépenses', icon: Wallet, badge: 0 },
     { id: 'shop', label: 'Huile Lubrifiant', icon: Package, badge: 0 },
+    { id: 'lavage_graissage', label: 'Lavage & Graissage', icon: Droplets, badge: 0 },
     { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
     { id: 'billing', label: 'Facturation & Documents', icon: Landmark, badge: 0 },
     { id: 'analytics', label: 'Analyse & Rentabilité', icon: BarChart2, badge: 0 },
@@ -195,6 +197,7 @@ function AppContent({ session }: { session: any }) {
             {activeModule === 'shifts' && <Shifts store={store} />}
             {activeModule === 'expenses' && <ExpensesModule store={store} />}
             {activeModule === 'shop' && <Shop store={store} />}
+            {activeModule === 'lavage_graissage' && <LavageGraissage store={store} />}
             {activeModule === 'billing' && <Billing store={store} />}
             {activeModule === 'reports' && <Reports store={store} />}
             {activeModule === 'analytics' && <Analytics store={store} />}
@@ -366,6 +369,7 @@ function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuCli
     assets: 'Calcul changements prix',
     expenses: 'Dépenses',
     shop: 'Huile Lubrifiant',
+    lavage_graissage: 'Lavage & Graissage',
     clients: 'Clients',
     billing: 'Facturation & Documents',
     reports: 'Centre de Rapports',
