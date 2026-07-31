@@ -13,12 +13,17 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
   const [movSearchTerm, setMovSearchTerm] = useState('');
   const [movTypeFilter, setMovTypeFilter] = useState<'all' | 'in' | 'out'>('all');
   const [movProductFilter, setMovProductFilter] = useState<string>('all');
+  const [movDatePeriod, setMovDatePeriod] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
+  const [movStartDate, setMovStartDate] = useState<string>('');
+  const [movEndDate, setMovEndDate] = useState<string>('');
   const [isAdding, setIsAdding] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isMovReportModalOpen, setIsMovReportModalOpen] = useState(false);
   const [reportFilter, setReportFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
   const reportRef = useRef<HTMLDivElement>(null);
+  const movReportRef = useRef<HTMLDivElement>(null);
 
   const isAdminOrManager = currentRole === 'admin' || currentRole === 'manager';
 
@@ -43,8 +48,43 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
     const matchesType = movTypeFilter === 'all' || mov.type === movTypeFilter;
     const matchesProduct = movProductFilter === 'all' || mov.productId === movProductFilter;
 
-    return matchesSearch && matchesType && matchesProduct;
+    let matchesDate = true;
+    const movDateStr = mov.date ? mov.date.split(' ')[0] : '';
+    if (movDatePeriod === 'custom') {
+      if (movStartDate && movDateStr < movStartDate) matchesDate = false;
+      if (movEndDate && movDateStr > movEndDate) matchesDate = false;
+    } else if (movDatePeriod !== 'all') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+      if (movDatePeriod === 'today') {
+        matchesDate = movDateStr === todayStr;
+      } else if (movDatePeriod === 'week') {
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+        matchesDate = movDateStr >= sevenDaysAgoStr;
+      } else if (movDatePeriod === 'month') {
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+        matchesDate = movDateStr >= firstDayOfMonth;
+      }
+    }
+
+    return matchesSearch && matchesType && matchesProduct && matchesDate;
   });
+
+  const getMovPeriodText = () => {
+    if (movDatePeriod === 'today') return "Aujourd'hui";
+    if (movDatePeriod === 'week') return "7 Derniers jours";
+    if (movDatePeriod === 'month') return "Ce mois";
+    if (movDatePeriod === 'custom') {
+      if (movStartDate && movEndDate) return `Du ${movStartDate} au ${movEndDate}`;
+      if (movStartDate) return `Depuis le ${movStartDate}`;
+      if (movEndDate) return `Jusqu'au ${movEndDate}`;
+      return "Période Personnalisée";
+    }
+    return "Toutes les dates";
+  };
 
   const totalEntreesQty = (shopStockMovements || [])
     .filter(m => m.type === 'in')
@@ -116,6 +156,73 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                 window.close();
               }, 400);
             };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handlePrintMov = () => {
+    const reportNode = movReportRef.current;
+    if (!reportNode) return;
+
+    const headHtml = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((el) => el.outerHTML)
+      .join('\n');
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=850');
+    if (!printWindow) {
+      alert("Veuillez autoriser les fenêtres surgissantes (pop-ups) pour imprimer le rapport.");
+      return;
+    }
+
+    const stationTitle = config?.name || 'STATION ZIZ SERVICE';
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="fr">
+        <head>
+          <meta charset="utf-8" />
+          <title>Rapport Mouvements Huiles & Lubrifiants - ${stationTitle}</title>
+          ${headHtml}
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 0 !important;
+            }
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0 !important;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 10mm 12mm !important;
+                background-color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
+            body {
+              background: #ffffff !important;
+              margin: 0 !important;
+              padding: 20px !important;
+              display: flex;
+              justify-content: center;
+              font-family: system-ui, -apple-system, sans-serif;
+            }
+          </style>
+        </head>
+        <body>
+          <div style="width:100%; max-width:210mm; margin:0 auto;">
+            ${reportNode.outerHTML}
+          </div>
+          <script>
+            setTimeout(function() {
+              window.print();
+              window.close();
+            }, 500);
           </script>
         </body>
       </html>
@@ -459,8 +566,9 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                 <thead className="bg-slate-50 text-slate-600 text-sm">
                   <tr>
                     <th className="px-6 py-4 font-medium">Produit</th>
-                    <th className="px-6 py-4 font-medium">Prix Vente</th>
                     <th className="px-6 py-4 font-medium">Stock</th>
+                    <th className="px-6 py-4 font-medium">Prix d'Achat</th>
+                    <th className="px-6 py-4 font-medium">Prix Vente</th>
                     <th className="px-6 py-4 font-medium">Statut</th>
                     <th className="px-6 py-4 font-medium text-right">Actions</th>
                   </tr>
@@ -480,9 +588,6 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                           <span className="font-semibold text-slate-800">{product.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-mono font-bold text-slate-900">
-                        {product.salePrice.toFixed(2)} DH
-                      </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-md text-xs font-bold ${
                           (product.minStockAlert !== undefined && product.stockQuantity <= product.minStockAlert) || (product.minStockAlert === undefined && product.stockQuantity <= 0) ? 'bg-rose-100 text-rose-700' :
@@ -490,6 +595,12 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                         }`}>
                           {product.stockQuantity} en stock
                         </span>
+                      </td>
+                      <td className="px-6 py-4 font-mono font-bold text-slate-700">
+                        {(product.purchasePrice || 0).toFixed(2)} DH
+                      </td>
+                      <td className="px-6 py-4 font-mono font-bold text-slate-900">
+                        {product.salePrice.toFixed(2)} DH
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -524,7 +635,7 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                   ))}
                   {filteredProducts.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
                         <div className="flex flex-col items-center justify-center">
                           <Package className="w-12 h-12 text-slate-300 mb-3" />
                           <p>Aucun produit de boutique trouvé</p>
@@ -575,41 +686,98 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
 
           {/* Filters & Movements Table */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-            <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="relative flex-1 w-full max-w-md">
-                <Search className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={movSearchTerm}
-                  onChange={e => setMovSearchTerm(e.target.value)}
-                  placeholder="Rechercher par produit, motif, pompiste..."
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm"
-                />
+            <div className="p-4 border-b border-slate-200 space-y-3">
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="relative flex-1 w-full max-w-md">
+                  <Search className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={movSearchTerm}
+                    onChange={e => setMovSearchTerm(e.target.value)}
+                    placeholder="Rechercher par produit, motif, pompiste..."
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                  {/* Type Filter */}
+                  <select
+                    value={movTypeFilter}
+                    onChange={e => setMovTypeFilter(e.target.value as any)}
+                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="all">Tous les types (Entrées & Sorties)</option>
+                    <option value="in">Entrées seulement (+)</option>
+                    <option value="out">Sorties / Ventes (-)</option>
+                  </select>
+
+                  {/* Product Filter */}
+                  <select
+                    value={movProductFilter}
+                    onChange={e => setMovProductFilter(e.target.value)}
+                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="all">Tous les produits</option>
+                    {shopProducts.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={() => setIsMovReportModalOpen(true)}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Imprimer le rapport
+                  </button>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                {/* Type Filter */}
-                <select
-                  value={movTypeFilter}
-                  onChange={e => setMovTypeFilter(e.target.value as any)}
-                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="all">Tous les types (Entrées & Sorties)</option>
-                  <option value="in">Entrées seulement (+)</option>
-                  <option value="out">Sorties / Ventes (-)</option>
-                </select>
+              {/* Period Quick Filter Buttons */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <span className="text-xs font-bold text-slate-400 mr-1 hidden sm:inline">Période:</span>
+                {[
+                  { id: 'all', label: 'Toutes les dates' },
+                  { id: 'today', label: "Aujourd'hui" },
+                  { id: 'week', label: '7 derniers jours' },
+                  { id: 'month', label: 'Ce mois' },
+                  { id: 'custom', label: 'Date spécifique' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setMovDatePeriod(p.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                      movDatePeriod === p.id
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
 
-                {/* Product Filter */}
-                <select
-                  value={movProductFilter}
-                  onChange={e => setMovProductFilter(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="all">Tous les produits</option>
-                  {shopProducts.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                {movDatePeriod === 'custom' && (
+                  <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] font-bold text-slate-500">Du:</span>
+                      <input
+                        type="date"
+                        value={movStartDate}
+                        onChange={(e) => setMovStartDate(e.target.value)}
+                        className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] font-bold text-slate-500">Au:</span>
+                      <input
+                        type="date"
+                        value={movEndDate}
+                        onChange={(e) => setMovEndDate(e.target.value)}
+                        className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -934,6 +1102,157 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3 print:hidden">
               <button
                 onClick={() => setIsReportModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Movements Report Modal */}
+      {isMovReportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[92vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg">Rapport Historique des Mouvements</h3>
+                  <p className="text-xs text-slate-400">Impression officielle des entrées et sorties de stock (Huiles & Lubrifiants)</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handlePrintMov}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimer le rapport
+                </button>
+                <button 
+                  onClick={() => setIsMovReportModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Content Body */}
+            <div className="p-4 overflow-y-auto flex-1 bg-slate-100 max-h-[75vh]">
+              {(() => {
+                const totalIn = filteredMovements.filter(m => m.type === 'in').reduce((sum, m) => sum + (m.quantity || 0), 0);
+                const totalOut = filteredMovements.filter(m => m.type === 'out').reduce((sum, m) => sum + (m.quantity || 0), 0);
+                const currentDateStr = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+                return (
+                  <div 
+                    ref={movReportRef} 
+                    className="bg-white text-slate-900 w-full max-w-[210mm] mx-auto p-8 rounded-xl shadow-lg border border-slate-200 text-[11px] font-sans leading-relaxed space-y-6"
+                  >
+                    {/* Station Header */}
+                    <div className="flex justify-between items-start pb-4 border-b-2 border-slate-900">
+                      <div>
+                        {config?.logo && (config.logo.startsWith('data:') || config.logo.startsWith('http') || config.logo.length > 5) ? (
+                          <div className="mb-2">
+                            <img src={config.logo} alt="Logo" className="max-h-16 max-w-[260px] object-contain" referrerPolicy="no-referrer" />
+                          </div>
+                        ) : null}
+                        <h1 className="text-xl font-black text-slate-900 tracking-wider uppercase">{config?.name || 'STATION ZIZ SERVICE'}</h1>
+                        <p className="text-xs font-bold text-slate-600 uppercase">RAPPORT DES MOUVEMENTS DE STOCK - HUILES & LUBRIFIANTS</p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Période: <strong className="text-slate-800">{getMovPeriodText()}</strong> | Généré le: <strong>{currentDateStr}</strong>
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-black rounded-md border border-indigo-200 uppercase">
+                          DOCUMENT OFFICIEL
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-1">Généré par : {currentUser}</p>
+                      </div>
+                    </div>
+
+                    {/* KPI Summary Cards */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Entrées</div>
+                        <div className="text-base font-black text-emerald-600 mt-0.5">+{totalIn} <span className="text-xs font-normal text-slate-500">unités</span></div>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Sorties / Ventes</div>
+                        <div className="text-base font-black text-rose-600 mt-0.5">-{totalOut} <span className="text-xs font-normal text-slate-500">unités</span></div>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Opérations</div>
+                        <div className="text-base font-black text-slate-900 mt-0.5">{filteredMovements.length} <span className="text-xs font-normal text-slate-500">mouvements</span></div>
+                      </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <table className="w-full text-left text-[10px]">
+                        <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[9px] border-b border-slate-200">
+                          <tr>
+                            <th className="p-2 border-r border-slate-200 text-center">#</th>
+                            <th className="p-2 border-r border-slate-200">Date</th>
+                            <th className="p-2 border-r border-slate-200">Produit</th>
+                            <th className="p-2 border-r border-slate-200 text-center">Type</th>
+                            <th className="p-2 border-r border-slate-200 text-center">Quantité</th>
+                            <th className="p-2 border-r border-slate-200 text-center">Stock (Avant → Après)</th>
+                            <th className="p-2 border-r border-slate-200">Source / Motif</th>
+                            <th className="p-2 text-left">Auteur / Pompiste</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {filteredMovements.map((mov, idx) => {
+                            const isEntry = mov.type === 'in';
+                            const displayDate = mov.date ? mov.date.split(' ')[0] : '';
+                            return (
+                              <tr key={mov.id} className="hover:bg-slate-50">
+                                <td className="p-2 border-r border-slate-200 text-center text-slate-500">{idx + 1}</td>
+                                <td className="p-2 border-r border-slate-200 font-semibold">{displayDate}</td>
+                                <td className="p-2 border-r border-slate-200 font-bold text-slate-800">{mov.productName}</td>
+                                <td className="p-2 border-r border-slate-200 text-center">
+                                  {isEntry ? (
+                                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[9px] font-black">ENTRÉE</span>
+                                  ) : (
+                                    <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-[9px] font-black">SORTIE</span>
+                                  )}
+                                </td>
+                                <td className={`p-2 border-r border-slate-200 text-center font-mono font-black ${isEntry ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                  {isEntry ? `+${mov.quantity}` : `-${mov.quantity}`}
+                                </td>
+                                <td className="p-2 border-r border-slate-200 text-center font-mono font-semibold text-slate-600">
+                                  {mov.previousStock} → {mov.newStock}
+                                </td>
+                                <td className="p-2 border-r border-slate-200 text-slate-700">{mov.reason}</td>
+                                <td className="p-2 font-medium text-slate-700">{mov.author || 'Système'}</td>
+                              </tr>
+                            );
+                          })}
+                          {filteredMovements.length === 0 && (
+                            <tr>
+                              <td colSpan={8} className="p-6 text-center text-slate-400 font-medium">
+                                Aucun mouvement de stock trouvé pour la période sélectionnée.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="p-3 border-t border-slate-100 flex items-center justify-end">
+              <button
+                onClick={() => setIsMovReportModalOpen(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition-colors"
               >
                 Fermer
