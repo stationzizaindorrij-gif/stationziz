@@ -1,14 +1,18 @@
 import { ConfirmModal } from "./ConfirmModal";
 import React, { useState, useRef } from 'react';
-import { Package, Plus, Search, Edit2, Trash2, Camera, Tag, DollarSign, Archive, Check, AlertTriangle, Printer, X, Filter, Building2 } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Trash2, Camera, Tag, DollarSign, Archive, Check, AlertTriangle, Printer, X, Filter, Building2, ArrowUpRight, ArrowDownLeft, Clock, History, Calendar, UserCheck, RefreshCw } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { ShopProduct } from '../types';
 
 interface ShopProps { store: ERPStoreType; }
 
 export const Shop: React.FC<ShopProps> = ({ store }) => {
-  const { shopProducts, addShopProduct, updateShopProduct, deleteShopProduct, currentRole, users, config } = store;
+  const { shopProducts, addShopProduct, updateShopProduct, deleteShopProduct, currentRole, users, config, shopStockMovements = [] } = store;
+  const [activeTab, setActiveTab] = useState<'catalog' | 'history'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
+  const [movSearchTerm, setMovSearchTerm] = useState('');
+  const [movTypeFilter, setMovTypeFilter] = useState<'all' | 'in' | 'out'>('all');
+  const [movProductFilter, setMovProductFilter] = useState<string>('all');
   const [isAdding, setIsAdding] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -29,6 +33,26 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
   });
 
   const currentUser = users.find(u => u.role === currentRole)?.name || currentRole;
+
+  const filteredMovements = (shopStockMovements || []).filter(mov => {
+    const matchesSearch = 
+      mov.productName.toLowerCase().includes(movSearchTerm.toLowerCase()) ||
+      mov.reason.toLowerCase().includes(movSearchTerm.toLowerCase()) ||
+      (mov.author && mov.author.toLowerCase().includes(movSearchTerm.toLowerCase()));
+    
+    const matchesType = movTypeFilter === 'all' || mov.type === movTypeFilter;
+    const matchesProduct = movProductFilter === 'all' || mov.productId === movProductFilter;
+
+    return matchesSearch && matchesType && matchesProduct;
+  });
+
+  const totalEntreesQty = (shopStockMovements || [])
+    .filter(m => m.type === 'in')
+    .reduce((acc, m) => acc + (m.quantity || 0), 0);
+
+  const totalSortiesQty = (shopStockMovements || [])
+    .filter(m => m.type === 'out')
+    .reduce((acc, m) => acc + (m.quantity || 0), 0);
 
   const handlePrint = () => {
     const reportNode = reportRef.current;
@@ -348,138 +372,336 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
-          <div className="p-3 bg-indigo-100 rounded-lg text-indigo-600">
-            <Package className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-sm text-slate-500 font-medium">Total Produits</div>
-            <div className="text-2xl font-bold text-slate-800">{shopProducts.length}</div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
-          <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600">
-            <Archive className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-sm text-slate-500 font-medium">Quantité Totale en Stock</div>
-            <div className="text-2xl font-bold text-slate-800">
-              {shopProducts.reduce((sum, p) => sum + (p.stockQuantity || 0), 0)}
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
-          <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
-            <DollarSign className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-sm text-slate-500 font-medium">Valeur Stock (Prix d'achat)</div>
-            <div className="text-2xl font-bold text-slate-800">
-              {shopProducts.reduce((sum, p) => sum + ((p.stockQuantity || 0) * (p.purchasePrice || 0)), 0).toFixed(2)} DH
-            </div>
-          </div>
-        </div>
+      <div className="flex border-b border-slate-200 gap-6">
+        <button
+          onClick={() => setActiveTab('catalog')}
+          className={`pb-3 px-1 border-b-2 font-bold text-sm flex items-center gap-2 transition-colors ${
+            activeTab === 'catalog'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          Catalogue & Stock ({shopProducts.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`pb-3 px-1 border-b-2 font-bold text-sm flex items-center gap-2 transition-colors ${
+            activeTab === 'history'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <History className="w-4 h-4" />
+          Historique Entrées / Sorties
+          <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+            activeTab === 'history' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'
+          }`}>
+            {(shopStockMovements || []).length}
+          </span>
+        </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-        <div className="p-4 border-b border-slate-200">
-          <div className="relative max-w-md">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="w-5 h-5 text-slate-400" />
+      {activeTab === 'catalog' ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+              <div className="p-3 bg-indigo-100 rounded-lg text-indigo-600">
+                <Package className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-sm text-slate-500 font-medium">Total Produits</div>
+                <div className="text-2xl font-bold text-slate-800">{shopProducts.length}</div>
+              </div>
             </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Rechercher un produit..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+              <div className="p-3 bg-emerald-100 rounded-lg text-emerald-600">
+                <Archive className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-sm text-slate-500 font-medium">Quantité Totale en Stock</div>
+                <div className="text-2xl font-bold text-slate-800">
+                  {shopProducts.reduce((sum, p) => sum + (p.stockQuantity || 0), 0)}
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+              <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
+                <DollarSign className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-sm text-slate-500 font-medium">Valeur Stock (Prix d'achat)</div>
+                <div className="text-2xl font-bold text-slate-800">
+                  {shopProducts.reduce((sum, p) => sum + ((p.stockQuantity || 0) * (p.purchasePrice || 0)), 0).toFixed(2)} DH
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 text-slate-600 text-sm">
-              <tr>
-                <th className="px-6 py-4 font-medium">Produit</th>
-                <th className="px-6 py-4 font-medium">Prix Vente</th>
-                <th className="px-6 py-4 font-medium">Stock</th>
-                <th className="px-6 py-4 font-medium">Statut</th>
-                <th className="px-6 py-4 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredProducts.map(product => (
-                <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {product.photo ? (
-                        <img src={product.photo} alt={product.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                          <Package className="w-5 h-5 text-slate-400" />
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div className="p-4 border-b border-slate-200">
+              <div className="relative max-w-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="w-5 h-5 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher un produit..."
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 text-slate-600 text-sm">
+                  <tr>
+                    <th className="px-6 py-4 font-medium">Produit</th>
+                    <th className="px-6 py-4 font-medium">Prix Vente</th>
+                    <th className="px-6 py-4 font-medium">Stock</th>
+                    <th className="px-6 py-4 font-medium">Statut</th>
+                    <th className="px-6 py-4 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredProducts.map(product => (
+                    <tr key={product.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {product.photo ? (
+                            <img src={product.photo} alt={product.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                              <Package className="w-5 h-5 text-slate-400" />
+                            </div>
+                          )}
+                          <span className="font-semibold text-slate-800">{product.name}</span>
                         </div>
-                      )}
-                      <span className="font-semibold text-slate-800">{product.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-mono font-bold text-slate-900">
-                    {product.salePrice.toFixed(2)} DH
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                      (product.minStockAlert !== undefined && product.stockQuantity <= product.minStockAlert) || (product.minStockAlert === undefined && product.stockQuantity <= 0) ? 'bg-rose-100 text-rose-700' :
-                      'bg-emerald-100 text-emerald-700'
-                    }`}>
-                      {product.stockQuantity} en stock
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                      product.status === 'active' 
-                        ? 'bg-emerald-100 text-emerald-700' 
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {product.status === 'active' ? 'Actif' : 'Inactif'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => startEdit(product)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        title="Modifier"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      {isAdminOrManager && (
-                        <button
-                          onClick={() => setProductToDelete(product.id)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredProducts.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                    <div className="flex flex-col items-center justify-center">
-                      <Package className="w-12 h-12 text-slate-300 mb-3" />
-                      <p>Aucun produit de boutique trouvé</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="px-6 py-4 font-mono font-bold text-slate-900">
+                        {product.salePrice.toFixed(2)} DH
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${
+                          (product.minStockAlert !== undefined && product.stockQuantity <= product.minStockAlert) || (product.minStockAlert === undefined && product.stockQuantity <= 0) ? 'bg-rose-100 text-rose-700' :
+                          'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {product.stockQuantity} en stock
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          product.status === 'active' 
+                            ? 'bg-emerald-100 text-emerald-700' 
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {product.status === 'active' ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => startEdit(product)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          {isAdminOrManager && (
+                            <button
+                              onClick={() => setProductToDelete(product.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredProducts.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center">
+                          <Package className="w-12 h-12 text-slate-300 mb-3" />
+                          <p>Aucun produit de boutique trouvé</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* History / Stock Movements Tab */
+        <div className="space-y-6">
+          {/* Summary KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+              <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
+                <ArrowUpRight className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-slate-500">Total Entrées (Quantité)</div>
+                <div className="text-2xl font-bold text-emerald-600">+{totalEntreesQty} un.</div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+              <div className="p-3 bg-rose-100 text-rose-600 rounded-xl">
+                <ArrowDownLeft className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-slate-500">Total Sorties / Ventes</div>
+                <div className="text-2xl font-bold text-rose-600">-{totalSortiesQty} un.</div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+              <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
+                <History className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-slate-500">Mouvements Enregistrés</div>
+                <div className="text-2xl font-bold text-slate-800">{(shopStockMovements || []).length}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters & Movements Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative flex-1 w-full max-w-md">
+                <Search className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={movSearchTerm}
+                  onChange={e => setMovSearchTerm(e.target.value)}
+                  placeholder="Rechercher par produit, motif, pompiste..."
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                {/* Type Filter */}
+                <select
+                  value={movTypeFilter}
+                  onChange={e => setMovTypeFilter(e.target.value as any)}
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">Tous les types (Entrées & Sorties)</option>
+                  <option value="in">Entrées seulement (+)</option>
+                  <option value="out">Sorties / Ventes (-)</option>
+                </select>
+
+                {/* Product Filter */}
+                <select
+                  value={movProductFilter}
+                  onChange={e => setMovProductFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">Tous les produits</option>
+                  {shopProducts.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 text-slate-600 text-xs font-semibold uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">Produit</th>
+                    <th className="px-6 py-4">Type</th>
+                    <th className="px-6 py-4 text-center">Quantité</th>
+                    <th className="px-6 py-4 text-center">Stock (Avant → Après)</th>
+                    <th className="px-6 py-4">Source / Motif</th>
+                    <th className="px-6 py-4">Auteur / Pompiste</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {filteredMovements.map(mov => {
+                    const prod = shopProducts.find(p => p.id === mov.productId);
+                    const isEntry = mov.type === 'in';
+                    const displayDate = mov.date ? mov.date.split(' ')[0] : '';
+                    return (
+                      <tr key={mov.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-slate-600">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            {displayDate}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-semibold text-slate-800">
+                          <div className="flex items-center gap-2">
+                            {prod?.photo ? (
+                              <img src={prod.photo} alt="" className="w-8 h-8 rounded object-cover bg-slate-100" />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-400">
+                                <Package className="w-4 h-4" />
+                              </div>
+                            )}
+                            <span>{mov.productName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {isEntry ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-700">
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                              ENTRÉE
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-700">
+                              <ArrowDownLeft className="w-3.5 h-3.5" />
+                              SORTIE
+                            </span>
+                          )}
+                        </td>
+                        <td className={`px-6 py-4 text-center font-black font-mono text-base ${isEntry ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {isEntry ? `+${mov.quantity}` : `-${mov.quantity}`}
+                        </td>
+                        <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-600">
+                          <span className="text-slate-400">{mov.previousStock}</span>
+                          <span className="mx-1 text-slate-300">→</span>
+                          <span className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded font-bold">{mov.newStock}</span>
+                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-700">
+                          {mov.reason}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
+                          <div className="flex items-center gap-1 font-semibold text-slate-700">
+                            <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                            {mov.author || 'Système'}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredMovements.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <History className="w-10 h-10 text-slate-300" />
+                          <p className="font-semibold text-slate-600">Aucun mouvement de stock enregistré</p>
+                          <p className="text-xs text-slate-400">Les mouvements s'enregistrent automatiquement lors de l'ajout/modification de stock ou de la validation d'un shift avec ventes.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Report & Print Modal */}
       {isReportModalOpen && (
@@ -600,17 +822,22 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                     <div className="flex-1 flex flex-col justify-start">
                       {/* Station Header */}
                       <div className="flex justify-between items-start mb-6 pb-6 border-b-2 border-slate-100">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 mb-1">
-                            {config?.logo && (config.logo.startsWith('data:') || config.logo.startsWith('http') || config.logo.length > 5) ? (
-                              <img src={config.logo} alt="Logo" className="w-8 h-8 object-cover rounded" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                                <Building2 className="w-4 h-4" />
+                        <div className="space-y-2">
+                          {config?.logo && (config.logo.startsWith('data:') || config.logo.startsWith('http') || config.logo.length > 5) ? (
+                            <div className="mb-2">
+                              <img src={config.logo} alt="Logo" className="max-h-16 max-w-[260px] object-contain" referrerPolicy="no-referrer" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
+                                <Building2 className="w-5 h-5" />
                               </div>
-                            )}
-                            <h1 className="text-lg font-black text-slate-900 tracking-tight uppercase">{config?.name || 'STATION ZIZ SERVICE'}</h1>
-                          </div>
+                              <h1 className="text-lg font-black text-slate-900 tracking-tight uppercase">{config?.name || 'STATION ZIZ SERVICE'}</h1>
+                            </div>
+                          )}
+                          {config?.logo && (config.logo.startsWith('data:') || config.logo.startsWith('http') || config.logo.length > 5) && config?.name && (
+                            <h1 className="text-base font-black text-slate-900 tracking-tight uppercase">{config.name}</h1>
+                          )}
                         </div>
 
                         <div className="text-right">
@@ -626,7 +853,7 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                       </div>
 
                       {/* KPI Metric Summary Cards */}
-                      <div className="grid grid-cols-4 gap-3 mb-6">
+                      <div className="grid grid-cols-3 gap-3 mb-6">
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Références</div>
                           <div className="text-base font-black text-slate-900 mt-0.5">{filtered.length} <span className="text-xs font-normal text-slate-500">produits</span></div>
@@ -634,10 +861,6 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Quantité Totale</div>
                           <div className="text-base font-black text-slate-900 mt-0.5">{totalQty} <span className="text-xs font-normal text-slate-500">unités</span></div>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Valeur Stock (Achat)</div>
-                          <div className="text-base font-black text-slate-900 mt-0.5 font-mono">{totalPurchaseVal.toFixed(2)} <span className="text-xs font-normal text-slate-500">DH</span></div>
                         </div>
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Valeur Stock (Vente)</div>
@@ -652,10 +875,8 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                             <tr>
                               <th className="py-2.5 px-3 text-center">#</th>
                               <th className="py-2.5 px-3">Désignation Produit</th>
-                              <th className="py-2.5 px-3 text-right">P. Achat</th>
                               <th className="py-2.5 px-3 text-right">P. Vente</th>
                               <th className="py-2.5 px-3 text-center">Quantité</th>
-                              <th className="py-2.5 px-3 text-right">Total Achat</th>
                               <th className="py-2.5 px-3 text-right">Total Vente</th>
                               <th className="py-2.5 px-3 text-center">Statut</th>
                             </tr>
@@ -664,17 +885,14 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                             {filtered.map((p, idx) => {
                               const isLow = (p.minStockAlert !== undefined && p.stockQuantity <= p.minStockAlert) || (p.minStockAlert === undefined && p.stockQuantity <= 0);
                               const isOut = p.stockQuantity <= 0;
-                              const purchaseVal = (p.stockQuantity || 0) * (p.purchasePrice || 0);
                               const saleVal = (p.stockQuantity || 0) * (p.salePrice || 0);
 
                               return (
                                 <tr key={p.id} className="hover:bg-slate-50">
                                   <td className="py-2 px-3 text-slate-400 text-center">{idx + 1}</td>
                                   <td className="py-2 px-3 font-bold text-slate-900">{p.name}</td>
-                                  <td className="py-2 px-3 text-right font-mono">{(p.purchasePrice || 0).toFixed(2)} DH</td>
                                   <td className="py-2 px-3 text-right font-mono font-bold text-slate-800">{(p.salePrice || 0).toFixed(2)} DH</td>
                                   <td className="py-2 px-3 text-center font-mono font-bold text-slate-900">{p.stockQuantity || 0}</td>
-                                  <td className="py-2 px-3 text-right font-mono font-medium text-slate-700">{purchaseVal.toFixed(2)} DH</td>
                                   <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600">{saleVal.toFixed(2)} DH</td>
                                   <td className="py-2 px-3 text-center">
                                     {isOut ? (
@@ -690,7 +908,7 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                             })}
                             {filtered.length === 0 && (
                               <tr>
-                                <td colSpan={8} className="py-6 text-center text-slate-400 font-medium">
+                                <td colSpan={6} className="py-6 text-center text-slate-400 font-medium">
                                   Aucun produit ne correspond aux filtres de recherche.
                                 </td>
                               </tr>
@@ -698,9 +916,8 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                           </tbody>
                           <tfoot className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
                             <tr>
-                              <td colSpan={4} className="py-2.5 px-3 text-right uppercase text-[9px] text-slate-500">TOTAL GÉNÉRAL</td>
+                              <td colSpan={3} className="py-2.5 px-3 text-right uppercase text-[9px] text-slate-500">TOTAL GÉNÉRAL</td>
                               <td className="py-2.5 px-3 text-center font-mono text-xs">{totalQty}</td>
-                              <td className="py-2.5 px-3 text-right font-mono">{totalPurchaseVal.toFixed(2)} DH</td>
                               <td className="py-2.5 px-3 text-right font-mono text-emerald-700">{totalSaleVal.toFixed(2)} DH</td>
                               <td></td>
                             </tr>

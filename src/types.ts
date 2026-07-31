@@ -352,6 +352,20 @@ export interface ShopProduct {
   status: 'active' | 'inactive';
 }
 
+export interface ShopStockMovement {
+  id: string;
+  productId: string;
+  productName: string;
+  type: 'in' | 'out';
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  date: string;
+  reason: string;
+  author?: string;
+  shiftId?: string;
+}
+
 export interface SimulationRecord {
   id: string;
   date: string;

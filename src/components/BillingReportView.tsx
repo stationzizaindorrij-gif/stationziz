@@ -473,19 +473,30 @@ export function BillingReportView({ documents, settings, clients, suppliers, onB
           <div className="flex-1 flex flex-col justify-start">
             {/* Station Header */}
             <div className="flex justify-between items-start mb-6 pb-6 border-b-2 border-slate-100">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 mb-1">
-                  {settings.logoUrl && (settings.logoUrl.startsWith('data:') || settings.logoUrl.startsWith('http') || settings.logoUrl.length > 5) ? (
-                    <img src={settings.logoUrl} alt="Logo" className="w-8 h-8 object-cover rounded" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+              <div className="space-y-2">
+                {settings.logoUrl && (settings.logoUrl.startsWith('data:') || settings.logoUrl.startsWith('http') || settings.logoUrl.length > 5) ? (
+                  <div className="mb-2">
+                    <img 
+                      src={settings.logoUrl} 
+                      alt="Logo" 
+                      className="max-h-16 max-w-[260px] object-contain"
+                      style={{ width: settings.logoSize ? `${settings.logoSize}px` : undefined }}
+                      referrerPolicy="no-referrer" 
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
                       <span className="text-xl">⛽</span>
                     </div>
-                  )}
-                  <h1 className="text-lg font-black text-slate-900 tracking-tight uppercase">{settings.companyName || 'STATION SERVICE'}</h1>
-                </div>
-                <p className="text-[10px] font-bold text-slate-500 max-w-[250px] leading-snug">{settings.address}</p>
-                <p className="text-[10px] font-bold text-slate-400">Tél : {settings.phone || '-'}</p>
+                    <h1 className="text-lg font-black text-slate-900 tracking-tight uppercase">{settings.companyName || 'STATION SERVICE'}</h1>
+                  </div>
+                )}
+                {settings.logoUrl && (settings.logoUrl.startsWith('data:') || settings.logoUrl.startsWith('http') || settings.logoUrl.length > 5) && settings.companyName && (
+                  <h1 className="text-base font-black text-slate-900 tracking-tight uppercase">{settings.companyName}</h1>
+                )}
+                {settings.address && <p className="text-[10px] font-bold text-slate-500 max-w-[280px] leading-snug">{settings.address}</p>}
+                {settings.phone && <p className="text-[10px] font-bold text-slate-400">Tél : {settings.phone}</p>}
               </div>
               <div className="text-right">
                 <div className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest inline-block mb-2">

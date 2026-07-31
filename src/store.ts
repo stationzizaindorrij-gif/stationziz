@@ -2,7 +2,7 @@ import { supabase } from './lib/supabase';
 import React, { useState
 , useEffect } from 'react';
 import { 
-  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, 
+  Supplier, Client, PurchaseInvoice, SalesInvoice, ShopProduct, ShopStockMovement, 
   AuditLog, CashRegistry, Shift, Alert, Supply, Tank, Product, Attendant,
   StationConfig, UserRole, User, StockCorrection, Pump, PriceHistory, Nozzle, Sale,
   SimulationRecord
@@ -44,6 +44,7 @@ export interface ERPStoreType {
   simulationRecords: SimulationRecord[];
   addSimulationRecord: (record: Omit<SimulationRecord, 'id'>, author: string) => void;
   deleteSimulationRecord: (id: string, author: string) => void;
+  shopStockMovements: ShopStockMovement[];
 
   switchRole: (role: UserRole) => void;
   markAlertAsRead: (id: string) => void;
@@ -168,6 +169,7 @@ export function useERPStore(): ERPStoreType {
   const [deliveryInvoices, setDeliveryInvoices] = useState<SalesInvoice[]>([]);
   const [richDocuments, setRichDocuments] = useState<RichDocument[]>([]);
   const [simulationRecords, setSimulationRecords] = useState<SimulationRecord[]>([]);
+  const [shopStockMovements, setShopStockMovements] = useState<ShopStockMovement[]>([]);
 
   const saveState = (key: string, data: any, setter: React.Dispatch<React.SetStateAction<any>>) => {
     setter(data);
@@ -699,6 +701,14 @@ export function useERPStore(): ERPStoreType {
           } catch (e) {}
         }
         setSimulationRecords(Array.isArray(rawSims) ? rawSims : []);
+        let rawStockMovs = data.shop_stock_movements || data.shopStockMovements || [];
+        if (!rawStockMovs || rawStockMovs.length === 0) {
+          try {
+            const localMovs = localStorage.getItem('station_erp_shop_stock_movements');
+            if (localMovs) rawStockMovs = JSON.parse(localMovs);
+          } catch (e) {}
+        }
+        setShopStockMovements(Array.isArray(rawStockMovs) ? rawStockMovs : []);
         setAlerts(data.alerts || []);
         setUsers(data.users || []);
         if (data.config) {
@@ -967,11 +977,52 @@ export function useERPStore(): ERPStoreType {
   };
 
   const addShopProduct = (product: Omit<ShopProduct, 'id'>, author: string) => {
-    saveState('shop_products', [...shopProducts, { ...product, id: `sp_${Date.now()}` }], setShopProducts);
+    const newId = `sp_${Date.now()}`;
+    const newProd = { ...product, id: newId };
+    saveState('shop_products', [...shopProducts, newProd], setShopProducts);
+
+    if (Number(product.stockQuantity) > 0) {
+      const nowStr = new Date().toISOString().split('T')[0];
+      const newMov: ShopStockMovement = {
+        id: `mov_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        productId: newId,
+        productName: product.name,
+        type: 'in',
+        quantity: Number(product.stockQuantity),
+        previousStock: 0,
+        newStock: Number(product.stockQuantity),
+        date: nowStr,
+        reason: 'Stock Initial / Nouveau Produit',
+        author: author || 'Admin'
+      };
+      saveState('shop_stock_movements', [newMov, ...shopStockMovements], setShopStockMovements);
+    }
   };
 
   const updateShopProduct = (id: string, updates: Partial<ShopProduct>, author: string) => {
+    const oldProduct = shopProducts.find(p => p.id === id);
     saveState('shop_products', shopProducts.map(p => p.id === id ? { ...p, ...updates } : p), setShopProducts);
+
+    if (oldProduct && updates.stockQuantity !== undefined && Number(updates.stockQuantity) !== Number(oldProduct.stockQuantity)) {
+      const oldQty = Number(oldProduct.stockQuantity) || 0;
+      const newQty = Number(updates.stockQuantity) || 0;
+      const diff = newQty - oldQty;
+      const nowStr = new Date().toISOString().split('T')[0];
+
+      const newMov: ShopStockMovement = {
+        id: `mov_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        productId: id,
+        productName: updates.name || oldProduct.name,
+        type: diff > 0 ? 'in' : 'out',
+        quantity: Math.abs(diff),
+        previousStock: oldQty,
+        newStock: newQty,
+        date: nowStr,
+        reason: diff > 0 ? 'Approvisionnement / Ajout de Stock' : 'Ajustement Manuel (Diminution)',
+        author: author || 'Admin'
+      };
+      saveState('shop_stock_movements', [newMov, ...shopStockMovements], setShopStockMovements);
+    }
   };
 
   const deleteShopProduct = (id: string, author: string) => {
@@ -1638,6 +1689,7 @@ return {
     // Also include product sales if any
     let updatedShopProducts = [...shopProducts];
     let shopProductsChanged = false;
+    const newMovements: ShopStockMovement[] = [];
 
     if (shiftData.productsSold && Array.isArray(shiftData.productsSold) && shiftData.productsSold.length > 0) {
       shiftData.productsSold.forEach((p, idx) => {
@@ -1672,8 +1724,30 @@ return {
              stockQuantity: newStock
            };
            shopProductsChanged = true;
+
+           if (qtySold > 0) {
+             const shiftDateStr = shiftData.date || new Date().toISOString().split('T')[0];
+
+             newMovements.push({
+               id: `mov_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+               productId: sp.id,
+               productName: sp.name,
+               type: 'out',
+               quantity: qtySold,
+               previousStock: currentStock,
+               newStock: newStock,
+               date: shiftDateStr,
+               reason: `Vente Shift - ${shiftData.attendantName || 'Pompiste'} (${shiftData.shiftName || 'Shift'})`,
+               author: shiftData.attendantName || 'Pompiste',
+               shiftId: newShift.id
+             });
+           }
          }
       });
+    }
+
+    if (newMovements.length > 0) {
+      saveState('shop_stock_movements', [...newMovements, ...shopStockMovements], setShopStockMovements);
     }
     
     if (shopProductsChanged) {
@@ -2003,6 +2077,7 @@ return {
     clients,
     purchaseInvoices,
     salesInvoices,
+    shopStockMovements,
     
     // Actions
     switchRole,
