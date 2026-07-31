@@ -358,6 +358,7 @@ export interface SimulationRecord {
   title: string;
   periodLabel: string;
   nozzleIds: string[];
+  selectedSimPumpKeys?: string[];
   inputs: Record<string, { entries: number; exits: number; purchasePrice: number }>;
   totals: {
     totalEntrees: number;

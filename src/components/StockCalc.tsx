@@ -130,14 +130,7 @@ export default function StockCalc({ store }: StockCalcProps) {
   }, [nozzles]);
 
   // --- State for "Simulation des Entrées et Sorties" ---
-  const [selectedSimPumpKeys, setSelectedSimPumpKeys] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('station_erp_sim_pump_keys');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [selectedSimPumpKeys, setSelectedSimPumpKeys] = useState<string[]>([]);
 
   const [simNozzleIds, setSimNozzleIds] = useState<string[]>(() => {
     try {
@@ -209,6 +202,7 @@ export default function StockCalc({ store }: StockCalcProps) {
         title: titleToSave,
         periodLabel,
         nozzleIds: simNozzleIds,
+        selectedSimPumpKeys: selectedSimPumpKeys,
         inputs: simInputs,
         totals: totalsSimulation
       }, 'ADMIN');
@@ -220,9 +214,28 @@ export default function StockCalc({ store }: StockCalcProps) {
   };
 
   const handleLoadSimulation = (rec: SimulationRecord) => {
-    if (rec.nozzleIds) setSimNozzleIds(rec.nozzleIds);
-    if (rec.inputs) setSimInputs(rec.inputs);
-    setSaveSuccessMsg(`Simulation "${rec.title}" chargée dans le simulateur.`);
+    if (rec.inputs && Object.keys(rec.inputs).length > 0) {
+      setSimInputs(rec.inputs);
+    }
+
+    if (rec.selectedSimPumpKeys && Array.isArray(rec.selectedSimPumpKeys)) {
+      setSelectedSimPumpKeys(rec.selectedSimPumpKeys);
+    } else if (rec.inputs) {
+      // Fallback for legacy saved records: infer selected pumps from inputs keys or nozzle matches
+      const inputKeys = Object.keys(rec.inputs);
+      const activePumpKeys = groupedPumps
+        .filter(gp => inputKeys.includes(gp.key) || gp.nozzleIds.some(nId => inputKeys.includes(nId)))
+        .map(gp => gp.key);
+      if (activePumpKeys.length > 0) {
+        setSelectedSimPumpKeys(activePumpKeys);
+      }
+    }
+
+    if (rec.nozzleIds && Array.isArray(rec.nozzleIds)) {
+      setSimNozzleIds(rec.nozzleIds);
+    }
+
+    setSaveSuccessMsg(`Simulation "${rec.title}" chargée avec succès dans le simulateur.`);
     setTimeout(() => setSaveSuccessMsg(''), 4000);
   };
 
@@ -557,13 +570,12 @@ export default function StockCalc({ store }: StockCalcProps) {
     return Array.from(map.values());
   }, [pumps, nozzles]);
 
-  // Auto-select all pumps on load if selectedSimPumpKeys is empty
+  // Ensure valid pump keys if selected, but DO NOT auto-select all pumps on load
   useEffect(() => {
     if (groupedPumps.length > 0) {
       setSelectedSimPumpKeys(prev => {
-        if (prev.length === 0) return groupedPumps.map(p => p.key);
-        const validKeys = prev.filter(k => groupedPumps.some(gp => gp.key === k));
-        return validKeys.length > 0 ? validKeys : groupedPumps.map(p => p.key);
+        if (prev.length === 0) return [];
+        return prev.filter(k => groupedPumps.some(gp => gp.key === k));
       });
     }
   }, [groupedPumps]);
