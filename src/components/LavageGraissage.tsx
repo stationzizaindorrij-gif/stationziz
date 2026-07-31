@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { 
   Droplets, Sparkles, Calendar, User, Plus, Search, Filter, 
   Trash2, Printer, TrendingUp, CheckCircle2, DollarSign, 
-  Clock, ArrowUpRight, FileText, BarChart3, Layers, ChevronRight, X
+  Clock, ArrowUpRight, FileText, BarChart3, ChevronRight, X
 } from 'lucide-react';
 import { ERPStoreType } from '../store';
 import { Shift } from '../types';
@@ -31,7 +31,6 @@ export default function LavageGraissage({ store }: LavageGraissageProps) {
   const [selectedAttendant, setSelectedAttendant] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'list' | 'stats'>('list');
 
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -127,7 +126,7 @@ export default function LavageGraissage({ store }: LavageGraissageProps) {
     return top;
   }, [filteredRecords]);
 
-  // Service breakdown distribution
+  // Service breakdown distribution for report modal
   const serviceDistribution = useMemo(() => {
     const dist: Record<string, { count: number; total: number }> = {};
     filteredRecords.forEach((r) => {
@@ -369,33 +368,12 @@ export default function LavageGraissage({ store }: LavageGraissageProps) {
         </div>
       </div>
 
-      {/* Tabs and Filters Controls */}
+      {/* Controls & Filters */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Main Navigation Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-            <button
-              onClick={() => setActiveTab('list')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                activeTab === 'list' 
-                  ? 'bg-white text-indigo-600 shadow-sm' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              Historique des Opérations ({filteredRecords.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('stats')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                activeTab === 'stats' 
-                  ? 'bg-white text-indigo-600 shadow-sm' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              Répartition & Statistiques
-            </button>
+          <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
+            <FileText className="w-4 h-4 text-indigo-500" />
+            Historique des Opérations ({filteredRecords.length})
           </div>
 
           {/* Period Quick Filter Buttons */}
@@ -482,177 +460,96 @@ export default function LavageGraissage({ store }: LavageGraissageProps) {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      {activeTab === 'list' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {filteredRecords.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
-                    <th className="p-4">Date & Shift</th>
-                    <th className="p-4">Service / Opération</th>
-                    <th className="p-4">Employé / Pompiste</th>
-                    <th className="p-4">Référence Shift</th>
-                    <th className="p-4 text-right">Montant (MAD)</th>
-                    <th className="p-4 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {filteredRecords.map((rec) => (
-                    <tr key={rec.id} className="hover:bg-indigo-50/30 transition-colors group">
-                      <td className="p-4">
-                        <div className="font-bold text-slate-800 flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                          {rec.shiftDate}
-                        </div>
-                        <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1 font-medium">
-                          <Clock className="w-3 h-3 text-slate-400" />
-                          Shift: <span className="font-semibold text-slate-700">{rec.shiftName}</span>
-                        </div>
-                      </td>
-
-                      <td className="p-4">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-900 rounded-lg font-bold">
-                          <Droplets className="w-3.5 h-3.5 text-indigo-500" />
-                          <span>{rec.serviceName}</span>
-                        </div>
-                      </td>
-
-                      <td className="p-4">
-                        <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5 text-slate-400" />
-                          {rec.attendantName}
-                        </div>
-                      </td>
-
-                      <td className="p-4">
-                        <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md font-mono text-[11px] font-semibold">
-                          #{rec.shiftId.slice(-6).toUpperCase()}
-                        </span>
-                      </td>
-
-                      <td className="p-4 text-right font-mono font-black text-sm text-indigo-600">
-                        +{rec.amount.toFixed(2)} <span className="text-xs font-sans text-slate-400">MAD</span>
-                      </td>
-
-                      <td className="p-4 text-center">
-                        <button
-                          onClick={() => handleDeleteService(rec.shiftId, rec.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors opacity-80 group-hover:opacity-100"
-                          title="Supprimer cette opération"
-                        >
-                          <Trash2 className="w-4 h-4 mx-auto" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-slate-50 border-t border-slate-200 font-bold text-xs text-slate-700">
-                  <tr>
-                    <td colSpan={4} className="p-4 uppercase text-right tracking-wider text-slate-500">
-                      Total Général Lavage & Graissage
+      {/* Main Operations List */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {filteredRecords.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+                  <th className="p-4">Date & Shift</th>
+                  <th className="p-4">Service / Opération</th>
+                  <th className="p-4">Employé / Pompiste</th>
+                  <th className="p-4">Référence Shift</th>
+                  <th className="p-4 text-right">Montant (MAD)</th>
+                  <th className="p-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {filteredRecords.map((rec) => (
+                  <tr key={rec.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    <td className="p-4">
+                      <div className="font-bold text-slate-800 flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                        {rec.shiftDate}
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1 font-medium">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        Shift: <span className="font-semibold text-slate-700">{rec.shiftName}</span>
+                      </div>
                     </td>
-                    <td className="p-4 text-right font-mono text-base font-black text-indigo-600">
-                      {totalAmount.toFixed(2)} MAD
+
+                    <td className="p-4">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-900 rounded-lg font-bold">
+                        <Droplets className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>{rec.serviceName}</span>
+                      </div>
                     </td>
-                    <td></td>
+
+                    <td className="p-4">
+                      <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        {rec.attendantName}
+                      </div>
+                    </td>
+
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md font-mono text-[11px] font-semibold">
+                        #{rec.shiftId.slice(-6).toUpperCase()}
+                      </span>
+                    </td>
+
+                    <td className="p-4 text-right font-mono font-black text-sm text-indigo-600">
+                      +{rec.amount.toFixed(2)} <span className="text-xs font-sans text-slate-400">MAD</span>
+                    </td>
+
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={() => handleDeleteService(rec.shiftId, rec.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors opacity-80 group-hover:opacity-100"
+                        title="Supprimer cette opération"
+                      >
+                        <Trash2 className="w-4 h-4 mx-auto" />
+                      </button>
+                    </td>
                   </tr>
-                </tfoot>
-              </table>
-            </div>
-          ) : (
-            <div className="p-12 text-center space-y-3">
-              <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto">
-                <Droplets className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-700">Aucun enregistrement de lavage ou graissage trouvé</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Les prestations de lavage et graissage saisies lors des ouvertures/clôtures de shift apparaîtront automatiquement ici.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Statistics & Distribution View */}
-      {activeTab === 'stats' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Services Breakdown */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <Layers className="w-4 h-4 text-indigo-500" />
-              Répartition par Type de Service
-            </h3>
-            <div className="space-y-3">
-              {serviceDistribution.length > 0 ? (
-                serviceDistribution.map((srv) => {
-                  const percentage = totalAmount > 0 ? (srv.total / totalAmount) * 100 : 0;
-                  return (
-                    <div key={srv.name} className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-slate-700">{srv.name} ({srv.count} ops)</span>
-                        <span className="font-mono text-indigo-600 font-bold">{srv.total.toFixed(2)} MAD ({percentage.toFixed(1)}%)</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, Math.max(5, percentage))}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-slate-400 text-center py-4">Aucune donnée statistique disponible.</p>
-              )}
-            </div>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 border-t border-slate-200 font-bold text-xs text-slate-700">
+                <tr>
+                  <td colSpan={4} className="p-4 uppercase text-right tracking-wider text-slate-500">
+                    Total Général Lavage & Graissage
+                  </td>
+                  <td className="p-4 text-right font-mono text-base font-black text-indigo-600">
+                    {totalAmount.toFixed(2)} MAD
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-
-          {/* Attendant Performance */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <User className="w-4 h-4 text-indigo-500" />
-              Ventes par Pompiste / Employé
-            </h3>
-            <div className="space-y-3">
-              {(() => {
-                const attendantTotals: Record<string, { total: number; count: number }> = {};
-                filteredRecords.forEach((r) => {
-                  if (!attendantTotals[r.attendantName]) {
-                    attendantTotals[r.attendantName] = { total: 0, count: 0 };
-                  }
-                  attendantTotals[r.attendantName].total += r.amount;
-                  attendantTotals[r.attendantName].count += 1;
-                });
-                const sorted = Object.entries(attendantTotals).sort((a, b) => b[1].total - a[1].total);
-
-                if (sorted.length === 0) {
-                  return <p className="text-xs text-slate-400 text-center py-4">Aucune donnée disponible.</p>;
-                }
-
-                return sorted.map(([name, data]) => {
-                  const pct = totalAmount > 0 ? (data.total / totalAmount) * 100 : 0;
-                  return (
-                    <div key={name} className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-slate-800">{name} <span className="text-[10px] text-slate-400 font-normal">({data.count} ops)</span></span>
-                        <span className="font-mono text-emerald-600 font-bold">{data.total.toFixed(2)} MAD</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, Math.max(5, pct))}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
+        ) : (
+          <div className="p-12 text-center space-y-3">
+            <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto">
+              <Droplets className="w-6 h-6" />
             </div>
+            <h3 className="text-sm font-bold text-slate-700">Aucun enregistrement de lavage ou graissage trouvé</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Les prestations de lavage et graissage saisies lors des ouvertures/clôtures de shift apparaîtront automatiquement ici.
+            </p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Quick Add Modal */}
       {isAddModalOpen && (
