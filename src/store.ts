@@ -352,6 +352,27 @@ export function useERPStore(): ERPStoreType {
                           };
                       });
                   }
+                  if (key === 'shop_stock_movements') {
+                      items = items.map((m: any) => ({
+                          id: m.id,
+                          user_id,
+                          productId: m.productId || m.product_id || '',
+                          product_id: m.productId || m.product_id || '',
+                          productName: m.productName || m.product_name || '',
+                          product_name: m.productName || m.product_name || '',
+                          type: m.type,
+                          quantity: Number(m.quantity) || 0,
+                          previousStock: m.previousStock !== undefined ? Number(m.previousStock) : (m.previous_stock !== undefined ? Number(m.previous_stock) : 0),
+                          previous_stock: m.previousStock !== undefined ? Number(m.previousStock) : (m.previous_stock !== undefined ? Number(m.previous_stock) : 0),
+                          newStock: m.newStock !== undefined ? Number(m.newStock) : (m.new_stock !== undefined ? Number(m.new_stock) : 0),
+                          new_stock: m.newStock !== undefined ? Number(m.newStock) : (m.new_stock !== undefined ? Number(m.new_stock) : 0),
+                          date: m.date || '',
+                          reason: m.reason || '',
+                          author: m.author || '',
+                          shiftId: m.shiftId || m.shift_id || '',
+                          shift_id: m.shiftId || m.shift_id || ''
+                      }));
+                  }
                   if (key === 'suppliers') {
                       items = items.map(s => {
                           return {
@@ -702,13 +723,36 @@ export function useERPStore(): ERPStoreType {
         }
         setSimulationRecords(Array.isArray(rawSims) ? rawSims : []);
         let rawStockMovs = data.shop_stock_movements || data.shopStockMovements || [];
+        if ((!rawStockMovs || rawStockMovs.length === 0) && data.config) {
+          try {
+            if (data.config.printerip) {
+              const parsedConfig = JSON.parse(data.config.printerip);
+              if (parsedConfig.shopStockMovements && Array.isArray(parsedConfig.shopStockMovements)) {
+                rawStockMovs = parsedConfig.shopStockMovements;
+              }
+            }
+          } catch (e) {}
+        }
         if (!rawStockMovs || rawStockMovs.length === 0) {
           try {
             const localMovs = localStorage.getItem('station_erp_shop_stock_movements');
             if (localMovs) rawStockMovs = JSON.parse(localMovs);
           } catch (e) {}
         }
-        setShopStockMovements(Array.isArray(rawStockMovs) ? rawStockMovs : []);
+        const normalizedMovs: ShopStockMovement[] = (Array.isArray(rawStockMovs) ? rawStockMovs : []).map((m: any) => ({
+          id: String(m.id || `mov_${Math.random()}`),
+          productId: m.productId || m.product_id || '',
+          productName: m.productName || m.product_name || '',
+          type: m.type === 'in' ? 'in' : 'out',
+          quantity: Number(m.quantity) || 0,
+          previousStock: m.previousStock !== undefined ? Number(m.previousStock) : (m.previous_stock !== undefined ? Number(m.previous_stock) : 0),
+          newStock: m.newStock !== undefined ? Number(m.newStock) : (m.new_stock !== undefined ? Number(m.new_stock) : 0),
+          date: m.date || '',
+          reason: m.reason || '',
+          author: m.author || '',
+          shiftId: m.shiftId || m.shift_id || ''
+        }));
+        setShopStockMovements(normalizedMovs);
         setAlerts(data.alerts || []);
         setUsers(data.users || []);
         if (data.config) {

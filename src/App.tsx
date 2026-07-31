@@ -43,7 +43,7 @@ function AppContent({ session }: { session: any }) {
           'products', 'shop_products', 'tanks', 'pumps', 'nozzles', 'attendants', 'shifts', 
           'sales', 'supplies', 'stock_corrections', 'audit_logs', 
           'alerts', 'users', 'suppliers', 'clients', 'purchase_invoices', 'sales_invoices',
-          'rich_documents'
+          'rich_documents', 'shop_stock_movements'
         ];
         
         const fetchedData: any = {};
