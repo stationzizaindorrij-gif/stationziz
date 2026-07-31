@@ -354,24 +354,41 @@ export function useERPStore(): ERPStoreType {
                   }
                   if (key === 'shop_stock_movements') {
                       items = items.map((m: any) => ({
-                          id: m.id,
+                          id: String(m.id || `mov_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`),
                           user_id,
                           productId: m.productId || m.product_id || '',
                           product_id: m.productId || m.product_id || '',
                           productName: m.productName || m.product_name || '',
                           product_name: m.productName || m.product_name || '',
-                          type: m.type,
+                          type: m.type === 'in' ? 'in' : 'out',
                           quantity: Number(m.quantity) || 0,
                           previousStock: m.previousStock !== undefined ? Number(m.previousStock) : (m.previous_stock !== undefined ? Number(m.previous_stock) : 0),
                           previous_stock: m.previousStock !== undefined ? Number(m.previousStock) : (m.previous_stock !== undefined ? Number(m.previous_stock) : 0),
                           newStock: m.newStock !== undefined ? Number(m.newStock) : (m.new_stock !== undefined ? Number(m.new_stock) : 0),
                           new_stock: m.newStock !== undefined ? Number(m.newStock) : (m.new_stock !== undefined ? Number(m.new_stock) : 0),
-                          date: m.date || '',
+                          date: m.date || new Date().toISOString().split('T')[0],
                           reason: m.reason || '',
                           author: m.author || '',
                           shiftId: m.shiftId || m.shift_id || '',
                           shift_id: m.shiftId || m.shift_id || ''
                       }));
+
+                      // Cloud Sync Backup to erp_config so multi-PC logins get movements guaranteed
+                      try {
+                          const { data: cfgRow } = await supabase.from('erp_config').select('printerip').eq('user_id', user_id).limit(1);
+                          let currentPrinterIp: any = {};
+                          if (cfgRow && cfgRow[0] && cfgRow[0].printerip) {
+                              try { currentPrinterIp = JSON.parse(cfgRow[0].printerip); } catch (e) {}
+                          }
+                          currentPrinterIp.shopStockMovements = items;
+                          await supabase.from('erp_config').upsert({
+                              id: user_id,
+                              user_id,
+                              printerip: JSON.stringify(currentPrinterIp)
+                          });
+                      } catch (cfgBackupErr) {
+                          console.warn('Failed backing up shopStockMovements to erp_config:', cfgBackupErr);
+                      }
                   }
                   if (key === 'suppliers') {
                       items = items.map(s => {
@@ -465,7 +482,17 @@ export function useERPStore(): ERPStoreType {
                   while(hasMore) {
                     const { data: selectData, error: selectErr } = await supabase.from(targetTable).select(selectCols).eq('user_id', user_id).order('id').range(from, from + step - 1);
                     if (selectErr) {
-                        console.warn(`Skipping smart sync for ${targetTable} (table missing or error): `, selectErr);
+                        console.warn(`Smart sync select skipped for ${targetTable} (table missing or column error): `, selectErr);
+                        if (items.length > 0) {
+                          const chunkSize = 100;
+                          for (let i = 0; i < items.length; i += chunkSize) {
+                              try {
+                                await supabase.from(targetTable).upsert(items.slice(i, i + chunkSize));
+                              } catch (uErr) {
+                                console.warn(`Direct upsert failed for ${targetTable}:`, uErr);
+                              }
+                          }
+                        }
                         return;
                     }
                     if (!selectData || selectData.length === 0) {
