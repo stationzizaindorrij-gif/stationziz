@@ -367,9 +367,10 @@ export default function DailyClosing({ store, shiftId, onBack }: DailyClosingPro
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const cashExpenses = expenses.filter(e => e.method === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
 
-  const theoreticalCash = paymentsBreakdown.cash - cashExpenses;
+  // Exclude boutique products and lavage/graissage services from shift pompiste theoretical cash:
+  const theoreticalCash = parseFloat((fuelSalesDetails.totalFuelAmount - totalNonCashPayments - cashExpenses).toFixed(2));
   const realCash = parseFloat(realCashInput) || 0;
-  const ecart = realCash - theoreticalCash;
+  const ecart = parseFloat((realCash - theoreticalCash).toFixed(2));
 
   const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault();

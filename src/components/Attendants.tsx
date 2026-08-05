@@ -174,13 +174,25 @@ export default function Attendants({ store }: AttendantsProps) {
     setDeleteConfirmId(null);
   };
 
+  // Helper to get discrepancy for a shift (respecting recorded discrepancy)
+  const getShiftFuelDiscrepancy = (s: any): number => {
+    if (s.status !== 'completed') return 0;
+    if ((s.totalAmount || 0) === 0 && (s.totalLiters || 0) === 0 && (!s.realCashReceived || s.realCashReceived === 0)) {
+      return 0;
+    }
+    if (s.discrepancy !== undefined && s.discrepancy !== null) {
+      return Number(s.discrepancy) || 0;
+    }
+    return 0;
+  };
+
   // Get active shifts count or last shifts for attendants
   const getAttendantStats = (attId: string) => {
     const attShifts = shifts.filter(s => s.attendantId === attId);
     const totalShiftsCount = attShifts.length;
     const completedShifts = attShifts.filter(s => s.status === 'completed');
     const totalLitersSold = completedShifts.reduce((sum, s) => sum + (s.totalLiters || 0), 0);
-    const totalDiscrepancy = completedShifts.reduce((sum, s) => sum + (s.discrepancy || 0), 0);
+    const totalDiscrepancy = completedShifts.reduce((sum, s) => sum + getShiftFuelDiscrepancy(s), 0);
 
     return {
       shiftsCount: totalShiftsCount,
@@ -201,7 +213,7 @@ export default function Attendants({ store }: AttendantsProps) {
   const calcCompletedShifts = calcShifts.filter(s => s.status === 'completed');
   const calcTotalShiftsCount = calcShifts.length;
   const calcTotalLitersSold = calcCompletedShifts.reduce((sum, s) => sum + (s.totalLiters || 0), 0);
-  const calcTotalDiscrepancy = calcCompletedShifts.reduce((sum, s) => sum + (s.discrepancy || 0), 0);
+  const calcTotalDiscrepancy = calcCompletedShifts.reduce((sum, s) => sum + getShiftFuelDiscrepancy(s), 0);
 
   return (
     <div className="space-y-6" id="attendants-view">
@@ -481,23 +493,26 @@ export default function Attendants({ store }: AttendantsProps) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {calcShifts.map((s) => (
-                        <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 font-mono">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
-                          <td className="px-4 py-3 font-semibold">{s.shiftName}</td>
-                          <td className="px-4 py-3 text-right font-mono">{Math.round(s.totalLiters || 0).toLocaleString()} L</td>
-                          <td className={`px-4 py-3 text-right font-bold font-mono ${s.discrepancy < 0 ? 'text-rose-600' : s.discrepancy > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
-                            {s.discrepancy === 0 ? '0.00' : `${s.discrepancy > 0 ? '+' : ''}${s.discrepancy.toFixed(2)}`} DH
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                              s.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}>
-                              {s.status === 'completed' ? 'Clôturé' : 'En cours'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {calcShifts.map((s) => {
+                        const shiftDisc = getShiftFuelDiscrepancy(s);
+                        return (
+                          <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3 font-mono">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
+                            <td className="px-4 py-3 font-semibold">{s.shiftName}</td>
+                            <td className="px-4 py-3 text-right font-mono">{Math.round(s.totalLiters || 0).toLocaleString()} L</td>
+                            <td className={`px-4 py-3 text-right font-bold font-mono ${shiftDisc < 0 ? 'text-rose-600' : shiftDisc > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                              {shiftDisc === 0 ? '0.00' : `${shiftDisc > 0 ? '+' : ''}${shiftDisc.toFixed(2)}`} DH
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                s.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}>
+                                {s.status === 'completed' ? 'Clôturé' : 'En cours'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 ) : (

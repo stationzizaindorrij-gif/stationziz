@@ -153,27 +153,52 @@ function AppContent({ session }: { session: any }) {
 
   const unreadAlertsCount = store.alerts.filter(a => !a.isRead).length;
 
-  const navigationItems = [
-    { id: 'dashboard', label: 'Accueil', icon: LayoutDashboard, badge: 0 },
-    { id: 'attendants', label: 'Gestion des employés', icon: Users, badge: 0 },
-    { id: 'shifts', label: 'Relevé des compteurs', icon: Clock, badge: 0 },
-    { id: 'tanks', label: 'Gestion Stock', icon: Fuel, badge: 0 },
-    { id: 'stock_calc', label: 'Calcul de Stock', icon: Calculator, badge: 0 },
-    { id: 'assets', label: 'Calcul changements prix', icon: Sliders, badge: 0 },
-    { id: 'expenses', label: 'Dépenses', icon: Wallet, badge: 0 },
-    { id: 'shop', label: 'Huile Lubrifiant', icon: Package, badge: 0 },
-    { id: 'lavage_graissage', label: 'Lavage & Graissage', icon: Droplets, badge: 0 },
-    { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
-    { id: 'billing', label: 'Facturation & Documents', icon: Landmark, badge: 0 },
-    { id: 'analytics', label: 'Analyse & Rentabilité', icon: BarChart2, badge: 0 },
-    { id: 'alerts', label: 'Supervision & IoT', icon: Bell, badge: unreadAlertsCount },
-    { id: 'settings', label: 'Paramètres', icon: SettingsIcon, badge: 0 }
+  const navigationSections = [
+    {
+      title: 'GÉNÉRAL',
+      items: [
+        { id: 'dashboard', label: 'Accueil', icon: LayoutDashboard, badge: 0 },
+      ]
+    },
+    {
+      title: 'EXPLOITATION & PISTE',
+      items: [
+        { id: 'shifts', label: 'Relevé des compteurs', icon: Clock, badge: 0 },
+        { id: 'attendants', label: 'Gestion des employés', icon: Users, badge: 0 },
+        { id: 'lavage_graissage', label: 'Lavage & Graissage', icon: Droplets, badge: 0 },
+      ]
+    },
+    {
+      title: 'GESTION DU STOCK',
+      items: [
+        { id: 'tanks', label: 'Gestion Stock', icon: Fuel, badge: 0 },
+        { id: 'stock_calc', label: 'Calcul de Stock', icon: Calculator, badge: 0 },
+        { id: 'shop', label: 'Huile & Lubrifiants', icon: Package, badge: 0 },
+        { id: 'assets', label: 'Changements de prix', icon: Sliders, badge: 0 },
+      ]
+    },
+    {
+      title: 'FINANCE & CLIENTS',
+      items: [
+        { id: 'expenses', label: 'Dépenses', icon: Wallet, badge: 0 },
+        { id: 'clients', label: 'Clients', icon: Users, badge: 0 },
+        { id: 'billing', label: 'Facturation & Documents', icon: Landmark, badge: 0 },
+      ]
+    },
+    {
+      title: 'PILOTAGE & SYSTÈME',
+      items: [
+        { id: 'analytics', label: 'Analyse & Rentabilité', icon: BarChart2, badge: 0 },
+        { id: 'alerts', label: 'Supervision & IoT', icon: Bell, badge: unreadAlertsCount },
+        { id: 'settings', label: 'Paramètres', icon: SettingsIcon, badge: 0 }
+      ]
+    }
   ];
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans">
       <Sidebar 
-        items={navigationItems} 
+        sections={navigationSections} 
         activeModule={activeModule} 
         setActiveModule={setActiveModule} 
         isOpen={isSidebarOpen}
@@ -252,8 +277,8 @@ function App() {
 
 export default App;
 
-function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen, store }: {
-  items: any[];
+function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, store }: {
+  sections: { title: string; items: any[] }[];
   activeModule: string;
   setActiveModule: (m: string) => void;
   isOpen: boolean;
@@ -273,83 +298,97 @@ function Sidebar({ items, activeModule, setActiveModule, isOpen, setIsOpen, stor
           onClick={() => setIsOpen(false)}
         />
       )}
-      <aside className={`\n        print:hidden
+      <aside className={`
+        print:hidden
         fixed md:static inset-y-0 left-0 z-50
-        w-72 bg-slate-900 text-slate-300 flex flex-col
+        w-60 bg-slate-900 text-slate-300 flex flex-col
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="p-6 flex items-center justify-between border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 overflow-hidden">
+        <div className="p-4 flex items-center justify-between border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 overflow-hidden shrink-0">
               {(store.config.logo && (store.config.logo.startsWith('data:') || store.config.logo.startsWith('http') || store.config.logo.length > 5)) ? (
                 <img src={store.config.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : (
-                <span className="text-xl">{store.config.logo || '⛽'}</span>
+                <span className="text-lg">{store.config.logo || '⛽'}</span>
               )}
             </div>
-            <div>
-              <h1 className="text-lg font-black text-white tracking-tight">{store.config.name}</h1>
-              <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">ERP System</p>
+            <div className="min-w-0">
+              <h1 className="text-base font-black text-white tracking-tight truncate">{store.config.name}</h1>
+              <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider truncate">ERP System</p>
             </div>
           </div>
           <button 
-            className="md:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
+            className="md:hidden p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400"
             onClick={() => setIsOpen(false)}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
-          {items.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveModule(item.id);
-                  setIsOpen(false);
-                }}
-                className={`
-                  w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group
-                  ${activeModule === item.id 
-                    ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20' 
-                    : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-5 h-5 transition-transform duration-200 ${activeModule === item.id ? 'scale-110' : 'group-hover:scale-110'}`} />
-                  <span className="font-semibold text-sm">{item.label}</span>
+        
+        <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-5 custom-scrollbar">
+          {sections.map((section, sIdx) => (
+            <div key={sIdx} className="space-y-1">
+              {section.title && (
+                <div className="px-2.5 pb-1 text-[9px] font-black uppercase tracking-wider text-slate-500/90 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/60 inline-block shrink-0"></span>
+                  <span className="truncate">{section.title}</span>
                 </div>
-                {item.badge > 0 && (
-                  <span className={`
-                    px-2 py-0.5 text-xs font-bold rounded-full
-                    ${activeModule === item.id 
-                      ? 'bg-white/20 text-white' 
-                      : 'bg-indigo-500/20 text-indigo-400'}
-                  `}>
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+              )}
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeModule === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveModule(item.id);
+                      setIsOpen(false);
+                    }}
+                    className={`
+                      w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-200 group
+                      ${isActive 
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-bold' 
+                        : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 font-medium'}
+                    `}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110 text-white' : 'text-slate-400 group-hover:scale-110 group-hover:text-slate-200'}`} />
+                      <span className="text-xs tracking-wide truncate">{item.label}</span>
+                    </div>
+                    {item.badge > 0 && (
+                      <span className={`
+                        px-1.5 py-0.5 text-[9px] font-bold rounded-full ml-1 shrink-0
+                        ${isActive 
+                          ? 'bg-white/20 text-white' 
+                          : 'bg-indigo-500/20 text-indigo-400'}
+                      `}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
-        <div className="p-4 border-t border-slate-800">
-          <div className="bg-slate-800/50 rounded-xl p-4 mb-4">
-            <div className="flex items-center gap-3 mb-2">
+
+        <div className="p-4 border-t border-slate-800 shrink-0">
+          <div className="bg-slate-800/50 rounded-xl p-3 mb-3">
+            <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
                 <User className="w-4 h-4 text-slate-300" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">{store.currentRole.toUpperCase()}</p>
-                <p className="text-xs text-slate-400">Connecté</p>
+                <p className="text-xs font-bold text-white">{store.currentRole.toUpperCase()}</p>
+                <p className="text-[10px] text-slate-400">Connecté</p>
               </div>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full py-3 px-4 rounded-xl text-sm font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-400/10 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-400/10 transition-colors flex items-center justify-center gap-2"
           >
             Se déconnecter
           </button>

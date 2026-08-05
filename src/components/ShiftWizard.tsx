@@ -458,7 +458,8 @@ useEffect(() => {
   const cashExpenses = expenses.filter(e => e.method === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
   
   const realCash = parseFloat(realCashInput) || 0;
-  const theoreticalCash = grandTotalSales - totalNonCashPayments - cashExpenses;
+  // Exclude boutique products and lavage/graissage services from pompiste cash gap calculation:
+  const theoreticalCash = parseFloat((fuelSalesDetails.totalFuelAmount - totalNonCashPayments - cashExpenses).toFixed(2));
   const ecart = parseFloat((realCash - theoreticalCash).toFixed(2));
 
   const handleTogglePump = (pumpId: string) => {

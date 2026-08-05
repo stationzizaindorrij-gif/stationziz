@@ -45,6 +45,7 @@ export interface ERPStoreType {
   addSimulationRecord: (record: Omit<SimulationRecord, 'id'>, author: string) => void;
   deleteSimulationRecord: (id: string, author: string) => void;
   shopStockMovements: ShopStockMovement[];
+  addShopStockMovement: (movement: Omit<ShopStockMovement, 'id'>, author?: string) => void;
 
   switchRole: (role: UserRole) => void;
   markAlertAsRead: (id: string) => void;
@@ -191,7 +192,15 @@ export function useERPStore(): ERPStoreType {
              
              
                          if (key === 'config') {
+                  let existingConfigExtra: any = {};
+                  if (config && config.printerIp) {
+                      try {
+                          existingConfigExtra = typeof config.printerIp === 'string' ? JSON.parse(config.printerIp) : config.printerIp;
+                      } catch (e) {}
+                  }
                   const stringifiedConfig = JSON.stringify({
+                      ...existingConfigExtra,
+                      shopStockMovements: shopStockMovements && shopStockMovements.length > 0 ? shopStockMovements : (existingConfigExtra.shopStockMovements || []),
                       documentLogo: data.documentLogo || '',
                       documentColor: data.documentColor || '',
                       documentFooter: data.documentFooter || '',
@@ -373,19 +382,27 @@ export function useERPStore(): ERPStoreType {
                           shift_id: m.shiftId || m.shift_id || ''
                       }));
 
+                      // Save locally for immediate offline access
+                      try {
+                          localStorage.setItem('station_erp_shop_stock_movements', JSON.stringify(items));
+                      } catch(e) {}
+
                       // Cloud Sync Backup to erp_config so multi-PC logins get movements guaranteed
                       try {
-                          const { data: cfgRow } = await supabase.from('erp_config').select('printerip').eq('user_id', user_id).limit(1);
+                          const { data: cfgRow } = await supabase.from('erp_config').select('*').eq('user_id', user_id).limit(1);
+                          let existingCfg: any = cfgRow && cfgRow[0] ? cfgRow[0] : {};
                           let currentPrinterIp: any = {};
-                          if (cfgRow && cfgRow[0] && cfgRow[0].printerip) {
-                              try { currentPrinterIp = JSON.parse(cfgRow[0].printerip); } catch (e) {}
+                          if (existingCfg.printerip) {
+                              try { currentPrinterIp = JSON.parse(existingCfg.printerip); } catch (e) {}
                           }
                           currentPrinterIp.shopStockMovements = items;
-                          await supabase.from('erp_config').upsert({
-                              id: user_id,
+                          const configToUpsert = {
+                              ...existingCfg,
+                              id: existingCfg.id || user_id,
                               user_id,
                               printerip: JSON.stringify(currentPrinterIp)
-                          });
+                          };
+                          await supabase.from('erp_config').upsert(configToUpsert);
                       } catch (cfgBackupErr) {
                           console.warn('Failed backing up shopStockMovements to erp_config:', cfgBackupErr);
                       }
@@ -692,6 +709,54 @@ export function useERPStore(): ERPStoreType {
             };
             const rawNonCashPayments = parseJson(s.noncashpayments !== undefined ? s.noncashpayments : s.nonCashPayments) || {};
             const { startTankLevels, endTankLevels, fuelPrices, gaugeCorrections, ...nonCashPayments } = rawNonCashPayments;
+            const productsSold = parseJson(s.productssold !== undefined ? s.productssold : s.productsSold) || [];
+            const servicesSold = parseJson(s.servicessold !== undefined ? s.servicessold : s.servicesSold) || [];
+            const expensesList = parseJson(s.expenses) || [];
+            const amountSoldObj = parseJson(s.amountsold !== undefined ? s.amountsold : s.amountSold) || {};
+            const totalLitersVal = s.totalliters !== undefined && s.totalliters !== null ? Number(s.totalliters) : (Number(s.totalLiters) || 0);
+            const totalAmount = s.totalamount !== undefined && s.totalamount !== null ? Number(s.totalamount) : (Number(s.totalAmount) || 0);
+            const realCashReceived = s.realcashreceived !== undefined && s.realcashreceived !== null ? Number(s.realcashreceived) : (s.realCashReceived !== undefined ? Number(s.realCashReceived) : undefined);
+
+            const productsTotal = productsSold.reduce((sum: number, p: any) => sum + (Number(p.total) || Number(p.amount) || 0), 0);
+            const servicesTotal = servicesSold.reduce((sum: number, item: any) => sum + (Number(item.total) || Number(item.amount) || 0), 0);
+
+            let calculatedFuelTotal = 0;
+            const amountSoldValues = Object.values(amountSoldObj) as any[];
+            if (amountSoldValues.length > 0) {
+              calculatedFuelTotal = amountSoldValues.reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
+            } else if (totalLitersVal > 0) {
+              calculatedFuelTotal = Math.max(0, totalAmount - productsTotal - servicesTotal);
+            } else {
+              calculatedFuelTotal = 0;
+            }
+
+            const carteSntl = nonCashPayments?.carteSntl?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const espece = nonCashPayments?.espece?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const vignette = nonCashPayments?.vignette?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const bonClient = nonCashPayments?.bonClient?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const bonCarburantsVivo = nonCashPayments?.bonCarburantsVivo?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const tpe = nonCashPayments?.tpe?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const cheque = nonCashPayments?.cheque?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const virement = nonCashPayments?.virement?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const autre = nonCashPayments?.autre?.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0) || 0;
+            const nonCashTotal = carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre;
+            const cashExpenses = expensesList.filter((e: any) => e.method === 'cash').reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
+
+            const fuelTheoreticalCash = parseFloat((calculatedFuelTotal - nonCashTotal - cashExpenses).toFixed(2));
+
+            let cleanDiscrepancy = 0;
+            if (s.status !== 'completed') {
+              cleanDiscrepancy = 0;
+            } else if (totalAmount === 0 && totalLitersVal === 0 && calculatedFuelTotal === 0 && (!realCashReceived || realCashReceived === 0)) {
+              cleanDiscrepancy = 0;
+            } else if (s.discrepancy !== undefined && s.discrepancy !== null) {
+              cleanDiscrepancy = Number(s.discrepancy) || 0;
+            } else if (realCashReceived !== undefined && realCashReceived !== null && realCashReceived > 0) {
+              cleanDiscrepancy = parseFloat((realCashReceived - fuelTheoreticalCash).toFixed(2));
+            } else {
+              cleanDiscrepancy = 0;
+            }
+
             return {
                 ...s,
                 nonCashPayments,
@@ -699,17 +764,18 @@ export function useERPStore(): ERPStoreType {
                 endTankLevels: endTankLevels || parseJson(s.endtanklevels !== undefined ? s.endtanklevels : s.endTankLevels),
                 fuelPrices: fuelPrices || parseJson(s.fuelprices !== undefined ? s.fuelprices : s.fuelPrices),
                 gaugeCorrections: gaugeCorrections || parseJson(s.gaugecorrections !== undefined ? s.gaugecorrections : s.gaugeCorrections),
-                productsSold: parseJson(s.productssold !== undefined ? s.productssold : s.productsSold),
-                servicesSold: parseJson(s.servicessold !== undefined ? s.servicessold : s.servicesSold),
-                expenses: parseJson(s.expenses),
+                productsSold,
+                servicesSold,
+                expenses: expensesList,
                 startCounters: parseJson(s.startcounters !== undefined ? s.startcounters : s.startCounters),
                 endCounters: parseJson(s.endcounters !== undefined ? s.endcounters : s.endCounters),
                 litersSold: parseJson(s.literssold !== undefined ? s.literssold : s.litersSold),
                 amountSold: parseJson(s.amountsold !== undefined ? s.amountsold : s.amountSold),
                 totalLiters: s.totalliters !== undefined && s.totalliters !== null ? s.totalliters : s.totalLiters,
-                totalAmount: s.totalamount !== undefined && s.totalamount !== null ? s.totalamount : s.totalAmount,
-                theoreticalCash: s.theoreticalcash !== undefined && s.theoreticalcash !== null ? s.theoreticalcash : s.theoreticalCash,
-                realCashReceived: s.realcashreceived !== undefined && s.realcashreceived !== null ? s.realcashreceived : s.realCashReceived,
+                totalAmount,
+                theoreticalCash: fuelTheoreticalCash,
+                realCashReceived,
+                discrepancy: cleanDiscrepancy,
             };
         });
         setShifts(loadedShifts);
@@ -749,24 +815,37 @@ export function useERPStore(): ERPStoreType {
           } catch (e) {}
         }
         setSimulationRecords(Array.isArray(rawSims) ? rawSims : []);
-        let rawStockMovs = data.shop_stock_movements || data.shopStockMovements || [];
-        if ((!rawStockMovs || rawStockMovs.length === 0) && data.config) {
+        let dbTableMovs = data.shop_stock_movements || data.shopStockMovements || [];
+        let configBackupMovs: any[] = [];
+        if (data.config) {
           try {
-            if (data.config.printerip) {
-              const parsedConfig = JSON.parse(data.config.printerip);
+            const pIp = data.config.printerip || data.config.printerIp;
+            if (pIp) {
+              const parsedConfig = typeof pIp === 'string' ? JSON.parse(pIp) : pIp;
               if (parsedConfig.shopStockMovements && Array.isArray(parsedConfig.shopStockMovements)) {
-                rawStockMovs = parsedConfig.shopStockMovements;
+                configBackupMovs = parsedConfig.shopStockMovements;
               }
             }
           } catch (e) {}
         }
-        if (!rawStockMovs || rawStockMovs.length === 0) {
-          try {
-            const localMovs = localStorage.getItem('station_erp_shop_stock_movements');
-            if (localMovs) rawStockMovs = JSON.parse(localMovs);
-          } catch (e) {}
-        }
-        const normalizedMovs: ShopStockMovement[] = (Array.isArray(rawStockMovs) ? rawStockMovs : []).map((m: any) => ({
+        let localMovs: any[] = [];
+        try {
+          const localMovsStr = localStorage.getItem('station_erp_shop_stock_movements');
+          if (localMovsStr) localMovs = JSON.parse(localMovsStr);
+        } catch (e) {}
+
+        const movMap = new Map<string, any>();
+        [...(Array.isArray(dbTableMovs) ? dbTableMovs : []), ...(Array.isArray(configBackupMovs) ? configBackupMovs : []), ...(Array.isArray(localMovs) ? localMovs : [])].forEach((m: any) => {
+          if (m && typeof m === 'object') {
+            const mId = String(m.id || `mov_${m.date}_${m.product_id || m.productId}_${m.quantity}_${m.type}`);
+            if (!movMap.has(mId)) {
+              movMap.set(mId, { ...m, id: mId });
+            }
+          }
+        });
+        const combinedRawMovs = Array.from(movMap.values());
+
+        const normalizedMovs: ShopStockMovement[] = combinedRawMovs.map((m: any) => ({
           id: String(m.id || `mov_${Math.random()}`),
           productId: m.productId || m.product_id || '',
           productName: m.productName || m.product_name || '',
@@ -774,12 +853,15 @@ export function useERPStore(): ERPStoreType {
           quantity: Number(m.quantity) || 0,
           previousStock: m.previousStock !== undefined ? Number(m.previousStock) : (m.previous_stock !== undefined ? Number(m.previous_stock) : 0),
           newStock: m.newStock !== undefined ? Number(m.newStock) : (m.new_stock !== undefined ? Number(m.new_stock) : 0),
-          date: m.date || '',
+          date: m.date || new Date().toISOString().split('T')[0],
           reason: m.reason || '',
           author: m.author || '',
           shiftId: m.shiftId || m.shift_id || ''
         }));
         setShopStockMovements(normalizedMovs);
+        try {
+          localStorage.setItem('station_erp_shop_stock_movements', JSON.stringify(normalizedMovs));
+        } catch(e) {}
         setAlerts(data.alerts || []);
         setUsers(data.users || []);
         if (data.config) {
@@ -1098,6 +1180,16 @@ export function useERPStore(): ERPStoreType {
 
   const deleteShopProduct = (id: string, author: string) => {
     saveState('shop_products', shopProducts.filter(p => p.id !== id), setShopProducts);
+  };
+
+  const addShopStockMovement = (movement: Omit<ShopStockMovement, 'id'>, author?: string) => {
+    const newMov: ShopStockMovement = {
+      ...movement,
+      id: `mov_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      date: movement.date || new Date().toISOString().split('T')[0],
+      author: movement.author || author || 'Admin'
+    };
+    saveState('shop_stock_movements', [newMov, ...shopStockMovements], setShopStockMovements);
   };
 
   const addProduct = (product: Omit<Product, 'id'>, author: string) => {
@@ -2166,6 +2258,7 @@ return {
     addShopProduct,
     updateShopProduct,
     deleteShopProduct,
+    addShopStockMovement,
     addProduct,
     updateProduct,
     updateProductsBulk,

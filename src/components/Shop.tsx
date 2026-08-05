@@ -7,7 +7,7 @@ import { ShopProduct } from '../types';
 interface ShopProps { store: ERPStoreType; }
 
 export const Shop: React.FC<ShopProps> = ({ store }) => {
-  const { shopProducts, addShopProduct, updateShopProduct, deleteShopProduct, currentRole, users, config, shopStockMovements = [] } = store;
+  const { shopProducts, addShopProduct, updateShopProduct, deleteShopProduct, addShopStockMovement, currentRole, users, config, shopStockMovements = [] } = store;
   const [activeTab, setActiveTab] = useState<'catalog' | 'history'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
   const [movSearchTerm, setMovSearchTerm] = useState('');
@@ -21,6 +21,14 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isMovReportModalOpen, setIsMovReportModalOpen] = useState(false);
+  const [isAddMovModalOpen, setIsAddMovModalOpen] = useState(false);
+  const [movForm, setMovForm] = useState({
+    productId: '',
+    type: 'in' as 'in' | 'out',
+    quantity: 1,
+    reason: '',
+    author: ''
+  });
   const [reportFilter, setReportFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
   const reportRef = useRef<HTMLDivElement>(null);
   const movReportRef = useRef<HTMLDivElement>(null);
@@ -38,6 +46,35 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
   });
 
   const currentUser = users.find(u => u.role === currentRole)?.name || currentRole;
+
+  const handleCreateMovement = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!movForm.productId || movForm.quantity <= 0) return;
+    const prod = shopProducts.find(p => p.id === movForm.productId);
+    if (!prod) return;
+
+    const qty = Number(movForm.quantity);
+    const prevStock = Number(prod.stockQuantity) || 0;
+    const newStock = movForm.type === 'in' ? prevStock + qty : Math.max(0, prevStock - qty);
+
+    updateShopProduct(prod.id, { stockQuantity: newStock }, currentUser);
+    if (addShopStockMovement) {
+      addShopStockMovement({
+        productId: prod.id,
+        productName: prod.name,
+        type: movForm.type,
+        quantity: qty,
+        previousStock: prevStock,
+        newStock: newStock,
+        date: new Date().toISOString().split('T')[0],
+        reason: movForm.reason || (movForm.type === 'in' ? 'Entrée Manuelle de Stock' : 'Sortie / Ajustement Manuel'),
+        author: movForm.author || currentUser || 'Admin'
+      }, currentUser);
+    }
+
+    setIsAddMovModalOpen(false);
+    setMovForm({ productId: '', type: 'in', quantity: 1, reason: '', author: '' });
+  };
 
   const filteredMovements = (shopStockMovements || []).filter(mov => {
     const matchesSearch = 
@@ -724,6 +761,19 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                   </select>
 
                   <button
+                    onClick={() => {
+                      if (shopProducts.length > 0) {
+                        setMovForm({ productId: shopProducts[0].id, type: 'in', quantity: 1, reason: '', author: currentUser });
+                      }
+                      setIsAddMovModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-600/20 flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Nouveau Mouvement
+                  </button>
+
+                  <button
                     onClick={() => setIsMovReportModalOpen(true)}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2"
                   >
@@ -1258,6 +1308,114 @@ export const Shop: React.FC<ShopProps> = ({ store }) => {
                 Fermer
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Enregistrer un nouveau mouvement de stock */}
+      {isAddMovModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <History className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base">Enregistrer Mouvement de Stock</h3>
+                  <p className="text-xs text-slate-400">Ajouter manuellement une entrée ou sortie de stock</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAddMovModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMovement} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Produit *</label>
+                <select
+                  required
+                  value={movForm.productId}
+                  onChange={e => setMovForm({ ...movForm, productId: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Sélectionner un produit...</option>
+                  {shopProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (Stock actuel: {p.stockQuantity})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Type d'opération *</label>
+                  <select
+                    value={movForm.type}
+                    onChange={e => setMovForm({ ...movForm, type: e.target.value as 'in' | 'out' })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="in">ENTRÉE de stock (+)</option>
+                    <option value="out">SORTIE / Vente (-)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Quantité *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={movForm.quantity}
+                    onChange={e => setMovForm({ ...movForm, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Motif / Description</label>
+                <input
+                  type="text"
+                  placeholder="ex: Livraisons fournisseur, Ajustement inventaire..."
+                  value={movForm.reason}
+                  onChange={e => setMovForm({ ...movForm, reason: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Auteur / Responsable</label>
+                <input
+                  type="text"
+                  placeholder="Admin"
+                  value={movForm.author || currentUser}
+                  onChange={e => setMovForm({ ...movForm, author: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddMovModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+                >
+                  Valider le mouvement
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
