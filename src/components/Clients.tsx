@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ERPStoreType } from '../store';
-import { Plus, Search, Users, Mail, Phone, Building, Edit2, Trash2, X, Save, User, Check, Wallet, Calendar, PlusCircle, History } from 'lucide-react';
+import { Plus, Search, Users, Mail, Phone, Building, Edit2, Trash2, X, Save, User, Check, Wallet, Calendar, PlusCircle, History, Printer, FileText } from 'lucide-react';
 import { Client } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -70,6 +70,78 @@ export default function Clients({ store }: ClientsProps) {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState((new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
   const [paymentNotes, setPaymentNotes] = useState('');
+
+  const [isGeneralReportModalOpen, setIsGeneralReportModalOpen] = useState(false);
+  const [isClientReportModalOpen, setIsClientReportModalOpen] = useState(false);
+
+  const generalReportRef = React.useRef<HTMLDivElement>(null);
+  const clientReportRef = React.useRef<HTMLDivElement>(null);
+
+  const handlePrint = (reportRef: React.RefObject<HTMLDivElement>, title: string) => {
+    const reportNode = reportRef.current;
+    if (!reportNode) return;
+
+    const headHtml = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((el) => el.outerHTML)
+      .join('\n');
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=850');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="fr">
+        <head>
+          <meta charset="utf-8" />
+          <title>${title}</title>
+          ${headHtml}
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 0 !important;
+            }
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0 !important;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 10mm 12mm !important;
+                background-color: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
+            body {
+              background: #ffffff !important;
+              margin: 0 !important;
+              padding: 20px !important;
+              display: flex;
+              justify-content: center;
+              font-family: system-ui, -apple-system, sans-serif;
+            }
+          </style>
+        </head>
+        <body>
+          <div style="width:100%; max-width:210mm; margin:0 auto;">
+            ${reportNode.outerHTML}
+          </div>
+          <script>
+            setTimeout(() => {
+              window.print();
+              window.close();
+            }, 600);
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const [formData, setFormData] = useState<Partial<Client>>({
     name: '',
@@ -192,6 +264,56 @@ export default function Clients({ store }: ClientsProps) {
     return true;
   });
 
+  const clientLedger = useMemo(() => {
+    if (!selectedClient) return { entries: [], totalBons: 0, totalPayments: 0, finalBalance: 0 };
+
+    const bons = store.shifts
+      .filter(s => s.status === 'completed' || s.status === 'ready_to_close')
+      .flatMap(shift => {
+        const bList = shift.nonCashPayments?.bonClient || [];
+        return bList
+          .filter(b => b.clientName?.toLowerCase().trim() === selectedClient.name.toLowerCase().trim())
+          .map(b => ({
+            date: shift.date,
+            type: 'Bon (Achat)',
+            ref: `Shift ${shift.shiftName}`,
+            debit: parseFloat(b.amount as any) || 0,
+            credit: 0
+          }));
+      });
+
+    const payments = (selectedClient.payments || []).map((p: any) => ({
+      date: p.date,
+      type: 'Règlement',
+      ref: p.notes || 'Règlement reçu',
+      debit: 0,
+      credit: parseFloat(p.amount) || 0
+    }));
+
+    const all = [...bons, ...payments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let running = 0;
+    let totalBons = 0;
+    let totalPayments = 0;
+
+    const entries = all.map(item => {
+      totalBons += item.debit;
+      totalPayments += item.credit;
+      running += (item.debit - item.credit);
+      return {
+        ...item,
+        balance: running
+      };
+    });
+
+    return {
+      entries,
+      totalBons,
+      totalPayments,
+      finalBalance: totalBons - totalPayments
+    };
+  }, [selectedClient, store.shifts]);
+
   const ITEMS_PER_PAGE = 7;
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ITEMS_PER_PAGE));
   
@@ -222,16 +344,25 @@ export default function Clients({ store }: ClientsProps) {
           </h2>
           <p className="text-slate-500 mt-1">Gestion de votre portefeuille de clients professionnels et particuliers.</p>
         </div>
-        <button
-          onClick={() => {
-            setFormData({ name: '', phone: '', email: '', address: '', ice: '', contact: '', notes: '' });
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Nouveau Client
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsGeneralReportModalOpen(true)}
+            className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors shadow-sm font-semibold text-sm"
+          >
+            <Printer className="w-4 h-4" />
+            Imprimer Rapport
+          </button>
+          <button
+            onClick={() => {
+              setFormData({ name: '', phone: '', email: '', address: '', ice: '', contact: '', notes: '' });
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-semibold text-sm"
+          >
+            <Plus className="w-5 h-5" />
+            Nouveau Client
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -399,9 +530,18 @@ export default function Clients({ store }: ClientsProps) {
                 <Wallet className="w-5 h-5 text-indigo-600" />
                 Situation de compte : {selectedClient.name}
               </h2>
-              <button onClick={() => setSelectedClient(null)} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsClientReportModalOpen(true)}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimer Relevé
+                </button>
+                <button onClick={() => setSelectedClient(null)} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
             <div className="p-6 overflow-y-auto flex-1">
@@ -676,6 +816,291 @@ export default function Clients({ store }: ClientsProps) {
                   {editingClient ? 'Enregistrer les modifications' : 'Créer le client'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* General Clients Report Modal */}
+      {isGeneralReportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-indigo-600" />
+                <h2 className="font-bold text-slate-800 text-base">Rapport Officiel - Situation des Clients</h2>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handlePrint(generalReportRef, `Rapport_General_Clients_${new Date().toISOString().split('T')[0]}`)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimer le rapport
+                </button>
+                <button
+                  onClick={() => setIsGeneralReportModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1 bg-slate-100">
+              <div ref={generalReportRef} className="space-y-6 bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-[210mm] mx-auto text-slate-900 font-sans text-xs">
+                {/* Header */}
+                <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
+                  <div>
+                    <h1 className="text-xl font-black text-slate-900 tracking-wider uppercase">
+                      {store.config.name || 'STATION ZIZ SERVICE'}
+                    </h1>
+                    <p className="text-xs font-bold text-slate-600">RAPPORT SITUATION GLOBALE DE LA CLIENTÈLE</p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Date d'impression: <strong>{new Date().toLocaleDateString('fr-FR')}</strong>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-black rounded-md border border-indigo-200 uppercase">
+                      DOCUMENT OFFICIEL
+                    </span>
+                    <p className="text-[10px] text-slate-400 mt-1">Gestion Clients & Portefeuille</p>
+                  </div>
+                </div>
+
+                {/* KPI Summary Cards */}
+                <div className="grid grid-cols-5 gap-3">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Clients</div>
+                    <div className="text-base font-black text-slate-900 mt-0.5 font-mono">{stats.count}</div>
+                  </div>
+                  <div className="bg-rose-50 p-3 rounded-xl border border-rose-200">
+                    <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Total Dettes</div>
+                    <div className="text-base font-black text-rose-700 mt-0.5 font-mono">{stats.totalDette.toFixed(2)} DH</div>
+                  </div>
+                  <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+                    <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Total Avances</div>
+                    <div className="text-base font-black text-emerald-700 mt-0.5 font-mono">{stats.totalAvance.toFixed(2)} DH</div>
+                  </div>
+                  <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200">
+                    <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Total Bons (Crédit)</div>
+                    <div className="text-base font-black text-indigo-700 mt-0.5 font-mono">{stats.totalBonsGlob.toFixed(2)} DH</div>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
+                    <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Total Réglé</div>
+                    <div className="text-base font-black text-blue-700 mt-0.5 font-mono">{stats.totalPaymentsGlob.toFixed(2)} DH</div>
+                  </div>
+                </div>
+
+                {/* Clients Table */}
+                <div>
+                  <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider mb-2">
+                    État des Comptes Client ({filteredClients.length})
+                  </h3>
+                  <table className="w-full text-left text-xs border border-slate-200">
+                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] border-b border-slate-200">
+                      <tr>
+                        <th className="p-2 border-r border-slate-200 text-center w-10">#</th>
+                        <th className="p-2 border-r border-slate-200">Nom / Raison Sociale</th>
+                        <th className="p-2 border-r border-slate-200">ICE</th>
+                        <th className="p-2 border-r border-slate-200 text-right">Total Bons (MAD)</th>
+                        <th className="p-2 border-r border-slate-200 text-right">Total Réglé (MAD)</th>
+                        <th className="p-2 border-r border-slate-200 text-right">Solde Net (MAD)</th>
+                        <th className="p-2 text-center">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {filteredClients.map((client: any, idx: number) => {
+                        const bal = client.balance;
+                        return (
+                          <tr key={client.id} className="hover:bg-slate-50">
+                            <td className="p-2 border-r border-slate-200 text-center text-slate-500 font-mono">{idx + 1}</td>
+                            <td className="p-2 border-r border-slate-200 font-bold text-slate-800">{client.name}</td>
+                            <td className="p-2 border-r border-slate-200 font-mono text-slate-600">{client.ice || '-'}</td>
+                            <td className="p-2 border-r border-slate-200 text-right font-mono font-bold text-slate-800">{client.totalBons.toFixed(2)}</td>
+                            <td className="p-2 border-r border-slate-200 text-right font-mono font-bold text-emerald-700">{client.totalPayments.toFixed(2)}</td>
+                            <td className={`p-2 border-r border-slate-200 text-right font-mono font-black ${bal > 0 ? 'text-rose-700' : bal < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
+                              {Math.abs(bal).toFixed(2)}
+                            </td>
+                            <td className="p-2 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${bal > 0 ? 'bg-rose-100 text-rose-800' : bal < 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                                {bal > 0 ? 'Débiteur' : bal < 0 ? 'Créditeur' : 'Soldé'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {filteredClients.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-6 text-center text-slate-400">Aucun client trouvé.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
+                      <tr>
+                        <td colSpan={3} className="p-2.5 text-right uppercase text-[10px] text-slate-600">TOTAL GÉNÉRAL</td>
+                        <td className="p-2.5 text-right font-mono text-indigo-700">{stats.totalBonsGlob.toFixed(2)} DH</td>
+                        <td className="p-2.5 text-right font-mono text-blue-700">{stats.totalPaymentsGlob.toFixed(2)} DH</td>
+                        <td colSpan={2} className="p-2.5 text-right font-mono text-rose-700">
+                          {(stats.totalDette - stats.totalAvance).toFixed(2)} DH
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end">
+              <button
+                onClick={() => setIsGeneralReportModalOpen(false)}
+                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Statement Report Modal */}
+      {isClientReportModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-indigo-600" />
+                <h2 className="font-bold text-slate-800 text-base">Relevé de Compte Client - {selectedClient.name}</h2>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handlePrint(clientReportRef, `Releve_Compte_${selectedClient.name.replace(/\s+/g, '_')}`)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimer le relevé
+                </button>
+                <button
+                  onClick={() => setIsClientReportModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1 bg-slate-100">
+              <div ref={clientReportRef} className="space-y-6 bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-[210mm] mx-auto text-slate-900 font-sans text-xs">
+                {/* Header */}
+                <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
+                  <div>
+                    <h1 className="text-xl font-black text-slate-900 tracking-wider uppercase">
+                      {store.config.name || 'STATION ZIZ SERVICE'}
+                    </h1>
+                    <p className="text-xs font-bold text-slate-600">RELEVÉ DE COMPTE / EXTRAIT DE COMPTE CLIENT</p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Établi le: <strong>{new Date().toLocaleDateString('fr-FR')}</strong>
+                    </p>
+                  </div>
+                  <div className="text-right border-l-2 border-indigo-500 pl-4 py-1">
+                    <h2 className="font-black text-slate-900 text-base">{selectedClient.name}</h2>
+                    {selectedClient.ice && <p className="text-[11px] font-mono font-bold text-slate-600">ICE: {selectedClient.ice}</p>}
+                    {selectedClient.phone && <p className="text-[11px] text-slate-500">Tél: {selectedClient.phone}</p>}
+                    {selectedClient.address && <p className="text-[11px] text-slate-500">{selectedClient.address}</p>}
+                  </div>
+                </div>
+
+                {/* Summary Box */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200">
+                    <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Total Bons (Crédit Acquis)</div>
+                    <div className="text-lg font-black text-indigo-700 mt-0.5 font-mono">{clientLedger.totalBons.toFixed(2)} MAD</div>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
+                    <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Total Règlements Effectués</div>
+                    <div className="text-lg font-black text-blue-700 mt-0.5 font-mono">{clientLedger.totalPayments.toFixed(2)} MAD</div>
+                  </div>
+                  <div className={`p-3 rounded-xl border ${clientLedger.finalBalance > 0 ? 'bg-rose-50 border-rose-200' : clientLedger.finalBalance < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`text-[10px] font-bold uppercase tracking-wider ${clientLedger.finalBalance > 0 ? 'text-rose-600' : clientLedger.finalBalance < 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      {clientLedger.finalBalance > 0 ? 'Solde Débiteur (Reste à payer)' : clientLedger.finalBalance < 0 ? 'Solde Créditeur (Avance)' : 'Compte Soldé'}
+                    </div>
+                    <div className={`text-lg font-black mt-0.5 font-mono ${clientLedger.finalBalance > 0 ? 'text-rose-700' : clientLedger.finalBalance < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
+                      {Math.abs(clientLedger.finalBalance).toFixed(2)} MAD
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ledger Table */}
+                <div>
+                  <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider mb-2">
+                    Détail Chronologique des Transactions ({clientLedger.entries.length})
+                  </h3>
+                  <table className="w-full text-left text-xs border border-slate-200">
+                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] border-b border-slate-200">
+                      <tr>
+                        <th className="p-2 border-r border-slate-200 text-center w-10">#</th>
+                        <th className="p-2 border-r border-slate-200">Date</th>
+                        <th className="p-2 border-r border-slate-200">Nature / Type</th>
+                        <th className="p-2 border-r border-slate-200">Référence / Notes</th>
+                        <th className="p-2 border-r border-slate-200 text-right">Débit (Bon)</th>
+                        <th className="p-2 border-r border-slate-200 text-right">Crédit (Règlement)</th>
+                        <th className="p-2 text-right">Solde Cumulé</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {clientLedger.entries.map((entry: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="p-2 border-r border-slate-200 text-center text-slate-500 font-mono">{idx + 1}</td>
+                          <td className="p-2 border-r border-slate-200 font-semibold">{formatToDMY(entry.date)}</td>
+                          <td className="p-2 border-r border-slate-200">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${entry.debit > 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                              {entry.type}
+                            </span>
+                          </td>
+                          <td className="p-2 border-r border-slate-200 text-slate-600">{entry.ref}</td>
+                          <td className="p-2 border-r border-slate-200 text-right font-mono font-bold text-slate-800">
+                            {entry.debit > 0 ? entry.debit.toFixed(2) : '-'}
+                          </td>
+                          <td className="p-2 border-r border-slate-200 text-right font-mono font-bold text-emerald-700">
+                            {entry.credit > 0 ? entry.credit.toFixed(2) : '-'}
+                          </td>
+                          <td className={`p-2 text-right font-mono font-black ${entry.balance > 0 ? 'text-rose-700' : entry.balance < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
+                            {Math.abs(entry.balance).toFixed(2)} {entry.balance > 0 ? 'D' : entry.balance < 0 ? 'C' : ''}
+                          </td>
+                        </tr>
+                      ))}
+                      {clientLedger.entries.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-6 text-center text-slate-400 italic">Aucune transaction enregistrée pour ce client.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot className="bg-slate-100 font-black text-slate-900 border-t-2 border-slate-300">
+                      <tr>
+                        <td colSpan={4} className="p-2.5 text-right uppercase text-[10px] text-slate-600">TOTAUX ET SOLDE FINAL</td>
+                        <td className="p-2.5 text-right font-mono text-indigo-700">{clientLedger.totalBons.toFixed(2)} DH</td>
+                        <td className="p-2.5 text-right font-mono text-emerald-700">{clientLedger.totalPayments.toFixed(2)} DH</td>
+                        <td className={`p-2.5 text-right font-mono text-sm ${clientLedger.finalBalance > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                          {Math.abs(clientLedger.finalBalance).toFixed(2)} DH
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end">
+              <button
+                onClick={() => setIsClientReportModalOpen(false)}
+                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+              >
+                Fermer
+              </button>
             </div>
           </div>
         </div>
