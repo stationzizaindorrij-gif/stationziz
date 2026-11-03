@@ -25,6 +25,7 @@ import Clients from './components/Clients';
 import DailyClosing from './components/DailyClosing';
 import ExpensesModule from './components/ExpensesModule';
 import LavageGraissage from './components/LavageGraissage';
+import { PWAInstallSidebarButton, PWAHeaderButton, PWAMobileBanner } from './components/PWAInstallPrompt';
 
 type ActiveModule = 
   | 'dashboard' | 'attendants' | 'shifts' | 'tanks' | 'stock_calc' | 'assets' 
@@ -233,6 +234,7 @@ function AppContent({ session }: { session: any }) {
           </div>
         </main>
       </div>
+      <PWAMobileBanner />
     </div>
   );
 }
@@ -301,7 +303,7 @@ function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, s
       <aside className={`
         print:hidden
         fixed md:static inset-y-0 left-0 z-50
-        w-60 bg-slate-900 text-slate-300 flex flex-col
+        w-56 bg-slate-900 text-slate-300 flex flex-col
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
@@ -327,12 +329,12 @@ function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, s
           </button>
         </div>
         
-        <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-5 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-3 custom-scrollbar">
           {sections.map((section, sIdx) => (
-            <div key={sIdx} className="space-y-1">
+            <div key={sIdx} className="space-y-1 bg-slate-950/40 p-2 rounded-xl border border-slate-800/60">
               {section.title && (
-                <div className="px-2.5 pb-1 text-[9px] font-black uppercase tracking-wider text-slate-500/90 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/60 inline-block shrink-0"></span>
+                <div className="px-2 pb-1 text-[9px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1.5 border-b border-slate-800/80 mb-1.5 pt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block shrink-0"></span>
                   <span className="truncate">{section.title}</span>
                 </div>
               )}
@@ -347,13 +349,13 @@ function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, s
                       setIsOpen(false);
                     }}
                     className={`
-                      w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-200 group
+                      w-full flex items-center justify-between px-2.5 py-2 rounded-xl transition-all duration-200 group
                       ${isActive 
                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-bold' 
                         : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 font-medium'}
                     `}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
                       <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110 text-white' : 'text-slate-400 group-hover:scale-110 group-hover:text-slate-200'}`} />
                       <span className="text-xs tracking-wide truncate">{item.label}</span>
                     </div>
@@ -375,6 +377,7 @@ function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, s
         </nav>
 
         <div className="p-4 border-t border-slate-800 shrink-0">
+          <PWAInstallSidebarButton />
           <div className="bg-slate-800/50 rounded-xl p-3 mb-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
@@ -418,9 +421,9 @@ function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuCli
     daily_closing: 'Clôture Journalière'
   };
 
-return (
-    <header className="md:hidden print:hidden bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-      <div className="flex items-center gap-4">
+  return (
+    <header className="md:hidden print:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+      <div className="flex items-center gap-3">
         <button 
           onClick={onMenuClick}
           className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
@@ -428,10 +431,13 @@ return (
           <Menu className="w-6 h-6" />
         </button>
         <div>
-          <h2 className="text-lg font-black text-slate-800 tracking-tight">
+          <h2 className="text-base font-black text-slate-800 tracking-tight">
             {moduleNames[activeModule] || 'Dashboard'}
           </h2>
         </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <PWAHeaderButton />
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Mail, Lock, Loader2, Fuel } from 'lucide-react';
+import { PWAHeaderButton, PWAMobileBanner } from './PWAInstallPrompt';
 
 export default function Login({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('');
@@ -118,7 +119,13 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
             </button>
           </div>
         </div>
+
+        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <span>Application PWA installable</span>
+          <PWAHeaderButton />
+        </div>
       </div>
+      <PWAMobileBanner />
     </div>
   );
 }

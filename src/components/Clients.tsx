@@ -347,10 +347,10 @@ export default function Clients({ store }: ClientsProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsGeneralReportModalOpen(true)}
-            className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors shadow-sm font-semibold text-sm"
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-semibold text-sm"
           >
             <Printer className="w-4 h-4" />
-            Imprimer Rapport
+            Imprimer le rapport
           </button>
           <button
             onClick={() => {

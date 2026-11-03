@@ -174,16 +174,24 @@ export default function Attendants({ store }: AttendantsProps) {
     setDeleteConfirmId(null);
   };
 
-  // Helper to get discrepancy for a shift (respecting recorded discrepancy)
+  // Helper to get discrepancy for a shift (respecting recorded discrepancy or calculating carburants - encaissements)
   const getShiftFuelDiscrepancy = (s: any): number => {
     if (s.status !== 'completed') return 0;
-    if ((s.totalAmount || 0) === 0 && (s.totalLiters || 0) === 0 && (!s.realCashReceived || s.realCashReceived === 0)) {
-      return 0;
-    }
     if (s.discrepancy !== undefined && s.discrepancy !== null) {
       return Number(s.discrepancy) || 0;
     }
-    return 0;
+    const carteSntl = s.nonCashPayments?.carteSntl?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const espece = s.nonCashPayments?.espece?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const vignette = s.nonCashPayments?.vignette?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const bonClient = s.nonCashPayments?.bonClient?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const bonCarburantsVivo = s.nonCashPayments?.bonCarburantsVivo?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const tpe = s.nonCashPayments?.tpe?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const cheque = s.nonCashPayments?.cheque?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const virement = s.nonCashPayments?.virement?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const autre = s.nonCashPayments?.autre?.reduce((sum: any, item: any) => sum + item.amount, 0) || 0;
+    const nonCashTotal = carteSntl + espece + bonCarburantsVivo + vignette + bonClient + tpe + cheque + virement + autre;
+    const carburantsTotal = s.totalAmount || 0;
+    return carburantsTotal - nonCashTotal;
   };
 
   // Get active shifts count or last shifts for attendants
@@ -334,7 +342,7 @@ export default function Attendants({ store }: AttendantsProps) {
                           <span className="block font-bold text-slate-800 font-mono">{stats.litersSold} L</span>
                         </div>
                         <div>
-                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Écart Cumulé</span>
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Dépenses / Manquant</span>
                           <span className={`block font-bold font-mono ${stats.discrepancy < 0 ? 'text-rose-600' : stats.discrepancy > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
                             {stats.discrepancy === 0 ? '0' : `${stats.discrepancy > 0 ? '+' : ''}${stats.discrepancy}`} DH
                           </span>
@@ -466,11 +474,11 @@ export default function Attendants({ store }: AttendantsProps) {
               </div>
 
               <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 flex flex-col justify-between">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Écart Cumulé Réel</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dépenses / Manquant Cumulés</span>
                 <span className={`text-2xl font-bold font-mono mt-2 ${calcTotalDiscrepancy < 0 ? 'text-rose-600' : calcTotalDiscrepancy > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>
                   {calcTotalDiscrepancy === 0 ? '0.00' : `${calcTotalDiscrepancy > 0 ? '+' : ''}${calcTotalDiscrepancy.toFixed(2)}`} DH
                 </span>
-                <span className="text-[10px] text-slate-400 mt-1">écart financier cumulé</span>
+                <span className="text-[10px] text-slate-400 mt-1">total dépenses et écarts cumulés</span>
               </div>
             </div>
 
