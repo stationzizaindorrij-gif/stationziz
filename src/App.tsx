@@ -25,7 +25,7 @@ import Clients from './components/Clients';
 import DailyClosing from './components/DailyClosing';
 import ExpensesModule from './components/ExpensesModule';
 import LavageGraissage from './components/LavageGraissage';
-import { PWAInstallSidebarButton, PWAHeaderButton, PWAMobileBanner } from './components/PWAInstallPrompt';
+import { PWAInstallSidebarButton, PWAHeaderButton, PWAMobileBanner, PWAInstallModal } from './components/PWAInstallPrompt';
 
 type ActiveModule = 
   | 'dashboard' | 'attendants' | 'shifts' | 'tanks' | 'stock_calc' | 'assets' 
@@ -120,6 +120,7 @@ function AppContent({ session }: { session: any }) {
 
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isPWAModalOpen, setIsPWAModalOpen] = useState(false);
 
   // Auto-seed demo data for test@gmail.com if account is empty
   useEffect(() => {
@@ -205,12 +206,14 @@ function AppContent({ session }: { session: any }) {
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
         store={store}
+        onOpenInstall={() => setIsPWAModalOpen(true)}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative print:h-auto print:overflow-visible print:bg-white">
         <Header 
           activeModule={activeModule} 
           onMenuClick={() => setIsSidebarOpen(true)}
+          onOpenInstall={() => setIsPWAModalOpen(true)}
         />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 print:p-0 print:overflow-visible print:bg-white">
@@ -234,7 +237,8 @@ function AppContent({ session }: { session: any }) {
           </div>
         </main>
       </div>
-      <PWAMobileBanner />
+      <PWAMobileBanner onOpen={() => setIsPWAModalOpen(true)} />
+      <PWAInstallModal isOpen={isPWAModalOpen} onClose={() => setIsPWAModalOpen(false)} />
     </div>
   );
 }
@@ -279,13 +283,14 @@ function App() {
 
 export default App;
 
-function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, store }: {
+function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, store, onOpenInstall }: {
   sections: { title: string; items: any[] }[];
   activeModule: string;
   setActiveModule: (m: string) => void;
   isOpen: boolean;
   setIsOpen: (o: boolean) => void;
   store: any;
+  onOpenInstall: () => void;
 }) {
 
   const handleLogout = async () => {
@@ -303,21 +308,21 @@ function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, s
       <aside className={`
         print:hidden
         fixed md:static inset-y-0 left-0 z-50
-        w-56 bg-slate-900 text-slate-300 flex flex-col
+        w-64 bg-slate-900 text-slate-300 flex flex-col
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="p-4 flex items-center justify-between border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 overflow-hidden shrink-0">
+        <div className="p-3.5 flex items-center justify-between border-b border-slate-800 shrink-0 overflow-hidden">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 overflow-hidden shrink-0">
               {(store.config.logo && (store.config.logo.startsWith('data:') || store.config.logo.startsWith('http') || store.config.logo.length > 5)) ? (
                 <img src={store.config.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : (
-                <span className="text-lg">{store.config.logo || '⛽'}</span>
+                <span className="text-base">{store.config.logo || '⛽'}</span>
               )}
             </div>
-            <div className="min-w-0">
-              <h1 className="text-base font-black text-white tracking-tight truncate">{store.config.name}</h1>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-sm font-black text-white tracking-tight truncate" title={store.config.name}>{store.config.name}</h1>
               <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider truncate">ERP System</p>
             </div>
           </div>
@@ -377,7 +382,7 @@ function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, s
         </nav>
 
         <div className="p-4 border-t border-slate-800 shrink-0">
-          <PWAInstallSidebarButton />
+          <PWAInstallSidebarButton onOpen={onOpenInstall} />
           <div className="bg-slate-800/50 rounded-xl p-3 mb-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
@@ -401,7 +406,7 @@ function Sidebar({ sections, activeModule, setActiveModule, isOpen, setIsOpen, s
   );
 }
 
-function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuClick: () => void }) {
+function Header({ activeModule, onMenuClick, onOpenInstall }: { activeModule: string; onMenuClick: () => void; onOpenInstall: () => void }) {
   const moduleNames: Record<string, string> = {
     dashboard: 'Accueil',
     attendants: 'Gestion des employés',
@@ -437,7 +442,7 @@ function Header({ activeModule, onMenuClick }: { activeModule: string; onMenuCli
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <PWAHeaderButton />
+        <PWAHeaderButton onOpen={onOpenInstall} />
       </div>
     </header>
   );

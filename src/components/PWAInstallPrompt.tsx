@@ -21,10 +21,10 @@ export function PWAInstallModal({ isOpen, onClose }: { isOpen: boolean; onClose:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden text-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden text-slate-800 flex flex-col">
         {/* Header with gradient */}
-        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-slate-900 text-white p-6 relative">
+        <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-slate-900 text-white p-4 sm:p-6 relative shrink-0">
           <button 
             onClick={onClose}
             className="absolute top-4 right-4 p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
@@ -33,23 +33,23 @@ export function PWAInstallModal({ isOpen, onClose }: { isOpen: boolean; onClose:
           </button>
           
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 p-2 flex items-center justify-center shadow-inner">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 p-2 flex items-center justify-center shadow-inner shrink-0">
               <img src="/pwa-192x192.png" alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-black tracking-tight text-white">Installer StationERP</h3>
+            <div className="min-w-0 pr-6">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base sm:text-lg font-black tracking-tight text-white truncate">Installer StationERP</h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
                   PWA Officielle
                 </span>
               </div>
-              <p className="text-xs text-indigo-200 mt-0.5">Application autonome pour PC, Mac, Android & iPhone</p>
+              <p className="text-xs text-indigo-200 mt-0.5 truncate">Application autonome pour PC, Mac, Android & iPhone</p>
             </div>
           </div>
         </div>
 
         {/* Body content */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 custom-scrollbar">
           {installSuccess ? (
             <div className="text-center py-6 space-y-3">
               <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-inner">
@@ -184,7 +184,7 @@ export function PWAInstallModal({ isOpen, onClose }: { isOpen: boolean; onClose:
 /**
  * Button rendered in the Sidebar (for Desktop & Mobile navigation)
  */
-export function PWAInstallSidebarButton() {
+export function PWAInstallSidebarButton({ onOpen }: { onOpen?: () => void }) {
   const { isInstallable, install, isInstalled } = usePWAInstall();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -202,10 +202,12 @@ export function PWAInstallSidebarButton() {
     if (isInstallable) {
       const ok = await install();
       if (!ok) {
-        setIsModalOpen(true);
+        if (onOpen) onOpen();
+        else setIsModalOpen(true);
       }
     } else {
-      setIsModalOpen(true);
+      if (onOpen) onOpen();
+      else setIsModalOpen(true);
     }
   };
 
@@ -225,7 +227,7 @@ export function PWAInstallSidebarButton() {
         </span>
       </button>
 
-      <PWAInstallModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      {!onOpen && <PWAInstallModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}
     </>
   );
 }
@@ -233,7 +235,7 @@ export function PWAInstallSidebarButton() {
 /**
  * Mobile floating banner / badge to prompt install on phones
  */
-export function PWAMobileBanner() {
+export function PWAMobileBanner({ onOpen }: { onOpen?: () => void }) {
   const { isInstalled, isInstallable, install } = usePWAInstall();
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -258,10 +260,12 @@ export function PWAMobileBanner() {
     if (isInstallable) {
       const ok = await install();
       if (!ok) {
-        setIsModalOpen(true);
+        if (onOpen) onOpen();
+        else setIsModalOpen(true);
       }
     } else {
-      setIsModalOpen(true);
+      if (onOpen) onOpen();
+      else setIsModalOpen(true);
     }
   };
 
@@ -269,36 +273,36 @@ export function PWAMobileBanner() {
     <>
       <aside 
         aria-label="Installation de l'application"
-        className="md:hidden fixed bottom-3 left-3 right-3 z-40 bg-slate-900 text-white p-3.5 rounded-2xl shadow-2xl border border-slate-700/60 flex items-center justify-between gap-3 animate-slide-up print:hidden"
+        className="md:hidden fixed bottom-2 left-2 right-2 z-40 bg-slate-900 text-white p-2.5 rounded-xl shadow-xl border border-slate-700/60 flex items-center justify-between gap-2 animate-slide-up print:hidden"
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 p-1.5 flex items-center justify-center shrink-0 shadow-inner">
-            <img src="/pwa-192x192.png" alt="Logo" className="w-7 h-7 object-contain rounded-md" />
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-indigo-600 p-1 flex items-center justify-center shrink-0 shadow-inner">
+            <img src="/pwa-192x192.png" alt="Logo" className="w-6 h-6 object-contain rounded" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-bold text-white truncate">Installer StationERP</p>
-            <p className="text-[10px] text-slate-400 truncate">Ajoutez à l'écran d'accueil pour un accès rapide</p>
+            <p className="text-[11px] font-bold text-white truncate">Installer StationERP</p>
+            <p className="text-[9px] text-slate-400 truncate">Écran d'accueil mobile</p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={handleAction}
-            className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-sm transition-all"
+            className="px-2.5 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all"
           >
             Installer
           </button>
           <button
             onClick={handleDismiss}
-            aria-label="Fermer la bannière d'installation"
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            aria-label="Fermer"
+            className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </aside>
 
-      <PWAInstallModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      {!onOpen && <PWAInstallModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}
     </>
   );
 }
@@ -306,7 +310,7 @@ export function PWAMobileBanner() {
 /**
  * Top Header Install Button for mobile and desktop
  */
-export function PWAHeaderButton() {
+export function PWAHeaderButton({ onOpen }: { onOpen?: () => void }) {
   const { isInstalled, isInstallable, install } = usePWAInstall();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -316,10 +320,12 @@ export function PWAHeaderButton() {
     if (isInstallable) {
       const ok = await install();
       if (!ok) {
-        setIsModalOpen(true);
+        if (onOpen) onOpen();
+        else setIsModalOpen(true);
       }
     } else {
-      setIsModalOpen(true);
+      if (onOpen) onOpen();
+      else setIsModalOpen(true);
     }
   };
 
@@ -335,7 +341,7 @@ export function PWAHeaderButton() {
         <span className="sm:hidden">Installer</span>
       </button>
 
-      <PWAInstallModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      {!onOpen && <PWAInstallModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />}
     </>
   );
 }
