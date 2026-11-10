@@ -35,7 +35,8 @@ type ActiveModule =
 function AppContent({ session }: { session: any }) {
   const store = useERPStore();
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 18 });
+  const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 21 });
+  const [loadErrors, setLoadErrors] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,9 +57,16 @@ function AppContent({ session }: { session: any }) {
           for (let i = 0; i < keys.length; i += chunkSize) {
             const chunk = keys.slice(i, i + chunkSize);
             await Promise.all(chunk.map(async (k) => {
-              try { await fetcher(k); } catch(e) { console.error(e); }
-              loaded++;
-              setLoadProgress({ loaded, total });
+              try {
+                await fetcher(k);
+              } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                console.error(`Failed to load erp_${k}:`, error);
+                setLoadErrors(previous => [...previous, `erp_${k}: ${message}`]);
+              } finally {
+                loaded++;
+                setLoadProgress({ loaded, total });
+              }
             }));
           }
         };
@@ -77,7 +85,10 @@ function AppContent({ session }: { session: any }) {
               .order('id')
               .range(from, from + step - 1);
               
-            if (error || !data || data.length === 0) {
+            if (error) {
+              throw error;
+            }
+            if (!data || data.length === 0) {
               hasMore = false;
             } else {
               allData = [...allData, ...data];
@@ -90,7 +101,8 @@ function AppContent({ session }: { session: any }) {
         
         const objectKeys = ['cash_registry', 'config'];
         await runInChunks(objectKeys, async (k) => {
-          const { data } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id).limit(1);
+          const { data, error } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id).limit(1);
+          if (error) throw error;
           if (data && data.length > 0) fetchedData[k] = data[0];
         }, 2);
 
@@ -109,7 +121,9 @@ function AppContent({ session }: { session: any }) {
 
         store.loadInitialData(sanitizeNulls(fetchedData));
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
         console.error('Erreur de chargement', err);
+        setLoadErrors(previous => [...previous, message]);
       } finally {
         setDataLoaded(true);
       }
@@ -217,6 +231,15 @@ function AppContent({ session }: { session: any }) {
         />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 print:p-0 print:overflow-visible print:bg-white">
+          {loadErrors.length > 0 && (
+            <div role="status" className="max-w-[1400px] mx-auto mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-bold">Certaines données n'ont pas pu être synchronisées.</p>
+              <p className="mt-1 text-xs">Vérifiez les tables et les permissions Supabase avant de considérer les données comme à jour.</p>
+              <ul className="mt-2 list-disc pl-5 text-xs">
+                {loadErrors.map((error, index) => <li key={index}>{error}</li>)}
+              </ul>
+            </div>
+          )}
           <div className="max-w-[1400px] mx-auto h-full">
             {activeModule === 'dashboard' && <Dashboard store={store} setView={setActiveModule} />}
             {activeModule === 'tanks' && <Tanks store={store} />}
