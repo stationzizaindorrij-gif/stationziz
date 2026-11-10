@@ -78,7 +78,13 @@ function AppContent({ session }: { session: any }) {
               .order('id')
               .range(from, from + step - 1);
               
-            if (error || !data || data.length === 0) {
+            if (error) {
+              throw new Error(`فشل تحميل جدول ${k}: ${error.message}`);
+            }
+            if (!data) {
+              throw new Error(`لم يتم إرجاع بيانات جدول ${k} من قاعدة البيانات.`);
+            }
+            if (data.length === 0) {
               hasMore = false;
             } else {
               allData = [...allData, ...data];
@@ -91,8 +97,14 @@ function AppContent({ session }: { session: any }) {
         
         const objectKeys = ['cash_registry', 'config'];
         await runInChunks(objectKeys, async (k) => {
-          const { data } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id).limit(1);
-          if (data && data.length > 0) fetchedData[k] = data[0];
+          const { data, error } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id).limit(1);
+          if (error) {
+            throw new Error(`فشل تحميل جدول ${k}: ${error.message}`);
+          }
+          if (!data) {
+            throw new Error(`لم يتم إرجاع بيانات جدول ${k} من قاعدة البيانات.`);
+          }
+          if (data.length > 0) fetchedData[k] = data[0];
         }, 2);
 
         const sanitizeNulls = (obj: any): any => {
