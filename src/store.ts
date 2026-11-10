@@ -654,27 +654,9 @@ export function useERPStore(): ERPStoreType {
             saveState('shop_products', loadedShopProducts, setShopProducts);
           }, 1000);
         }
-        let loadedTanks = data.tanks || [];
-        let tanksUpdated = false;
-        loadedTanks = loadedTanks.map((t: any) => {
-          const numberLower = (t.number || '').toLowerCase();
-          const matchesName = 
-            numberLower.includes('citenre 20t n7') || 
-            numberLower.includes('citerne 20t n7') ||
-            (numberLower.includes('citerne') && numberLower.includes('20') && numberLower.includes('7')) ||
-            (numberLower.includes('citenre') && numberLower.includes('20') && numberLower.includes('7'));
-          if (matchesName && Math.abs(t.currentLevel - 6200) < 0.1) {
-            tanksUpdated = true;
-            return { ...t, currentLevel: 8795.94 };
-          }
-          return t;
-        });
+        // Keep tank measurements exactly as stored; never rewrite real stock levels automatically.
+        const loadedTanks = data.tanks || [];
         setTanks(loadedTanks);
-        if (tanksUpdated) {
-          setTimeout(() => {
-            saveState('tanks', loadedTanks, setTanks);
-          }, 1000);
-        }
         let loadedPumps = data.pumps || [];
         loadedPumps = loadedPumps.map((p: any) => ({
           id: p.id,

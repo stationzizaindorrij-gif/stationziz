@@ -35,7 +35,8 @@ type ActiveModule =
 function AppContent({ session }: { session: any }) {
   const store = useERPStore();
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 18 });
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 21 });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,7 +57,7 @@ function AppContent({ session }: { session: any }) {
           for (let i = 0; i < keys.length; i += chunkSize) {
             const chunk = keys.slice(i, i + chunkSize);
             await Promise.all(chunk.map(async (k) => {
-              try { await fetcher(k); } catch(e) { console.error(e); }
+              await fetcher(k);
               loaded++;
               setLoadProgress({ loaded, total });
             }));
@@ -77,7 +78,13 @@ function AppContent({ session }: { session: any }) {
               .order('id')
               .range(from, from + step - 1);
               
-            if (error || !data || data.length === 0) {
+            if (error) {
+              throw new Error(`فشل تحميل جدول ${k}: ${error.message}`);
+            }
+            if (!data) {
+              throw new Error(`لم يتم إرجاع بيانات جدول ${k} من قاعدة البيانات.`);
+            }
+            if (data.length === 0) {
               hasMore = false;
             } else {
               allData = [...allData, ...data];
@@ -90,8 +97,14 @@ function AppContent({ session }: { session: any }) {
         
         const objectKeys = ['cash_registry', 'config'];
         await runInChunks(objectKeys, async (k) => {
-          const { data } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id).limit(1);
-          if (data && data.length > 0) fetchedData[k] = data[0];
+          const { data, error } = await supabase.from(`erp_${k}`).select('*').eq('user_id', session.user.id).limit(1);
+          if (error) {
+            throw new Error(`فشل تحميل جدول ${k}: ${error.message}`);
+          }
+          if (!data) {
+            throw new Error(`لم يتم إرجاع بيانات جدول ${k} من قاعدة البيانات.`);
+          }
+          if (data.length > 0) fetchedData[k] = data[0];
         }, 2);
 
         const sanitizeNulls = (obj: any): any => {
@@ -110,6 +123,7 @@ function AppContent({ session }: { session: any }) {
         store.loadInitialData(sanitizeNulls(fetchedData));
       } catch (err) {
         console.error('Erreur de chargement', err);
+        setLoadError(err instanceof Error ? err.message : 'Impossible de charger les données depuis le serveur.');
       } finally {
         setDataLoaded(true);
       }
@@ -148,6 +162,19 @@ function AppContent({ session }: { session: any }) {
               {loadProgress.loaded} / {loadProgress.total} modules chargés
             </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-lg w-full bg-white rounded-2xl shadow-lg border border-rose-100 p-8 text-center">
+          <h2 className="text-lg font-bold text-slate-800">تعذر تحميل البيانات</h2>
+          <p className="text-sm text-slate-600 mt-3">ما قدرناش نحمّلو جميع البيانات من قاعدة البيانات. وقفنا فتح البرنامج باش ما تبانش المعلومات ناقصة وما يتبدل حتى شيء بالغلط.</p>
+          <p className="text-xs text-rose-600 mt-3 break-words">{loadError}</p>
+          <button onClick={() => window.location.reload()} className="mt-6 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700">إعادة المحاولة</button>
         </div>
       </div>
     );
